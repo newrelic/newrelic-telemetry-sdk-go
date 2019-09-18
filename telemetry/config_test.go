@@ -1,0 +1,139 @@
+// Copyright 2019 New Relic Corporation. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+package telemetry
+
+import (
+	"bytes"
+	"strings"
+	"testing"
+)
+
+func TestConfigAPIKey(t *testing.T) {
+	apikey := "apikey"
+	h, err := NewHarvester(ConfigAPIKey(apikey))
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	if h.config.APIKey != apikey {
+		t.Error("config func does not set APIKey correctly")
+	}
+}
+
+func TestConfigMissingAPIKey(t *testing.T) {
+	h, err := NewHarvester()
+	if nil != h || err != errAPIKeyUnset {
+		t.Fatal(h, err)
+	}
+}
+
+func TestConfigHarvestPeriod(t *testing.T) {
+	h, err := NewHarvester(ConfigAPIKey("apikey"), ConfigHarvestPeriod(0))
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	if 0 != h.config.HarvestPeriod {
+		t.Error("config func does not set harvest period correctly")
+	}
+}
+
+func TestConfigBasicErrorLogger(t *testing.T) {
+	buf := new(bytes.Buffer)
+	h, err := NewHarvester(configTesting, ConfigBasicErrorLogger(buf))
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	buf.Reset()
+	h.config.logError(map[string]interface{}{"zip": "zap"})
+	if log := buf.String(); !strings.Contains(log, "{\"zip\":\"zap\"}") {
+		t.Error("message not logged correctly", log)
+	}
+
+	buf.Reset()
+	h.config.logError(map[string]interface{}{"zip": func() {}})
+	if log := buf.String(); !strings.Contains(log, "json: unsupported type: func()") {
+		t.Error("message not logged correctly", log)
+	}
+}
+
+func TestConfigBasicDebugLogger(t *testing.T) {
+	buf := new(bytes.Buffer)
+	h, err := NewHarvester(configTesting, ConfigBasicDebugLogger(buf))
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	buf.Reset()
+	h.config.logDebug(map[string]interface{}{"zip": "zap"})
+	if log := buf.String(); !strings.Contains(log, "{\"zip\":\"zap\"}") {
+		t.Error("message not logged correctly", log)
+	}
+
+	buf.Reset()
+	h.config.logDebug(map[string]interface{}{"zip": func() {}})
+	if log := buf.String(); !strings.Contains(log, "json: unsupported type: func()") {
+		t.Error("message not logged correctly", log)
+	}
+}
+
+func TestConfigAuditLogger(t *testing.T) {
+	h, err := NewHarvester(configTesting)
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	if enabled := h.config.auditLogEnabled(); enabled {
+		t.Error("audit logging should not be enabled", enabled)
+	}
+	// This should not panic.
+	h.config.logAudit(map[string]interface{}{"zip": "zap"})
+
+	buf := new(bytes.Buffer)
+	h, err = NewHarvester(configTesting, ConfigBasicAuditLogger(buf))
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	if enabled := h.config.auditLogEnabled(); !enabled {
+		t.Error("audit logging should be enabled", enabled)
+	}
+	h.config.logAudit(map[string]interface{}{"zip": "zap"})
+	if lg := buf.String(); !strings.Contains(lg, `{"zip":"zap"}`) {
+		t.Error("audit message not logged correctly", lg)
+	}
+}
+
+func TestConfigMetricURL(t *testing.T) {
+	h, err := NewHarvester(configTesting)
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	if u := h.config.metricURL(); u != defaultMetricURL {
+		t.Fatal(u)
+	}
+	h, err = NewHarvester(configTesting, func(cfg *Config) {
+		cfg.MetricsURLOverride = "metric-url-override"
+	})
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	if u := h.config.metricURL(); u != "metric-url-override" {
+		t.Fatal(u)
+	}
+}
+
+func TestConfigSpanURL(t *testing.T) {
+	h, err := NewHarvester(configTesting)
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	if u := h.config.spanURL(); u != defaultSpanURL {
+		t.Fatal(u)
+	}
+	h, err = NewHarvester(configTesting, func(cfg *Config) {
+		cfg.SpansURLOverride = "span-url-override"
+	})
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	if u := h.config.spanURL(); u != "span-url-override" {
+		t.Fatal(u)
+	}
+}
