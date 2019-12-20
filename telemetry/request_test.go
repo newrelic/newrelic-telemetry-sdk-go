@@ -37,7 +37,7 @@ func TestNewRequestsSplitSuccess(t *testing.T) {
 			json.RawMessage(`123456789`),
 		},
 	}
-	reqs, err := newRequestsInternal(ts, "", "", func(r request) bool {
+	reqs, err := newRequestsInternal(ts, "", "", "", func(r request) bool {
 		return len(r.UncompressedBody) >= 10
 	})
 	if err != nil {
@@ -56,7 +56,7 @@ func TestNewRequestsCantSplit(t *testing.T) {
 			json.RawMessage(`12345678901`),
 		},
 	}
-	reqs, err := newRequestsInternal(ts, "", "", func(r request) bool {
+	reqs, err := newRequestsInternal(ts, "", "", "", func(r request) bool {
 		return len(r.UncompressedBody) >= 10
 	})
 	if err != errUnableToSplit {
@@ -78,7 +78,7 @@ func randomJSON(numBytes int) json.RawMessage {
 
 func TestLargeRequestNeedsSplit(t *testing.T) {
 	js := randomJSON(4 * maxCompressedSizeBytes)
-	reqs, err := newRequests(testRequestBuilder{bodies: []json.RawMessage{js}}, "apiKey", defaultMetricURL)
+	reqs, err := newRequests(testRequestBuilder{bodies: []json.RawMessage{js}}, "apiKey", defaultMetricURL, "userAgent")
 	if reqs != nil {
 		t.Error(reqs)
 	}
@@ -89,7 +89,7 @@ func TestLargeRequestNeedsSplit(t *testing.T) {
 
 func TestLargeRequestNoSplit(t *testing.T) {
 	js := randomJSON(maxCompressedSizeBytes / 2)
-	reqs, err := newRequests(testRequestBuilder{bodies: []json.RawMessage{js}}, "apiKey", defaultMetricURL)
+	reqs, err := newRequests(testRequestBuilder{bodies: []json.RawMessage{js}}, "apiKey", defaultMetricURL, "userAgent")
 	if err != nil {
 		t.Fatal(err)
 	}

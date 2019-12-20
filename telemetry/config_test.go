@@ -137,3 +137,46 @@ func TestConfigSpanURL(t *testing.T) {
 		t.Fatal(u)
 	}
 }
+
+func TestConfigUserAgent(t *testing.T) {
+	testcases := []struct {
+		option func(*Config)
+		expect string
+	}{
+		{
+			option: func(*Config) {},
+			expect: "NewRelic-Go-TelemetrySDK/" + version,
+		},
+		{
+			option: func(cfg *Config) {
+				cfg.Product = "myProduct"
+			},
+			expect: "NewRelic-Go-TelemetrySDK/" + version + " myProduct",
+		},
+		{
+			option: func(cfg *Config) {
+				cfg.Product = "myProduct"
+				cfg.ProductVersion = "0.1.0"
+			},
+			expect: "NewRelic-Go-TelemetrySDK/" + version + " myProduct/0.1.0",
+		},
+		{
+			option: func(cfg *Config) {
+				// Only use ProductVersion if Product is set.
+				cfg.ProductVersion = "0.1.0"
+			},
+			expect: "NewRelic-Go-TelemetrySDK/" + version,
+		},
+	}
+
+	for idx, tc := range testcases {
+		h, err := NewHarvester(configTesting, tc.option)
+		if nil == h || err != nil {
+			t.Fatal(h, err)
+		}
+		agent := h.config.userAgent()
+		if agent != tc.expect {
+			t.Error(idx, tc.expect, agent)
+		}
+	}
+}

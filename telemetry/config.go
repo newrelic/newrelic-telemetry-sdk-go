@@ -41,6 +41,10 @@ type Config struct {
 	MetricsURLOverride string
 	// SpansURLOverride overrides the spans endpoint if not not empty.
 	SpansURLOverride string
+	// Product is added to the User-Agent header. eg. "NewRelic-Go-OpenCensus"
+	Product string
+	// ProductVersion is added to the User-Agent header. eg. "0.1.0".
+	ProductVersion string
 }
 
 // ConfigAPIKey sets the Config's APIKey which is required.
@@ -152,4 +156,17 @@ func (cfg *Config) metricURL() string {
 		return cfg.MetricsURLOverride
 	}
 	return defaultMetricURL
+}
+
+// userAgent creates the User-Agent header version according to the spec here:
+// https://github.com/newrelic/newrelic-telemetry-sdk-specs/blob/master/communication.md#user-agent
+func (cfg *Config) userAgent() string {
+	agent := "NewRelic-Go-TelemetrySDK/" + version
+	if "" != cfg.Product {
+		agent += " " + cfg.Product
+		if "" != cfg.ProductVersion {
+			agent += "/" + cfg.ProductVersion
+		}
+	}
+	return agent
 }

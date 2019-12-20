@@ -152,7 +152,11 @@ func TestHarvestCancelled(t *testing.T) {
 }
 
 func TestNewRequestHeaders(t *testing.T) {
-	h, _ := NewHarvester(configTesting)
+	h, _ := NewHarvester(configTesting, func(cfg *Config) {
+		cfg.Product = "myProduct"
+		cfg.ProductVersion = "0.1.0"
+	})
+	expectUserAgent := "NewRelic-Go-TelemetrySDK/" + version + " myProduct/0.1.0"
 	h.RecordSpan(Span{TraceID: "id", ID: "id"})
 	h.RecordMetric(Gauge{})
 
@@ -164,8 +168,8 @@ func TestNewRequestHeaders(t *testing.T) {
 	if h := req.Request.Header.Get("Content-Encoding"); "gzip" != h {
 		t.Error("incorrect Content-Encoding header", req.Request.Header)
 	}
-	if h := req.Request.Header.Get("User-Agent"); "" == h {
-		t.Error("User-Agent header not found", req.Request.Header)
+	if h := req.Request.Header.Get("User-Agent"); expectUserAgent != h {
+		t.Error("User-Agent header incorrect", req.Request.Header)
 	}
 
 	reqs = h.swapOutMetrics(time.Now())
@@ -182,8 +186,8 @@ func TestNewRequestHeaders(t *testing.T) {
 	if h := req.Request.Header.Get("Content-Encoding"); "gzip" != h {
 		t.Error("incorrect Content-Encoding header", h)
 	}
-	if h := req.Request.Header.Get("User-Agent"); "" == h {
-		t.Error("User-Agent header not found", h)
+	if h := req.Request.Header.Get("User-Agent"); expectUserAgent != h {
+		t.Error("User-Agent header incorrect", h)
 	}
 }
 
