@@ -41,9 +41,21 @@ type Count struct {
 	Interval time.Duration
 }
 
+func (m Count) validate() map[string]interface{} {
+	if err := isFloatValid(m.Value); err != nil {
+		return map[string]interface{}{
+			"message": "invalid count value",
+			"name":    m.Name,
+			"err":     err.Error(),
+		}
+	}
+	return nil
+}
+
 // Metric is implemented by Count, Gauge, and Summary.
 type Metric interface {
 	writeJSON(buf *bytes.Buffer)
+	validate() map[string]interface{}
 }
 
 func writeTimestampInterval(w *internal.JSONFieldsWriter, timestamp time.Time, interval time.Duration) {
@@ -104,6 +116,24 @@ type Summary struct {
 	Interval time.Duration
 }
 
+func (m Summary) validate() map[string]interface{} {
+	for _, v := range []float64{
+		m.Count,
+		m.Sum,
+		m.Min,
+		m.Max,
+	} {
+		if err := isFloatValid(v); err != nil {
+			return map[string]interface{}{
+				"message": "invalid summary field",
+				"name":    m.Name,
+				"err":     err.Error(),
+			}
+		}
+	}
+	return nil
+}
+
 func (m Summary) writeJSON(buf *bytes.Buffer) {
 	w := internal.JSONFieldsWriter{Buf: buf}
 	buf.WriteByte('{')
@@ -153,6 +183,17 @@ type Gauge struct {
 	// Timestamp is the time at which this metric was gathered.  If
 	// Timestamp is unset then the Harvester's period start will be used.
 	Timestamp time.Time
+}
+
+func (m Gauge) validate() map[string]interface{} {
+	if err := isFloatValid(m.Value); err != nil {
+		return map[string]interface{}{
+			"message": "invalid gauge field",
+			"name":    m.Name,
+			"err":     err.Error(),
+		}
+	}
+	return nil
 }
 
 func (m Gauge) writeJSON(buf *bytes.Buffer) {

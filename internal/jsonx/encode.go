@@ -8,9 +8,7 @@ package jsonx
 
 import (
 	"bytes"
-	"encoding/json"
 	"math"
-	"reflect"
 	"strconv"
 	"unicode/utf8"
 )
@@ -104,33 +102,30 @@ func AppendStringArray(buf *bytes.Buffer, a ...string) {
 }
 
 // AppendFloat appends a numeric literal representing the value to buf.
-func AppendFloat(buf *bytes.Buffer, x float64) error {
+func AppendFloat(buf *bytes.Buffer, x float64) {
 	var scratch [64]byte
 
-	if math.IsInf(x, 0) || math.IsNaN(x) {
-		return &json.UnsupportedValueError{
-			Value: reflect.ValueOf(x),
-			Str:   strconv.FormatFloat(x, 'g', -1, 64),
-		}
+	if math.IsInf(x, 0) {
+		AppendString(buf, "infinity")
+		return
 	}
-
+	if math.IsNaN(x) {
+		AppendString(buf, "NaN")
+		return
+	}
 	buf.Write(strconv.AppendFloat(scratch[:0], x, 'g', -1, 64))
-	return nil
 }
 
 // AppendFloatArray appends an array of numeric literals to buf.
-func AppendFloatArray(buf *bytes.Buffer, a ...float64) error {
+func AppendFloatArray(buf *bytes.Buffer, a ...float64) {
 	buf.WriteByte('[')
 	for i, x := range a {
 		if i > 0 {
 			buf.WriteByte(',')
 		}
-		if err := AppendFloat(buf, x); err != nil {
-			return err
-		}
+		AppendFloat(buf, x)
 	}
 	buf.WriteByte(']')
-	return nil
 }
 
 // AppendInt appends a numeric literal representing the value to buf.

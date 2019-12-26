@@ -136,6 +136,11 @@ func (h *Harvester) RecordMetric(m Metric) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
+	if fields := m.validate(); nil != fields {
+		h.config.logError(fields)
+		return
+	}
+
 	h.rawMetrics = append(h.rawMetrics, m)
 }
 

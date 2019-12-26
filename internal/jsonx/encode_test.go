@@ -12,20 +12,21 @@ import (
 
 func TestAppendFloat(t *testing.T) {
 	buf := &bytes.Buffer{}
-
-	err := AppendFloat(buf, math.NaN())
-	if err == nil {
-		t.Error("AppendFloat(NaN) should return an error")
+	AppendFloat(buf, math.NaN())
+	if want, got := `"NaN"`, buf.String(); want != got {
+		t.Error(got, want)
 	}
 
-	err = AppendFloat(buf, math.Inf(1))
-	if err == nil {
-		t.Error("AppendFloat(+Inf) should return an error")
+	buf.Reset()
+	AppendFloat(buf, math.Inf(1))
+	if want, got := `"infinity"`, buf.String(); want != got {
+		t.Error(got, want)
 	}
 
-	err = AppendFloat(buf, math.Inf(-1))
-	if err == nil {
-		t.Error("AppendFloat(-Inf) should return an error")
+	buf.Reset()
+	AppendFloat(buf, math.Inf(-1))
+	if want, got := `"infinity"`, buf.String(); want != got {
+		t.Error(got, want)
 	}
 }
 

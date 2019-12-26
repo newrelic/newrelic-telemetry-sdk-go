@@ -4,7 +4,9 @@
 package telemetry
 
 import (
+	"math"
 	"os"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -207,4 +209,72 @@ func TestSummaryMinMax(t *testing.T) {
 	s.Record(3)
 	expect := `[{"name":"sum","type":"summary","value":{"sum":6,"count":3,"min":1,"max":3},"attributes":{}}]`
 	testHarvesterMetrics(t, h, expect)
+}
+
+func configSaveErrors(savedErrors *[]map[string]interface{}) func(cfg *Config) {
+	return func(cfg *Config) {
+		cfg.ErrorLogger = func(e map[string]interface{}) {
+			*savedErrors = append(*savedErrors, e)
+		}
+	}
+}
+
+func TestInvalidAggregatedSummaryValue(t *testing.T) {
+	var summary *AggregatedSummary
+	summary.Record(math.NaN())
+
+	var savedErrors []map[string]interface{}
+	h, _ := NewHarvester(configTesting, configSaveErrors(&savedErrors))
+	summary = h.MetricAggregator().Summary("summary", map[string]interface{}{})
+	summary.Record(math.NaN())
+
+	if len(savedErrors) != 1 || !reflect.DeepEqual(savedErrors[0], map[string]interface{}{
+		"err":     errFloatNaN.Error(),
+		"message": "invalid aggregated summary value",
+	}) {
+		t.Error(savedErrors)
+	}
+	if len(h.aggregatedMetrics) != 0 {
+		t.Error(h.aggregatedMetrics)
+	}
+}
+
+func TestInvalidAggregatedCountValue(t *testing.T) {
+	var count *AggregatedCount
+	count.Increase(math.Inf(1))
+
+	var savedErrors []map[string]interface{}
+	h, _ := NewHarvester(configTesting, configSaveErrors(&savedErrors))
+	count = h.MetricAggregator().Count("count", map[string]interface{}{})
+	count.Increase(math.Inf(1))
+
+	if len(savedErrors) != 1 || !reflect.DeepEqual(savedErrors[0], map[string]interface{}{
+		"err":     errFloatInfinity.Error(),
+		"message": "invalid aggregated count value",
+	}) {
+		t.Error(savedErrors)
+	}
+	if len(h.aggregatedMetrics) != 0 {
+		t.Error(h.aggregatedMetrics)
+	}
+}
+
+func TestInvalidAggregatedGaugeValue(t *testing.T) {
+	var gauge *AggregatedGauge
+	gauge.Value(math.Inf(-1))
+
+	var savedErrors []map[string]interface{}
+	h, _ := NewHarvester(configTesting, configSaveErrors(&savedErrors))
+	gauge = h.MetricAggregator().Gauge("gauge", map[string]interface{}{})
+	gauge.Value(math.Inf(-1))
+
+	if len(savedErrors) != 1 || !reflect.DeepEqual(savedErrors[0], map[string]interface{}{
+		"err":     errFloatInfinity.Error(),
+		"message": "invalid aggregated gauge value",
+	}) {
+		t.Error(savedErrors)
+	}
+	if len(h.aggregatedMetrics) != 0 {
+		t.Error(h.aggregatedMetrics)
+	}
 }

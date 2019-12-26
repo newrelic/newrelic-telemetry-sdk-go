@@ -5,8 +5,25 @@ package telemetry
 
 import (
 	"encoding/json"
+	"errors"
+	"math"
 	"time"
 )
+
+var (
+	errFloatInfinity = errors.New("invalid float is infinity")
+	errFloatNaN      = errors.New("invalid float is NaN")
+)
+
+func isFloatValid(f float64) error {
+	if math.IsInf(f, 0) {
+		return errFloatInfinity
+	}
+	if math.IsNaN(f) {
+		return errFloatNaN
+	}
+	return nil
+}
 
 // AggregatedCount is the metric type that counts the number of times an event occurred.
 // This counter is reset every time the data is reported, meaning the value
@@ -43,6 +60,14 @@ func (c *AggregatedCount) Increase(val float64) {
 
 	h.lock.Lock()
 	defer h.lock.Unlock()
+
+	if err := isFloatValid(val); err != nil {
+		h.config.logError(map[string]interface{}{
+			"message": "invalid aggregated count value",
+			"err":     err.Error(),
+		})
+		return
+	}
 
 	m := h.findOrCreateMetric(c.metricIdentity)
 	if nil == m.c {
@@ -82,6 +107,14 @@ func (g *AggregatedGauge) valueNow(val float64, now time.Time) {
 
 	h.lock.Lock()
 	defer h.lock.Unlock()
+
+	if err := isFloatValid(val); err != nil {
+		h.config.logError(map[string]interface{}{
+			"message": "invalid aggregated gauge value",
+			"err":     err.Error(),
+		})
+		return
+	}
 
 	m := h.findOrCreateMetric(g.metricIdentity)
 	if nil == m.g {
@@ -128,6 +161,14 @@ func (s *AggregatedSummary) Record(val float64) {
 
 	h.lock.Lock()
 	defer h.lock.Unlock()
+
+	if err := isFloatValid(val); err != nil {
+		h.config.logError(map[string]interface{}{
+			"message": "invalid aggregated summary value",
+			"err":     err.Error(),
+		})
+		return
+	}
 
 	m := h.findOrCreateMetric(s.metricIdentity)
 	if nil == m.s {
