@@ -1,5 +1,7 @@
 ## ChangeLog
 
+## 0.2.0
+
 * The SDK will now check metrics for infinity and NaN.  Metrics with invalid
 values will be rejected, and will result in an error logged.
 

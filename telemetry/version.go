@@ -5,7 +5,7 @@ package telemetry
 
 const (
 	major = "0"
-	minor = "1"
+	minor = "2"
 	patch = "0"
 
 	// version is the full string version of this SDK.
