@@ -5,6 +5,7 @@ package internal
 
 import (
 	"bytes"
+	"math"
 	"strconv"
 	"testing"
 )
@@ -32,6 +33,9 @@ func TestAttributesWriteJSON(t *testing.T) {
 		{"float32", float32(1), `{"float32":1}`},
 		{"float64", float64(1), `{"float64":1}`},
 		{"default", func() {}, `{"default":"func()"}`},
+		{"NaN", math.NaN(), `{"NaN":"NaN"}`},
+		{"positive-infinity", math.Inf(1), `{"positive-infinity":"infinity"}`},
+		{"negative-infinity", math.Inf(-1), `{"negative-infinity":"infinity"}`},
 	}
 
 	for _, test := range tests {

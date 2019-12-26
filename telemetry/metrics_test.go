@@ -4,6 +4,8 @@
 package telemetry
 
 import (
+	"math"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -102,6 +104,87 @@ func TestVetAttributes(t *testing.T) {
 			if len(output) != 0 {
 				t.Error(idx, tc.Input, output)
 			}
+		}
+	}
+}
+
+func TestValidateCount(t *testing.T) {
+	m := Count{
+		Name:  "my-count",
+		Value: math.NaN(),
+	}
+	if fields := m.validate(); !reflect.DeepEqual(fields, map[string]interface{}{
+		"message": "invalid count value",
+		"name":    "my-count",
+		"err":     errFloatNaN.Error(),
+	}) {
+		t.Error(fields)
+	}
+	m = Count{
+		Name:  "my-count",
+		Value: 123.456,
+	}
+	if fields := m.validate(); fields != nil {
+		t.Error(fields)
+	}
+}
+
+func TestValidateGauge(t *testing.T) {
+	m := Gauge{
+		Name:  "my-gauge",
+		Value: math.Inf(1),
+	}
+	if fields := m.validate(); !reflect.DeepEqual(fields, map[string]interface{}{
+		"message": "invalid gauge field",
+		"name":    "my-gauge",
+		"err":     errFloatInfinity.Error(),
+	}) {
+		t.Error(fields)
+	}
+	m = Gauge{
+		Name:  "my-gauge",
+		Value: 123.456,
+	}
+	if fields := m.validate(); fields != nil {
+		t.Error(fields)
+	}
+}
+
+func TestValidateSummary(t *testing.T) {
+	want := map[string]interface{}{
+		"message": "invalid summary field",
+		"name":    "my-summary",
+		"err":     errFloatNaN.Error(),
+	}
+	testcases := []struct {
+		m      Summary
+		fields map[string]interface{}
+	}{
+		{
+			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: 3.0, Max: 4.0},
+			fields: nil,
+		},
+		{
+			m:      Summary{Name: "my-summary", Count: math.NaN(), Sum: 2.0, Min: 3.0, Max: 4.0},
+			fields: want,
+		},
+		{
+			m:      Summary{Name: "my-summary", Count: 1.0, Sum: math.NaN(), Min: 3.0, Max: 4.0},
+			fields: want,
+		},
+		{
+			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: math.NaN(), Max: 4.0},
+			fields: want,
+		},
+		{
+			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: 3.0, Max: math.NaN()},
+			fields: want,
+		},
+	}
+	for idx, tc := range testcases {
+		got := tc.m.validate()
+		if !reflect.DeepEqual(got, tc.fields) {
+			t.Error(idx, got, tc.fields)
 		}
 	}
 }

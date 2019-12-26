@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"reflect"
 	"sort"
@@ -602,5 +603,24 @@ func TestRequiredSpanFields(t *testing.T) {
 	}
 	if err := h.RecordSpan(Span{TraceID: "12345"}); err != errSpanIDUnset {
 		t.Error(err)
+	}
+}
+
+func TestRecordInvalidMetric(t *testing.T) {
+	var savedErrors []map[string]interface{}
+	h, _ := NewHarvester(configTesting, configSaveErrors(&savedErrors))
+	h.RecordMetric(Count{
+		Name:  "bad-metric",
+		Value: math.NaN(),
+	})
+	if len(savedErrors) != 1 || !reflect.DeepEqual(savedErrors[0], map[string]interface{}{
+		"err":     errFloatNaN.Error(),
+		"message": "invalid count value",
+		"name":    "bad-metric",
+	}) {
+		t.Error(savedErrors)
+	}
+	if len(h.rawMetrics) != 0 {
+		t.Error(len(h.rawMetrics))
 	}
 }
