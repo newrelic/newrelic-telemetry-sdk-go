@@ -37,11 +37,11 @@ func requestNeedsSplit(r request) bool {
 	return r.compressedBodyLength >= maxCompressedSizeBytes
 }
 
-func newRequests(batch requestsBuilder, apiKey string, url string) ([]request, error) {
-	return newRequestsInternal(batch, apiKey, url, requestNeedsSplit)
+func newRequests(batch requestsBuilder, apiKey string, url string, userAgent string) ([]request, error) {
+	return newRequestsInternal(batch, apiKey, url, userAgent, requestNeedsSplit)
 }
 
-func newRequestsInternal(batch requestsBuilder, apiKey string, url string, needsSplit func(request) bool) ([]request, error) {
+func newRequestsInternal(batch requestsBuilder, apiKey string, url string, userAgent string, needsSplit func(request) bool) ([]request, error) {
 	uncompressed := batch.makeBody()
 	compressed, err := internal.Compress(uncompressed)
 	if nil != err {
@@ -56,7 +56,7 @@ func newRequestsInternal(batch requestsBuilder, apiKey string, url string, needs
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Api-Key", apiKey)
 	req.Header.Add("Content-Encoding", "gzip")
-	req.Header.Add("User-Agent", "NewRelic-Go-TelemetrySDK/"+version)
+	req.Header.Add("User-Agent", userAgent)
 	r := request{
 		Request:              req,
 		UncompressedBody:     uncompressed,
@@ -74,7 +74,7 @@ func newRequestsInternal(batch requestsBuilder, apiKey string, url string, needs
 	}
 
 	for _, b := range batches {
-		rs, err := newRequestsInternal(b, apiKey, url, needsSplit)
+		rs, err := newRequestsInternal(b, apiKey, url, userAgent, needsSplit)
 		if nil != err {
 			return nil, err
 		}

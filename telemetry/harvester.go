@@ -235,7 +235,7 @@ func (h *Harvester) swapOutMetrics(now time.Time) []request {
 		AttributesJSON: h.commonAttributesJSON,
 		Metrics:        rawMetrics,
 	}
-	reqs, err := newRequests(batch, h.config.APIKey, h.config.metricURL())
+	reqs, err := newRequests(batch, h.config.APIKey, h.config.metricURL(), h.config.userAgent())
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -259,7 +259,7 @@ func (h *Harvester) swapOutSpans() []request {
 		AttributesJSON: h.commonAttributesJSON,
 		Spans:          sps,
 	}
-	reqs, err := newRequests(batch, h.config.APIKey, h.config.spanURL())
+	reqs, err := newRequests(batch, h.config.APIKey, h.config.spanURL(), h.config.userAgent())
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
