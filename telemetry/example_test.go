@@ -12,8 +12,8 @@ import (
 
 func Example() {
 	h, err := NewHarvester(
-		// APIKey is the only required field.
-		ConfigAPIKey(os.Getenv("NEW_RELIC_API_KEY")),
+		// APIKey is the only required field and refers to your New Relic Insights Insert API key.
+		ConfigAPIKey(os.Getenv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")),
 		ConfigCommonAttributes(map[string]interface{}{
 			"app.name": "myApplication",
 		}),
@@ -61,7 +61,7 @@ func Example() {
 
 func ExampleNewHarvester() {
 	h, err := NewHarvester(
-		ConfigAPIKey(os.Getenv("NEW_RELIC_API_KEY")),
+		ConfigAPIKey(os.Getenv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")),
 	)
 	if err != nil {
 		fmt.Println(err)
@@ -78,7 +78,7 @@ func ExampleNewHarvester() {
 
 func ExampleHarvester_RecordMetric() {
 	h, _ := NewHarvester(
-		ConfigAPIKey(os.Getenv("NEW_RELIC_API_KEY")),
+		ConfigAPIKey(os.Getenv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")),
 	)
 	start := time.Now()
 	h.RecordMetric(Count{

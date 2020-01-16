@@ -32,8 +32,9 @@ automatic harvesting on a given schedule, and handling of errors from the API
 response.  It also provides the ability to aggregate individual data points into
 metrics.
 
-This example code assumes you've set the the `NEW_RELIC_API_KEY` environment
-variable to your Insights Insert API Key.  A larger example is provided in
+This example code assumes you've set the the `NEW_RELIC_INSIGHTS_INSERT_API_KEY`
+environment variable to your Insights Insert API Key.  A larger example is
+provided in
 [examples/server/main.go](./examples/server/main.go).
 
 ```go
@@ -50,7 +51,7 @@ import (
 
 func main() {
 	// First create a Harvester.  APIKey is the only required field.
-	h, err := telemetry.NewHarvester(telemetry.ConfigAPIKey(os.Getenv("NEW_RELIC_API_KEY")))
+	h, err := telemetry.NewHarvester(telemetry.ConfigAPIKey(os.Getenv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")))
 	if err != nil {
 		fmt.Println(err)
 	}
