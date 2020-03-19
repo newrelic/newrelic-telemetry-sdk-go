@@ -145,5 +145,5 @@ at open-source@newrelic.com.
 
 ## Limitations
 
-The New Relic Telemetry APIss are rate limited. Please reference the documentation for [New Relic Metric API](https://docs.newrelic.com/docs/introduction-new-relic-metric-api) and [New Relic Trace API requirements and
+The New Relic Telemetry APIs are rate limited. Please reference the documentation for [New Relic Metric API](https://docs.newrelic.com/docs/introduction-new-relic-metric-api) and [New Relic Trace API requirements and
 limits](https://docs.newrelic.com/docs/apm/distributed-tracing/trace-api/trace-api-general-requirements-limits) on the specifics of the rate limits.
