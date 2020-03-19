@@ -82,6 +82,60 @@ func TestCountMetricBasicUse(t *testing.T) {
 	}
 }
 
+func TestSummaryMetricBasicUse(t *testing.T) {
+	// Test expected usage of SummaryMetric.
+	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
+	dc := NewDeltaCalculator()
+	if _, ok := dc.SummaryMetric("m1", map[string]interface{}{"zip": "zap"}, SummaryValue{10.0, 100.0}, now); ok {
+		t.Error(ok)
+	}
+	if _, ok := dc.SummaryMetric("m1", map[string]interface{}{"zip": 1}, SummaryValue{10.0, 100.0}, now); ok {
+		t.Error(ok)
+	}
+	if _, ok := dc.SummaryMetric("m2", map[string]interface{}{"zip": "zap"}, SummaryValue{10.0, 100.0}, now); ok {
+		t.Error(ok)
+	}
+	m, ok := dc.SummaryMetric("m1", map[string]interface{}{"zip": "zap"}, SummaryValue{15.0, 200.0}, now.Add(1*time.Minute))
+	if !ok || !reflect.DeepEqual(m, telemetry.Summary{
+		Name:           "m1",
+		AttributesJSON: json.RawMessage(`{"zip":"zap"}`),
+		Count:          5.0,
+		Sum:            100.0,
+		Min:            0.0,
+		Max:            0.0,
+		Timestamp:      now,
+		Interval:       1 * time.Minute,
+	}) {
+		t.Error(ok, m)
+	}
+	m, ok = dc.SummaryMetric("m1", map[string]interface{}{"zip": 1}, SummaryValue{16.0, 250.0}, now.Add(1*time.Minute))
+	if !ok || !reflect.DeepEqual(m, telemetry.Summary{
+		Name:           "m1",
+		AttributesJSON: json.RawMessage(`{"zip":1}`),
+		Count:          6.0,
+		Sum:            150.0,
+		Min:            0.0,
+		Max:            0.0,
+		Timestamp:      now,
+		Interval:       1 * time.Minute,
+	}) {
+		t.Error(ok, m)
+	}
+	m, ok = dc.SummaryMetric("m2", map[string]interface{}{"zip": "zap"}, SummaryValue{17.0, 300.0}, now.Add(1*time.Minute))
+	if !ok || !reflect.DeepEqual(m, telemetry.Summary{
+		Name:           "m2",
+		AttributesJSON: json.RawMessage(`{"zip":"zap"}`),
+		Count:          7.0,
+		Sum:            200.0,
+		Min:            0.0,
+		Max:            0.0,
+		Timestamp:      now,
+		Interval:       1 * time.Minute,
+	}) {
+		t.Error(ok, m)
+	}
+}
+
 func TestCountZeroDelta(t *testing.T) {
 	// Test that adding the same value twice results in a Count with a zero
 	// value.
@@ -96,6 +150,30 @@ func TestCountZeroDelta(t *testing.T) {
 		Name:           "m1",
 		AttributesJSON: json.RawMessage(`{"zip":"zap"}`),
 		Value:          0.0,
+		Timestamp:      now,
+		Interval:       1 * time.Minute,
+	}) {
+		t.Error(ok, m)
+	}
+}
+
+func TestSummaryZeroDelta(t *testing.T) {
+	// Test that adding the same value twice results in a Summary with a zero
+	// value.
+	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
+	ats := map[string]interface{}{"zip": "zap"}
+	dc := NewDeltaCalculator()
+	if _, ok := dc.SummaryMetric("m1", ats, SummaryValue{10.0, 20.0}, now); ok {
+		t.Error(ok)
+	}
+	m, ok := dc.SummaryMetric("m1", ats, SummaryValue{10.0, 20.0}, now.Add(1*time.Minute))
+	if !ok || !reflect.DeepEqual(m, telemetry.Summary{
+		Name:           "m1",
+		AttributesJSON: json.RawMessage(`{"zip":"zap"}`),
+		Count:          0.0,
+		Sum:            0.0,
+		Min:            0.0,
+		Max:            0.0,
 		Timestamp:      now,
 		Interval:       1 * time.Minute,
 	}) {
@@ -126,7 +204,33 @@ func TestCountMetricNegativeDeltaReset(t *testing.T) {
 	}
 }
 
-func TestTimestampOrder(t *testing.T) {
+func TestSummaryMetricNegativeDeltaReset(t *testing.T) {
+	// Test that SummaryMetric does not return a count metric with a negative
+	// value.
+	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
+	dc := NewDeltaCalculator()
+	if _, ok := dc.SummaryMetric("m1", map[string]interface{}{"zip": "zap"}, SummaryValue{10.0, 20.0}, now); ok {
+		t.Error(ok)
+	}
+	if _, ok := dc.SummaryMetric("m1", map[string]interface{}{"zip": "zap"}, SummaryValue{7.0, 20.0}, now.Add(1*time.Minute)); ok {
+		t.Error(ok)
+	}
+	m, ok := dc.SummaryMetric("m1", map[string]interface{}{"zip": "zap"}, SummaryValue{12.0, 24.0}, now.Add(2*time.Minute))
+	if !ok || !reflect.DeepEqual(m, telemetry.Summary{
+		Name:           "m1",
+		AttributesJSON: json.RawMessage(`{"zip":"zap"}`),
+		Count:          5.0,
+		Sum:            4.0,
+		Min:            0.0,
+		Max:            0.0,
+		Timestamp:      now.Add(1 * time.Minute),
+		Interval:       1 * time.Minute,
+	}) {
+		t.Error(ok, m)
+	}
+}
+
+func TestCountTimestampOrder(t *testing.T) {
 	// Test that CountMetric does not return a count metric when the
 	// timestamp values are not in increasing order.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
@@ -149,6 +253,32 @@ func TestTimestampOrder(t *testing.T) {
 	}
 }
 
+func TestSummaryTimestampOrder(t *testing.T) {
+	// Test that SummaryMetric does not return a count metric when the
+	// timestamp values are not in increasing order.
+	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
+	dc := NewDeltaCalculator()
+	if _, ok := dc.SummaryMetric("m1", map[string]interface{}{"zip": "zap"}, SummaryValue{10.0, 20.0}, now); ok {
+		t.Error(ok)
+	}
+	if _, ok := dc.SummaryMetric("m1", map[string]interface{}{"zip": "zap"}, SummaryValue{7.0, 20.0}, now.Add(-1*time.Minute)); ok {
+		t.Error(ok)
+	}
+	m, ok := dc.SummaryMetric("m1", map[string]interface{}{"zip": "zap"}, SummaryValue{12.0, 24.0}, now.Add(1*time.Minute))
+	if !ok || !reflect.DeepEqual(m, telemetry.Summary{
+		Name:           "m1",
+		AttributesJSON: json.RawMessage(`{"zip":"zap"}`),
+		Count:          2.0,
+		Sum:            4.0,
+		Min:            0.0,
+		Max:            0.0,
+		Timestamp:      now,
+		Interval:       1 * time.Minute,
+	}) {
+		t.Error(ok, m)
+	}
+}
+
 func TestCountMetricNoAttributes(t *testing.T) {
 	// Test that CountMetric works when no attributes are provided.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
@@ -160,6 +290,27 @@ func TestCountMetricNoAttributes(t *testing.T) {
 	if !ok || !reflect.DeepEqual(m, telemetry.Count{
 		Name:      "m1",
 		Value:     5.0,
+		Timestamp: now,
+		Interval:  1 * time.Minute,
+	}) {
+		t.Error(ok, m)
+	}
+}
+
+func TestSummaryMetricNoAttributes(t *testing.T) {
+	// Test that SummaryMetric works when no attributes are provided.
+	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
+	dc := NewDeltaCalculator()
+	if _, ok := dc.SummaryMetric("m1", nil, SummaryValue{10.0, 20.0}, now); ok {
+		t.Error(ok)
+	}
+	m, ok := dc.SummaryMetric("m1", nil, SummaryValue{15.0, 30.0}, now.Add(1*time.Minute))
+	if !ok || !reflect.DeepEqual(m, telemetry.Summary{
+		Name:      "m1",
+		Count:     5.0,
+		Sum:       10.0,
+		Min:       0.0,
+		Max:       0.0,
 		Timestamp: now,
 		Interval:  1 * time.Minute,
 	}) {

@@ -17,15 +17,28 @@ type metricIdentity struct {
 	attributesJSON string
 }
 
-type lastValue struct {
+type SummaryValue struct {
+	// Count is the count of occurrences of this metric for this time period.
+	Count float64
+	// Sum is the sum of all occurrences of this metric for this time period.
+	Sum float64
+}
+
+type lastCountValue struct {
 	when  time.Time
 	value float64
+}
+
+type lastSummaryValue struct {
+	when  time.Time
+	value SummaryValue
 }
 
 // DeltaCalculator is used to create Count metrics from cumulative values.
 type DeltaCalculator struct {
 	lock                    sync.Mutex
-	datapoints              map[metricIdentity]lastValue
+	countDatapoints         map[metricIdentity]lastCountValue
+	summaryDatapoints       map[metricIdentity]lastSummaryValue
 	lastClean               time.Time
 	expirationCheckInterval time.Duration
 	expirationAge           time.Duration
@@ -35,7 +48,8 @@ type DeltaCalculator struct {
 // stores all cumulative values seen in order to compute deltas.
 func NewDeltaCalculator() *DeltaCalculator {
 	return &DeltaCalculator{
-		datapoints: make(map[metricIdentity]lastValue),
+		countDatapoints:   make(map[metricIdentity]lastCountValue),
+		summaryDatapoints: make(map[metricIdentity]lastSummaryValue),
 		// These defaults are described in the Set method doc comments.
 		expirationCheckInterval: 20 * time.Minute,
 		expirationAge:           20 * time.Minute,
@@ -73,9 +87,9 @@ func (dc *DeltaCalculator) CountMetric(name string, attributes map[string]interf
 
 	if now.Sub(dc.lastClean) > dc.expirationCheckInterval {
 		cutoff := now.Add(-dc.expirationAge)
-		for k, v := range dc.datapoints {
+		for k, v := range dc.countDatapoints {
 			if v.when.Before(cutoff) {
-				delete(dc.datapoints, k)
+				delete(dc.countDatapoints, k)
 			}
 		}
 		dc.lastClean = now
@@ -83,7 +97,7 @@ func (dc *DeltaCalculator) CountMetric(name string, attributes map[string]interf
 
 	id := metricIdentity{name: name, attributesJSON: string(attributesJSON)}
 	var timestampsOrdered bool
-	last, ok := dc.datapoints[id]
+	last, ok := dc.countDatapoints[id]
 	if ok {
 		delta := val - last.value
 		timestampsOrdered = now.After(last.when)
@@ -97,7 +111,51 @@ func (dc *DeltaCalculator) CountMetric(name string, attributes map[string]interf
 		}
 	}
 	if !ok || timestampsOrdered {
-		dc.datapoints[id] = lastValue{value: val, when: now}
+		dc.countDatapoints[id] = lastCountValue{value: val, when: now}
+	}
+	return
+}
+
+// SummaryMetric creates a summary metric from the difference between the values and
+// timestamps of multiple calls.  If this is the first time the name/attributes
+// combination has been seen then the `valid` return value will be false.
+func (dc *DeltaCalculator) SummaryMetric(name string, attributes map[string]interface{}, val SummaryValue, now time.Time) (summary telemetry.Summary, valid bool) {
+	var attributesJSON []byte
+	if nil != attributes {
+		attributesJSON = internal.MarshalOrderedAttributes(attributes)
+	}
+	dc.lock.Lock()
+	defer dc.lock.Unlock()
+
+	if now.Sub(dc.lastClean) > dc.expirationCheckInterval {
+		cutoff := now.Add(-dc.expirationAge)
+		for k, v := range dc.summaryDatapoints {
+			if v.when.Before(cutoff) {
+				delete(dc.summaryDatapoints, k)
+			}
+		}
+		dc.lastClean = now
+	}
+
+	id := metricIdentity{name: name, attributesJSON: string(attributesJSON)}
+	var timestampsOrdered bool
+	last, ok := dc.summaryDatapoints[id]
+	if ok {
+		deltaCount := val.Count - last.value.Count
+		deltaSum := val.Sum - last.value.Sum
+		timestampsOrdered = now.After(last.when)
+		if timestampsOrdered && deltaCount >= 0 {
+			summary.Name = name
+			summary.AttributesJSON = attributesJSON
+			summary.Sum = deltaSum
+			summary.Count = deltaCount
+			summary.Timestamp = last.when
+			summary.Interval = now.Sub(last.when)
+			valid = true
+		}
+	}
+	if !ok || timestampsOrdered {
+		dc.summaryDatapoints[id] = lastSummaryValue{value: val, when: now}
 	}
 	return
 }
