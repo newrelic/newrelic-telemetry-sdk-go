@@ -5,7 +5,7 @@ What is the New Relic Go Telemetry SDK?
 * It's a helper library that supports sending New Relic data from within your Go process
 * It’s an example of "best practices" for sending us data
 
-This SDK currently supports sending dimensional metrics and spans to the Metric and Trace API, respectively.
+This SDK currently supports sending dimensional metrics and spans to the [Metric API](https://docs.newrelic.com/docs/data-ingest-apis/get-data-new-relic/metric-api/introduction-metric-api) and [Trace API](https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/trace-api/introduction-trace-api), respectively.
 
 
 ## Requirements
@@ -13,10 +13,10 @@ This SDK currently supports sending dimensional metrics and spans to the Metric 
 Go 1.7+ is required
 
 
-## Getting Started
+## Get started
 
-In order to send metrics or spans to New Relic, you will need an Insights
-Insert API Key. Please see [New Relic API Keys](https://docs.newrelic.com/docs/apis/getting-started/intro-apis/understand-new-relic-api-keys#user-api-key) for more information.
+In order to send metrics or spans to New Relic, you will need an [Insights
+Insert API Key](https://docs.newrelic.com/docs/apis/getting-started/intro-apis/understand-new-relic-api-keys#user-api-key).
 
 To install this SDK either use `go get` or clone this repository to
 `$GOPATH/src/github.com/newrelic/newrelic-telemetry-sdk-go`
@@ -27,7 +27,7 @@ go get -u github.com/newrelic/newrelic-telemetry-sdk-go
 
 Package
 [telemetry](https://godoc.org/github.com/newrelic/newrelic-telemetry-sdk-go/telemetry)
-provides basic interaction with the New Relic Metrics and Spans HTTP APIs,
+provides basic interaction with the New Relic Metric and Span HTTP APIs,
 automatic harvesting on a given schedule, and handling of errors from the API
 response.  It also provides the ability to aggregate individual data points into
 metrics.
@@ -103,7 +103,7 @@ to record complete metrics that have already been collected. Use
 [Harvester.MetricAggregator](https://godoc.org/github.com/newrelic/newrelic-telemetry-sdk-go/telemetry#Harvester.MetricAggregator)
 to aggregate numbers into metrics.
 
-| Basic Type | Aggregated Type | Description | Example |
+| Basic type | Aggregated type | Description | Example |
 | ----------- | ----------------- | ----------- | ------- |
 | [Gauge](https://godoc.org/github.com/newrelic/newrelic-telemetry-sdk-go/telemetry#Gauge) | [AggregatedGauge](https://godoc.org/github.com/newrelic/newrelic-telemetry-sdk-go/telemetry#AggregatedGauge) | A single value at a single point in time. | Room Temperature. |
 | [Count](https://godoc.org/github.com/newrelic/newrelic-telemetry-sdk-go/telemetry#Count) | [AggregatedCount](https://godoc.org/github.com/newrelic/newrelic-telemetry-sdk-go/telemetry#AggregatedCount) | Track the number of occurrences of an event. | Number of errors that have occurred. |
@@ -113,6 +113,16 @@ Count metrics are "delta" counts that indicate the change during the most recent
 time period.  You can use the
 [cumulative](https://godoc.org/github.com/newrelic/newrelic-telemetry-sdk-go/telemetry)
 package to convert "cumulative" count values into delta values.
+
+## Find and use your data
+
+Tips on how to find and query your data in New Relic:
+- [Find metric data](https://docs.newrelic.com/docs/data-ingest-apis/get-data-new-relic/metric-api/introduction-metric-api#find-data)
+- [Find trace/span data](https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/trace-api/introduction-trace-api#view-data)
+
+For general querying information, see:
+- [Query New Relic data](https://docs.newrelic.com/docs/using-new-relic/data/understand-data/query-new-relic-data)
+- [Intro to NRQL](https://docs.newrelic.com/docs/query-data/nrql-new-relic-query-language/getting-started/introduction-nrql)
 
 ## Licensing
 
@@ -135,9 +145,5 @@ at open-source@newrelic.com.
 
 ## Limitations
 
-The New Relic Telemetry APIs are rate limited. Please reference the
-documentation for [New Relic Metrics
-API](https://docs.newrelic.com/docs/introduction-new-relic-metric-api) and [New
-Relic Trace API Requirements and
-Limits](https://docs.newrelic.com/docs/apm/distributed-tracing/trace-api/trace-api-general-requirements-limits)
-on the specifics of the rate limits.
+The New Relic Telemetry SDKs are rate limited. Please reference the documentation for [New Relic Metric API](https://docs.newrelic.com/docs/introduction-new-relic-metric-api) and [New Relic Trace API requirements and
+limits](https://docs.newrelic.com/docs/apm/distributed-tracing/trace-api/trace-api-general-requirements-limits) on the specifics of the rate limits.
