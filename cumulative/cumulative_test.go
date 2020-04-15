@@ -30,7 +30,7 @@ func Example() {
 	}
 	for {
 		cumulativeValue := float64(time.Now().Unix())
-		if m, ok := dc.CountMetric("secondsElapsed", attributes, cumulativeValue, time.Now()); ok {
+		if m, ok := dc.GetCumulativeCount("secondsElapsed", attributes, cumulativeValue, time.Now()); ok {
 			h.RecordMetric(m)
 		}
 		time.Sleep(5 * time.Second)
@@ -38,19 +38,19 @@ func Example() {
 }
 
 func TestCountMetricBasicUse(t *testing.T) {
-	// Test expected usage of CountMetric.
+	// Test expected usage of GetCumulativeCount.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	dc := NewDeltaCalculator()
-	if _, ok := dc.CountMetric("m1", map[string]interface{}{"zip": "zap"}, 100.0, now); ok {
+	if _, ok := dc.GetCumulativeCount("m1", map[string]interface{}{"zip": "zap"}, 100.0, now); ok {
 		t.Error(ok)
 	}
-	if _, ok := dc.CountMetric("m1", map[string]interface{}{"zip": 1}, 200.0, now); ok {
+	if _, ok := dc.GetCumulativeCount("m1", map[string]interface{}{"zip": 1}, 200.0, now); ok {
 		t.Error(ok)
 	}
-	if _, ok := dc.CountMetric("m2", map[string]interface{}{"zip": "zap"}, 300.0, now); ok {
+	if _, ok := dc.GetCumulativeCount("m2", map[string]interface{}{"zip": "zap"}, 300.0, now); ok {
 		t.Error(ok)
 	}
-	m, ok := dc.CountMetric("m1", map[string]interface{}{"zip": "zap"}, 105.0, now.Add(1*time.Minute))
+	m, ok := dc.GetCumulativeCount("m1", map[string]interface{}{"zip": "zap"}, 105.0, now.Add(1*time.Minute))
 	if !ok || !reflect.DeepEqual(m, telemetry.Count{
 		Name:           "m1",
 		AttributesJSON: json.RawMessage(`{"zip":"zap"}`),
@@ -60,7 +60,7 @@ func TestCountMetricBasicUse(t *testing.T) {
 	}) {
 		t.Error(ok, m)
 	}
-	m, ok = dc.CountMetric("m1", map[string]interface{}{"zip": 1}, 206.0, now.Add(1*time.Minute))
+	m, ok = dc.GetCumulativeCount("m1", map[string]interface{}{"zip": 1}, 206.0, now.Add(1*time.Minute))
 	if !ok || !reflect.DeepEqual(m, telemetry.Count{
 		Name:           "m1",
 		AttributesJSON: json.RawMessage(`{"zip":1}`),
@@ -70,7 +70,7 @@ func TestCountMetricBasicUse(t *testing.T) {
 	}) {
 		t.Error(ok, m)
 	}
-	m, ok = dc.CountMetric("m2", map[string]interface{}{"zip": "zap"}, 307.0, now.Add(1*time.Minute))
+	m, ok = dc.GetCumulativeCount("m2", map[string]interface{}{"zip": "zap"}, 307.0, now.Add(1*time.Minute))
 	if !ok || !reflect.DeepEqual(m, telemetry.Count{
 		Name:           "m2",
 		AttributesJSON: json.RawMessage(`{"zip":"zap"}`),
@@ -88,10 +88,10 @@ func TestCountZeroDelta(t *testing.T) {
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	ats := map[string]interface{}{"zip": "zap"}
 	dc := NewDeltaCalculator()
-	if _, ok := dc.CountMetric("m1", ats, 5.0, now); ok {
+	if _, ok := dc.GetCumulativeCount("m1", ats, 5.0, now); ok {
 		t.Error(ok)
 	}
-	m, ok := dc.CountMetric("m1", ats, 5.0, now.Add(1*time.Minute))
+	m, ok := dc.GetCumulativeCount("m1", ats, 5.0, now.Add(1*time.Minute))
 	if !ok || !reflect.DeepEqual(m, telemetry.Count{
 		Name:           "m1",
 		AttributesJSON: json.RawMessage(`{"zip":"zap"}`),
@@ -104,17 +104,17 @@ func TestCountZeroDelta(t *testing.T) {
 }
 
 func TestCountMetricNegativeDeltaReset(t *testing.T) {
-	// Test that CountMetric does not return a count metric with a negative
+	// Test that GetCumulativeCount does not return a count metric with a negative
 	// value.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	dc := NewDeltaCalculator()
-	if _, ok := dc.CountMetric("m1", map[string]interface{}{"zip": "zap"}, 5.0, now); ok {
+	if _, ok := dc.GetCumulativeCount("m1", map[string]interface{}{"zip": "zap"}, 5.0, now); ok {
 		t.Error(ok)
 	}
-	if _, ok := dc.CountMetric("m1", map[string]interface{}{"zip": "zap"}, 4.0, now.Add(1*time.Minute)); ok {
+	if _, ok := dc.GetCumulativeCount("m1", map[string]interface{}{"zip": "zap"}, 4.0, now.Add(1*time.Minute)); ok {
 		t.Error(ok)
 	}
-	m, ok := dc.CountMetric("m1", map[string]interface{}{"zip": "zap"}, 7.0, now.Add(2*time.Minute))
+	m, ok := dc.GetCumulativeCount("m1", map[string]interface{}{"zip": "zap"}, 7.0, now.Add(2*time.Minute))
 	if !ok || !reflect.DeepEqual(m, telemetry.Count{
 		Name:           "m1",
 		AttributesJSON: json.RawMessage(`{"zip":"zap"}`),
@@ -127,17 +127,17 @@ func TestCountMetricNegativeDeltaReset(t *testing.T) {
 }
 
 func TestTimestampOrder(t *testing.T) {
-	// Test that CountMetric does not return a count metric when the
+	// Test that GetCumulativeCount does not return a count metric when the
 	// timestamp values are not in increasing order.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	dc := NewDeltaCalculator()
-	if _, ok := dc.CountMetric("m1", map[string]interface{}{"zip": "zap"}, 5.0, now); ok {
+	if _, ok := dc.GetCumulativeCount("m1", map[string]interface{}{"zip": "zap"}, 5.0, now); ok {
 		t.Error(ok)
 	}
-	if _, ok := dc.CountMetric("m1", map[string]interface{}{"zip": "zap"}, 6.0, now.Add(-1*time.Minute)); ok {
+	if _, ok := dc.GetCumulativeCount("m1", map[string]interface{}{"zip": "zap"}, 6.0, now.Add(-1*time.Minute)); ok {
 		t.Error(ok)
 	}
-	m, ok := dc.CountMetric("m1", map[string]interface{}{"zip": "zap"}, 7.0, now.Add(1*time.Minute))
+	m, ok := dc.GetCumulativeCount("m1", map[string]interface{}{"zip": "zap"}, 7.0, now.Add(1*time.Minute))
 	if !ok || !reflect.DeepEqual(m, telemetry.Count{
 		Name:           "m1",
 		AttributesJSON: json.RawMessage(`{"zip":"zap"}`),
@@ -150,13 +150,13 @@ func TestTimestampOrder(t *testing.T) {
 }
 
 func TestCountMetricNoAttributes(t *testing.T) {
-	// Test that CountMetric works when no attributes are provided.
+	// Test that GetCumulativeCount works when no attributes are provided.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	dc := NewDeltaCalculator()
-	if _, ok := dc.CountMetric("m1", nil, 5.0, now); ok {
+	if _, ok := dc.GetCumulativeCount("m1", nil, 5.0, now); ok {
 		t.Error(ok)
 	}
-	m, ok := dc.CountMetric("m1", nil, 10.0, now.Add(1*time.Minute))
+	m, ok := dc.GetCumulativeCount("m1", nil, 10.0, now.Add(1*time.Minute))
 	if !ok || !reflect.DeepEqual(m, telemetry.Count{
 		Name:      "m1",
 		Value:     5.0,
@@ -171,13 +171,13 @@ func TestExpirationDefaults(t *testing.T) {
 	// Test that expiration happens with the default settings.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	dc := NewDeltaCalculator()
-	if _, ok := dc.CountMetric("m1", map[string]interface{}{"zip": "zap"}, 5.0, now); ok {
+	if _, ok := dc.GetCumulativeCount("m1", map[string]interface{}{"zip": "zap"}, 5.0, now); ok {
 		t.Error(ok)
 	}
-	if _, ok := dc.CountMetric("m1", map[string]interface{}{"zip": "zap"}, 10.0, now.Add(21*time.Minute)); ok {
+	if _, ok := dc.GetCumulativeCount("m1", map[string]interface{}{"zip": "zap"}, 10.0, now.Add(21*time.Minute)); ok {
 		t.Error(ok)
 	}
-	m, ok := dc.CountMetric("m1", map[string]interface{}{"zip": "zap"}, 12.0, now.Add(40*time.Minute))
+	m, ok := dc.GetCumulativeCount("m1", map[string]interface{}{"zip": "zap"}, 12.0, now.Add(40*time.Minute))
 	if !ok || !reflect.DeepEqual(m, telemetry.Count{
 		Name:           "m1",
 		AttributesJSON: json.RawMessage(`{"zip":"zap"}`),
@@ -196,16 +196,16 @@ func TestExpirationCustomSettings(t *testing.T) {
 		SetExpirationAge(5 * time.Minute).
 		SetExpirationCheckInterval(10 * time.Minute)
 
-	if _, ok := dc.CountMetric("m1", nil, 5.0, now); ok {
+	if _, ok := dc.GetCumulativeCount("m1", nil, 5.0, now); ok {
 		t.Error(ok)
 	}
-	if _, ok := dc.CountMetric("m2", nil, 5.0, now.Add(9*time.Minute)); ok {
+	if _, ok := dc.GetCumulativeCount("m2", nil, 5.0, now.Add(9*time.Minute)); ok {
 		t.Error(ok)
 	}
-	if _, ok := dc.CountMetric("m1", nil, 10.0, now.Add(11*time.Minute)); ok {
+	if _, ok := dc.GetCumulativeCount("m1", nil, 10.0, now.Add(11*time.Minute)); ok {
 		t.Error(ok)
 	}
-	m, ok := dc.CountMetric("m2", nil, 10.0, now.Add(11*time.Minute))
+	m, ok := dc.GetCumulativeCount("m2", nil, 10.0, now.Add(11*time.Minute))
 	if !ok || !reflect.DeepEqual(m, telemetry.Count{
 		Name:      "m2",
 		Value:     5.0,
@@ -227,8 +227,8 @@ func TestManyAttributes(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		attributes[strconv.Itoa(i)] = i
 	}
-	dc.CountMetric("myMetric", attributes, 5.0, now)
-	_, ok := dc.CountMetric("myMetric", attributes, 6.0, now.Add(1*time.Minute))
+	dc.GetCumulativeCount("myMetric", attributes, 5.0, now)
+	_, ok := dc.GetCumulativeCount("myMetric", attributes, 6.0, now.Add(1*time.Minute))
 	if !ok {
 		t.Error(ok)
 	}
