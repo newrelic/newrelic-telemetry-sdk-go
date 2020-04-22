@@ -160,7 +160,7 @@ func (cfg *Config) metricURL() string {
 }
 
 // userAgent creates the User-Agent header version according to the spec here:
-// https://github.com/newrelic/newrelic-telemetry-sdk-specs/blob/master/communication.md#user-agent
+// https://github.com/newrelic-forks/newrelic-telemetry-sdk-specs/blob/master/communication.md#user-agent
 func (cfg *Config) userAgent() string {
 	agent := "NewRelic-Go-TelemetrySDK/" + version
 	if "" != cfg.Product {
