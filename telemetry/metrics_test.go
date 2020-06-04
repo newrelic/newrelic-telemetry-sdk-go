@@ -22,6 +22,15 @@ func TestMetricPayload(t *testing.T) {
 		Timestamp:  now,
 		Value:      1.0,
 	})
+	h.RecordMetric(Summary{
+		Name:       "another-metric",
+		Attributes: map[string]interface{}{"zip": "zap"},
+		Timestamp:  now,
+		Count:      4.0,
+		Sum:        1.0,
+		Min:        math.NaN(),
+		Max:        3.0,
+	})
 	h.lastHarvest = now
 	end := h.lastHarvest.Add(5 * time.Second)
 	reqs := h.swapOutMetrics(end)
@@ -37,7 +46,8 @@ func TestMetricPayload(t *testing.T) {
 			"attributes":{"zop":"zup"}
 		},
 		"metrics":[
-			{"name":"metric","type":"gauge","value":1,"timestamp":1417136460000,"attributes":{"zip":"zap"}}
+			{"name":"metric","type":"gauge","value":1,"timestamp":1417136460000,"attributes":{"zip":"zap"}},
+			{"name":"another-metric","type":"summary","value":{"sum":1,"count":4,"min":null,"max":3},"timestamp":1417136460000,"attributes":{"zip":"zap"}}
 		]
 	}]`
 	compactExpect := compactJSONString(expect)
@@ -151,10 +161,15 @@ func TestValidateGauge(t *testing.T) {
 }
 
 func TestValidateSummary(t *testing.T) {
-	want := map[string]interface{}{
+	expectNaNErr := map[string]interface{}{
 		"message": "invalid summary field",
 		"name":    "my-summary",
 		"err":     errFloatNaN.Error(),
+	}
+	expectInfErr := map[string]interface{}{
+		"message": "invalid summary field",
+		"name":    "my-summary",
+		"err":     errFloatInfinity.Error(),
 	}
 	testcases := []struct {
 		m      Summary
@@ -165,20 +180,24 @@ func TestValidateSummary(t *testing.T) {
 			fields: nil,
 		},
 		{
+			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: math.NaN(), Max: math.NaN()},
+			fields: nil,
+		},
+		{
 			m:      Summary{Name: "my-summary", Count: math.NaN(), Sum: 2.0, Min: 3.0, Max: 4.0},
-			fields: want,
+			fields: expectNaNErr,
 		},
 		{
 			m:      Summary{Name: "my-summary", Count: 1.0, Sum: math.NaN(), Min: 3.0, Max: 4.0},
-			fields: want,
+			fields: expectNaNErr,
 		},
 		{
-			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: math.NaN(), Max: 4.0},
-			fields: want,
+			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: math.Inf(-3), Max: 4.0},
+			fields: expectInfErr,
 		},
 		{
-			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: 3.0, Max: math.NaN()},
-			fields: want,
+			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: 3.0, Max: math.Inf(3)},
+			fields: expectInfErr,
 		},
 	}
 	for idx, tc := range testcases {
