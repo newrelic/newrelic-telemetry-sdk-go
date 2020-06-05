@@ -15,7 +15,6 @@ func TestMetricPayload(t *testing.T) {
 	// attributes correctly marshals into JSON.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	h, _ := NewHarvester(ConfigCommonAttributes(map[string]interface{}{"zop": "zup"}), configTesting)
-	// Use a single metric to avoid sorting.
 	h.RecordMetric(Gauge{
 		Name:       "metric",
 		Attributes: map[string]interface{}{"zip": "zap"},
@@ -23,13 +22,22 @@ func TestMetricPayload(t *testing.T) {
 		Value:      1.0,
 	})
 	h.RecordMetric(Summary{
-		Name:       "another-metric",
+		Name:       "summary-metric-nan-min",
 		Attributes: map[string]interface{}{"zip": "zap"},
 		Timestamp:  now,
 		Count:      4.0,
 		Sum:        1.0,
 		Min:        math.NaN(),
 		Max:        3.0,
+	})
+	h.RecordMetric(Summary{
+		Name:       "summary-metric-nan-max",
+		Attributes: map[string]interface{}{"zip": "zap"},
+		Timestamp:  now,
+		Count:      4.0,
+		Sum:        1.0,
+		Min:        10,
+		Max:        math.NaN(),
 	})
 	h.lastHarvest = now
 	end := h.lastHarvest.Add(5 * time.Second)
@@ -47,7 +55,8 @@ func TestMetricPayload(t *testing.T) {
 		},
 		"metrics":[
 			{"name":"metric","type":"gauge","value":1,"timestamp":1417136460000,"attributes":{"zip":"zap"}},
-			{"name":"another-metric","type":"summary","value":{"sum":1,"count":4,"min":null,"max":3},"timestamp":1417136460000,"attributes":{"zip":"zap"}}
+			{"name":"summary-metric-nan-min","type":"summary","value":{"sum":1,"count":4,"min":null,"max":3},"timestamp":1417136460000,"attributes":{"zip":"zap"}},
+			{"name":"summary-metric-nan-max","type":"summary","value":{"sum":1,"count":4,"min":10,"max":null},"timestamp":1417136460000,"attributes":{"zip":"zap"}}
 		]
 	}]`
 	compactExpect := compactJSONString(expect)
