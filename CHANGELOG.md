@@ -1,5 +1,7 @@
 ## ChangeLog
 
+## 0.3.0
+
 * Added `ConfigSpansURLOverride` to facilitate setting the Trace Observer URL
   for Infinite Tracing on the New Relic Edge.
 
