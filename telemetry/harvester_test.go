@@ -624,3 +624,33 @@ func TestRecordInvalidMetric(t *testing.T) {
 		t.Error(len(h.rawMetrics))
 	}
 }
+
+func TestRequestRetryBody(t *testing.T) {
+	var attempt int
+	roundTripper := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		contentLen := int(req.ContentLength)
+		body, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			t.Fatal("error reading request body: ", err)
+		}
+		bodyLen := len(body)
+		if contentLen != bodyLen {
+			t.Errorf("content-length and body length mis-match: content=%d body=%d",
+				contentLen, bodyLen)
+		}
+
+		attempt++
+		if attempt < 2 {
+			return emptyResponse(418), nil
+		}
+		return emptyResponse(200), nil
+	})
+
+	h, _ := NewHarvester(func(cfg *Config) {
+		cfg.HarvestPeriod = 0
+		cfg.APIKey = "APIKey"
+		cfg.Client.Transport = roundTripper
+	})
+	h.RecordMetric(Count{})
+	h.HarvestNow(context.Background())
+}
