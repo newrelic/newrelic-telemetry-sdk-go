@@ -1,5 +1,11 @@
 ## ChangeLog
 
+## 0.4.0
+
+* Fixed bug in request retrying that resulted in the a zero length request
+body and manifested as an error mismatch in body length and Content-Length
+header.
+
 ## 0.3.0
 
 * Added `ConfigSpansURLOverride` to facilitate setting the Trace Observer URL
