@@ -654,3 +654,51 @@ func TestRequestRetryBody(t *testing.T) {
 	h.RecordMetric(Count{})
 	h.HarvestNow(context.Background())
 }
+
+// multiAttemptRoundTripper will fail the first n requests after reading
+// their body with a 418. Subsequent requests will be returned a 200.
+func multiAttemptRoundTripper(n int) roundTripperFunc {
+	var attempt int
+	return roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		defer func() { attempt++ }()
+		if _, err := ioutil.ReadAll(req.Body); err != nil {
+			return nil, err
+		}
+		if attempt < n {
+			return emptyResponse(418), nil
+		}
+		return emptyResponse(200), nil
+	})
+}
+
+func benchmarkRetryBodyN(b *testing.B, n int) {
+	// Disable backoff delay.
+	oBOSS := backoffSequenceSeconds
+	backoffSequenceSeconds = make([]int, n+1)
+
+	count := Count{}
+	ctx := context.Background()
+	h, _ := NewHarvester(func(cfg *Config) {
+		cfg.HarvestPeriod = 0
+		cfg.APIKey = "APIKey"
+		cfg.Client.Transport = multiAttemptRoundTripper(n)
+	})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		h.RecordMetric(count)
+		h.HarvestNow(ctx)
+	}
+
+	b.StopTimer()
+	backoffSequenceSeconds = oBOSS
+}
+
+// Baseline for the rest. This does not retry.
+func BenchmarkRetryBody0(b *testing.B) { benchmarkRetryBodyN(b, 0) }
+func BenchmarkRetryBody1(b *testing.B) { benchmarkRetryBodyN(b, 1) }
+func BenchmarkRetryBody2(b *testing.B) { benchmarkRetryBodyN(b, 2) }
+func BenchmarkRetryBody4(b *testing.B) { benchmarkRetryBodyN(b, 4) }
+func BenchmarkRetryBody8(b *testing.B) { benchmarkRetryBodyN(b, 8) }
