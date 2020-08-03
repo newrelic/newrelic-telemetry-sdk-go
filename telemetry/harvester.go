@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -321,17 +322,9 @@ func harvestRequest(req request, cfg *Config) {
 		}
 		attempts++
 
-		// Recompress and attach request body because the original one has
-		// already been read and closed.
-		compressed, err := internal.Compress(req.UncompressedBody)
-		if nil != err {
-			cfg.logError(map[string]interface{}{
-				"event": "data post compression",
-				"err":   resp.err.Error(),
-			})
-			return
-		}
-		req.Request.Body = ioutil.NopCloser(compressed)
+		// Reattach request body because the original one has already been read
+		// and closed.
+		req.Request.Body = ioutil.NopCloser(bytes.NewBuffer(req.compressedBody))
 	}
 }
 
