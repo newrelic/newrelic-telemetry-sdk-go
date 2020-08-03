@@ -625,32 +625,67 @@ func TestRecordInvalidMetric(t *testing.T) {
 	}
 }
 
-func TestRequestRetryBody(t *testing.T) {
+func roundTripper(attempts int) roundTripperFunc {
 	var attempt int
-	roundTripper := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	return roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		defer func() { attempt++ }()
 		contentLen := int(req.ContentLength)
 		body, err := ioutil.ReadAll(req.Body)
 		if err != nil {
-			t.Fatal("error reading request body: ", err)
+			return nil, err
 		}
 		bodyLen := len(body)
 		if contentLen != bodyLen {
-			t.Errorf("content-length and body length mis-match: content=%d body=%d",
-				contentLen, bodyLen)
+			return nil, fmt.Errorf(
+				"content-length and body length mis-match: content=%d body=%d",
+				contentLen, bodyLen,
+			)
 		}
 
-		attempt++
-		if attempt < 2 {
+		if attempt < attempts {
 			return emptyResponse(418), nil
 		}
 		return emptyResponse(200), nil
 	})
+}
 
+func TestRequestRetryBody(t *testing.T) {
 	h, _ := NewHarvester(func(cfg *Config) {
 		cfg.HarvestPeriod = 0
 		cfg.APIKey = "APIKey"
-		cfg.Client.Transport = roundTripper
+		cfg.Client.Transport = roundTripper(2)
 	})
 	h.RecordMetric(Count{})
 	h.HarvestNow(context.Background())
 }
+
+func benchmarkRetryBodyN(b *testing.B, n int) {
+	// Disable backoff delay.
+	oBOSS := backoffSequenceSeconds
+	backoffSequenceSeconds = make([]int, n+1)
+
+	count := Count{}
+	ctx := context.Background()
+	h, _ := NewHarvester(func(cfg *Config) {
+		cfg.HarvestPeriod = 0
+		cfg.APIKey = "APIKey"
+		cfg.Client.Transport = roundTripper(n)
+	})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		h.RecordMetric(count)
+		h.HarvestNow(ctx)
+	}
+
+	b.StopTimer()
+	backoffSequenceSeconds = oBOSS
+}
+
+func BenchmarkRetryBody0(b *testing.B) { benchmarkRetryBodyN(b, 0) }
+func BenchmarkRetryBody1(b *testing.B) { benchmarkRetryBodyN(b, 1) }
+func BenchmarkRetryBody2(b *testing.B) { benchmarkRetryBodyN(b, 2) }
+func BenchmarkRetryBody4(b *testing.B) { benchmarkRetryBodyN(b, 4) }
+func BenchmarkRetryBody8(b *testing.B) { benchmarkRetryBodyN(b, 8) }
