@@ -40,6 +40,10 @@ type Config struct {
 	// MetricsURLOverride overrides the metrics endpoint if not not empty.
 	MetricsURLOverride string
 	// SpansURLOverride overrides the spans endpoint if not not empty.
+	//
+	// To enable Infinite Tracing on the New Relic Edge, set this field to your
+	// Trace Observer URL.  See
+	// https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/enable-configure/enable-distributed-tracing
 	SpansURLOverride string
 	// Product is added to the User-Agent header. eg. "NewRelic-Go-OpenCensus"
 	Product string
@@ -47,7 +51,7 @@ type Config struct {
 	ProductVersion string
 }
 
-// ConfigAPIKey sets the Config's APIKey which is required  and refers to your
+// ConfigAPIKey sets the Config's APIKey which is required and refers to your
 // New Relic Insights Insert API key.
 func ConfigAPIKey(key string) func(*Config) {
 	return func(cfg *Config) {
@@ -105,6 +109,14 @@ func ConfigBasicDebugLogger(w io.Writer) func(*Config) {
 func ConfigBasicAuditLogger(w io.Writer) func(*Config) {
 	return func(cfg *Config) {
 		cfg.AuditLogger = newBasicLogger(w)
+	}
+}
+
+// ConfigSpansURLOverride sets the Config's SpansURLOverride field which
+// overrides the spans endpoint if not not empty.
+func ConfigSpansURLOverride(url string) func(*Config) {
+	return func(cfg *Config) {
+		cfg.SpansURLOverride = url
 	}
 }
 

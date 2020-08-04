@@ -6,6 +6,7 @@ package telemetry
 import (
 	"bytes"
 	"encoding/json"
+	"math"
 	"time"
 
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
@@ -120,8 +121,6 @@ func (m Summary) validate() map[string]interface{} {
 	for _, v := range []float64{
 		m.Count,
 		m.Sum,
-		m.Min,
-		m.Max,
 	} {
 		if err := isFloatValid(v); err != nil {
 			return map[string]interface{}{
@@ -131,6 +130,20 @@ func (m Summary) validate() map[string]interface{} {
 			}
 		}
 	}
+
+	for _, v := range []float64{
+		m.Min,
+		m.Max,
+	} {
+		if math.IsInf(v, 0) {
+			return map[string]interface{}{
+				"message": "invalid summary field",
+				"name":    m.Name,
+				"err":     errFloatInfinity.Error(),
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -146,8 +159,16 @@ func (m Summary) writeJSON(buf *bytes.Buffer) {
 	vw := internal.JSONFieldsWriter{Buf: buf}
 	vw.FloatField("sum", m.Sum)
 	vw.FloatField("count", m.Count)
-	vw.FloatField("min", m.Min)
-	vw.FloatField("max", m.Max)
+	if math.IsNaN(m.Min) {
+		w.RawField("min", json.RawMessage(`null`))
+	} else {
+		vw.FloatField("min", m.Min)
+	}
+	if math.IsNaN(m.Max) {
+		vw.RawField("max", json.RawMessage(`null`))
+	} else {
+		vw.FloatField("max", m.Max)
+	}
 	buf.WriteByte('}')
 
 	writeTimestampInterval(&w, m.Timestamp, m.Interval)
