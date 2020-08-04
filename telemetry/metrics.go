@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/internal"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 // Count is the metric type that counts the number of times an event occurred.

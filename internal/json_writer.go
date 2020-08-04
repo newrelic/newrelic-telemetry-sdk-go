@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/internal/jsonx"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal/jsonx"
 )
 
 // JSONWriter is something that can write JSON to a buffer.

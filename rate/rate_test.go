@@ -2,7 +2,7 @@ package rate
 
 import (
 	"fmt"
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/telemetry"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/telemetry"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"

@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/internal"
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/telemetry"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/telemetry"
 )
 
 // DeltaCalculator is used to create Count metrics from cumulative values.

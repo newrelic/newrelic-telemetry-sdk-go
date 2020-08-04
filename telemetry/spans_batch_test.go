@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/internal"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 func testSpanBatchJSON(t testing.TB, batch *spanBatch, expect string) {

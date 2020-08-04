@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/internal"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 // Span is a distributed tracing span.

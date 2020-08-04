@@ -10,7 +10,7 @@ This SDK currently supports sending dimensional metrics and spans to the [Metric
 
 ## Requirements
 
-Go 1.7+ is required
+Go 1.13+ is required
 
 
 ## Get started

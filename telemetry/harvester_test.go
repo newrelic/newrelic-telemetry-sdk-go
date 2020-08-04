@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/internal"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 // compactJSONString removes the whitespace from a JSON string.  This function

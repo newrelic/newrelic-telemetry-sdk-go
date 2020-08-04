@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/internal"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 // Harvester aggregates and reports metrics and spans.

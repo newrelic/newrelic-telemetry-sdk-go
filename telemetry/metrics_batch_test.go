@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/internal"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 func TestMetrics(t *testing.T) {

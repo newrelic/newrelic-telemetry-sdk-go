@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/internal"
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/telemetry"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/telemetry"
 )
 
 // RateCalculator is used to create Gauge metrics from rate values.

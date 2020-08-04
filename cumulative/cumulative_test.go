@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/newrelic-forks/newrelic-telemetry-sdk-go/telemetry"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/telemetry"
 )
 
 func Example() {
