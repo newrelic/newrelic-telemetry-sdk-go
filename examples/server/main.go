@@ -4,13 +4,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/newrelic/newrelic-telemetry-sdk-go/telemetry"
@@ -120,6 +123,16 @@ func mustGetEnv(v string) string {
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		// wait for cancel signal
+		<-done
+		cancel()
+	}()
+
 	var err error
 	h, err = telemetry.NewHarvester(
 		telemetry.ConfigAPIKey(mustGetEnv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")),
@@ -134,6 +147,7 @@ func main() {
 			cfg.MetricsURLOverride = os.Getenv("NEW_RELIC_METRICS_URL")
 			cfg.SpansURLOverride = os.Getenv("NEW_RELIC_SPANS_URL")
 		},
+		telemetry.ConfigContext(ctx),
 	)
 	if nil != err {
 		panic(err)
