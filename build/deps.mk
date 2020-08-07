@@ -3,8 +3,12 @@
 #
 
 GO           ?= go
+GOFMT        ?= gofmt
 VENDOR_CMD   ?= ${GO} mod tidy
 BUILD_DIR    ?= ./bin/
+
+# Go file to track tool deps with go modules
+TOOL_CONFIG  ?= tools/tools.go
 
 # These should be mirrored in /tools.go to keep versions consistent
 GOTOOLS      += github.com/client9/misspell/cmd/misspell
@@ -17,6 +21,15 @@ tools: check-version tools-compile
 tools-update: check-version
 	@echo "=== $(PROJECT_NAME) === [ tools-update     ]: Updating tools required by the project..."
 	@$(GO) get -u $(GOTOOLS)
+
+tools-config: tools
+	@echo "=== $(PROJECT_NAME) === [ tools-config     ]: Updating tool configuration $(TOOL_CONFIG) ..."
+	@echo "// +build tools\n\npackage tools\n\nimport (" > $(TOOL_CONFIG)
+	@for t in $(GOTOOLS); do \
+		echo "\t_ \"$$t\"" >> $(TOOL_CONFIG) ; \
+	done
+	@echo ")" >> $(TOOL_CONFIG)
+	@$(GOFMT) -w $(TOOL_CONFIG)
 
 deps: tools deps-only
 
