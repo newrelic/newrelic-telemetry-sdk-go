@@ -248,7 +248,7 @@ type metricBatch struct {
 	// Timestamp must be set here or on all metrics.
 	Timestamp time.Time
 	// Interval is the length of time for all metrics in this metricBatch.  This
-	// value can be overriden by setting Interval on any particular Count or
+	// value can be overridden by setting Interval on any particular Count or
 	// Summary metric.  Interval must be set to a non-zero value here or on
 	// all Count and Summary metrics.
 	Interval time.Duration

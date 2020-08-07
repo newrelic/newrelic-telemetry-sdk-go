@@ -1,5 +1,6 @@
 // Copyright 2019 New Relic Corporation. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
+// +build unit
 
 package telemetry
 
@@ -7,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"math"
 	"net/http"
@@ -17,27 +17,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
+	"github.com/stretchr/testify/assert"
 )
 
-// compactJSONString removes the whitespace from a JSON string.  This function
-// will panic if the string provided is not valid JSON.
-func compactJSONString(js string) string {
-	buf := new(bytes.Buffer)
-	if err := json.Compact(buf, []byte(js)); err != nil {
-		panic(fmt.Errorf("unable to compact JSON: %v", err))
-	}
-	return buf.String()
-}
-
 func TestNilHarvestNow(t *testing.T) {
+	t.Parallel()
+
 	var h *Harvester
 	h.HarvestNow(context.Background())
 }
 
 func TestNilHarvesterRecordSpan(t *testing.T) {
+	t.Parallel()
+
 	var h *Harvester
-	h.RecordSpan(Span{
+
+	err := h.RecordSpan(Span{
 		ID:          "id",
 		TraceID:     "traceId",
 		Name:        "myspan",
@@ -49,9 +44,13 @@ func TestNilHarvesterRecordSpan(t *testing.T) {
 			"attr": 1,
 		},
 	})
+
+	assert.NoError(t, err)
 }
 
 func TestHarvestErrorLogger(t *testing.T) {
+	t.Parallel()
+
 	err := map[string]interface{}{}
 
 	harvestMissingErrorLogger, _ := NewHarvester(configTesting)
@@ -70,6 +69,8 @@ func TestHarvestErrorLogger(t *testing.T) {
 }
 
 func TestHarvestDebugLogger(t *testing.T) {
+	t.Parallel()
+
 	fields := map[string]interface{}{
 		"something": "happened",
 	}
@@ -90,6 +91,8 @@ func TestHarvestDebugLogger(t *testing.T) {
 }
 
 func TestVetCommonAttributes(t *testing.T) {
+	t.Parallel()
+
 	attributes := map[string]interface{}{
 		"bool":           true,
 		"bad":            struct{}{},
@@ -98,7 +101,8 @@ func TestVetCommonAttributes(t *testing.T) {
 		"nil-is-invalid": nil,
 	}
 	var savedErrors []map[string]interface{}
-	NewHarvester(
+
+	h, err := NewHarvester(
 		configTesting,
 		ConfigCommonAttributes(attributes),
 		func(cfg *Config) {
@@ -107,6 +111,10 @@ func TestVetCommonAttributes(t *testing.T) {
 			}
 		},
 	)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, h)
+
 	if len(savedErrors) != 3 {
 		t.Fatal(savedErrors)
 	}
@@ -129,7 +137,8 @@ func TestHarvestCancelled(t *testing.T) {
 			Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
 		}, nil
 	})
-	h, _ := NewHarvester(func(cfg *Config) {
+
+	h, err := NewHarvester(func(cfg *Config) {
 		cfg.ErrorLogger = func(e map[string]interface{}) {
 			errs++
 		}
@@ -137,7 +146,10 @@ func TestHarvestCancelled(t *testing.T) {
 		cfg.Client.Transport = rt
 		cfg.APIKey = "key"
 	})
-	h.RecordSpan(Span{TraceID: "id", ID: "id"})
+	assert.NoError(t, err)
+
+	err = h.RecordSpan(Span{TraceID: "id", ID: "id"})
+	assert.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -153,12 +165,17 @@ func TestHarvestCancelled(t *testing.T) {
 }
 
 func TestNewRequestHeaders(t *testing.T) {
-	h, _ := NewHarvester(configTesting, func(cfg *Config) {
+	h, err := NewHarvester(configTesting, func(cfg *Config) {
 		cfg.Product = "myProduct"
 		cfg.ProductVersion = "0.1.0"
 	})
+	assert.NoError(t, err)
+	assert.NotNil(t, h)
+
 	expectUserAgent := "NewRelic-Go-TelemetrySDK/" + version + " myProduct/0.1.0"
-	h.RecordSpan(Span{TraceID: "id", ID: "id"})
+
+	err = h.RecordSpan(Span{TraceID: "id", ID: "id"})
+	assert.NoError(t, err)
 	h.RecordMetric(Gauge{})
 
 	reqs := h.swapOutSpans()
@@ -190,49 +207,6 @@ func TestNewRequestHeaders(t *testing.T) {
 	if h := req.Request.Header.Get("User-Agent"); expectUserAgent != h {
 		t.Error("User-Agent header incorrect", h)
 	}
-}
-
-type roundTripperFunc func(*http.Request) (*http.Response, error)
-
-func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return fn(req)
-}
-
-// optional interface required for go1.4 and go1.5
-func (fn roundTripperFunc) CancelRequest(*http.Request) {}
-
-func emptyResponse(status int) *http.Response {
-	return &http.Response{
-		StatusCode: status,
-		Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
-	}
-}
-
-func uncompressBody(req *http.Request) (string, error) {
-	body, err := ioutil.ReadAll(req.Body)
-	defer req.Body.Close()
-
-	if err != nil {
-		return "", fmt.Errorf("unable to read body: %v", err)
-	}
-	uncompressed, err := internal.Uncompress(body)
-	if err != nil {
-		return "", fmt.Errorf("unable to uncompress body: %v", err)
-	}
-	return string(uncompressed), nil
-}
-
-// sortedMetricsHelper is used to sort metrics for JSON comparison.
-type sortedMetricsHelper []json.RawMessage
-
-func (h sortedMetricsHelper) Len() int {
-	return len(h)
-}
-func (h sortedMetricsHelper) Less(i, j int) bool {
-	return string(h[i]) < string(h[j])
-}
-func (h sortedMetricsHelper) Swap(i, j int) {
-	h[i], h[j] = h[j], h[i]
 }
 
 func testHarvesterMetrics(t testing.TB, h *Harvester, expect string) {
@@ -336,10 +310,15 @@ func TestReturnCodes(t *testing.T) {
 
 	for _, test := range testcases {
 		posts = 0
-		h, _ := NewHarvester(configTesting, func(cfg *Config) {
+		h, err := NewHarvester(configTesting, func(cfg *Config) {
 			cfg.Client.Transport = rtFunc(test.returnCode)
 		})
-		h.RecordSpan(sp)
+		assert.NoError(t, err)
+		assert.NotNil(t, h)
+
+		err = h.RecordSpan(sp)
+		assert.NoError(t, err)
+
 		h.HarvestNow(context.Background())
 		if (test.shouldRetry && 2 != posts) || (!test.shouldRetry && 1 != posts) {
 			t.Error("incorrect number of posts", posts)
@@ -374,33 +353,48 @@ func Test429RetryAfterUsesConfig(t *testing.T) {
 		})
 	}
 
-	h, _ := NewHarvester(func(cfg *Config) {
+	h, err := NewHarvester(func(cfg *Config) {
 		cfg.Client.Transport = roundTripper("")
 		cfg.APIKey = "key"
 	})
-	h.RecordSpan(span)
+	assert.NoError(t, err)
+	assert.NotNil(t, h)
+
+	err = h.RecordSpan(span)
+	assert.NoError(t, err)
+
 	h.HarvestNow(context.Background())
 	if posts != 2 {
 		t.Error("incorrect number of posts", posts)
 	}
 
 	posts = 0
-	h, _ = NewHarvester(func(cfg *Config) {
+	h, err = NewHarvester(func(cfg *Config) {
 		cfg.Client.Transport = roundTripper("hello world!")
 		cfg.APIKey = "key"
 	})
-	h.RecordSpan(span)
+	assert.NoError(t, err)
+	assert.NotNil(t, h)
+
+	err = h.RecordSpan(span)
+	assert.NoError(t, err)
+
 	h.HarvestNow(context.Background())
 	if posts != 2 {
 		t.Error("incorrect number of posts", posts)
 	}
 
 	posts = 0
-	h, _ = NewHarvester(func(cfg *Config) {
+	h, err = NewHarvester(func(cfg *Config) {
 		cfg.Client.Transport = roundTripper("0")
 		cfg.APIKey = "key"
 	})
-	h.RecordSpan(span)
+	assert.NoError(t, err)
+	assert.NotNil(t, h)
+
+	err = h.RecordSpan(span)
+	assert.NoError(t, err)
+
 	h.HarvestNow(context.Background())
 	if posts != 2 {
 		t.Error("incorrect number of posts", posts)
@@ -654,51 +648,3 @@ func TestRequestRetryBody(t *testing.T) {
 	h.RecordMetric(Count{})
 	h.HarvestNow(context.Background())
 }
-
-// multiAttemptRoundTripper will fail the first n requests after reading
-// their body with a 418. Subsequent requests will be returned a 200.
-func multiAttemptRoundTripper(n int) roundTripperFunc {
-	var attempt int
-	return roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		defer func() { attempt++ }()
-		if _, err := ioutil.ReadAll(req.Body); err != nil {
-			return nil, err
-		}
-		if attempt < n {
-			return emptyResponse(418), nil
-		}
-		return emptyResponse(200), nil
-	})
-}
-
-func benchmarkRetryBodyN(b *testing.B, n int) {
-	// Disable backoff delay.
-	oBOSS := backoffSequenceSeconds
-	backoffSequenceSeconds = make([]int, n+1)
-
-	count := Count{}
-	ctx := context.Background()
-	h, _ := NewHarvester(func(cfg *Config) {
-		cfg.HarvestPeriod = 0
-		cfg.APIKey = "APIKey"
-		cfg.Client.Transport = multiAttemptRoundTripper(n)
-	})
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for n := 0; n < b.N; n++ {
-		h.RecordMetric(count)
-		h.HarvestNow(ctx)
-	}
-
-	b.StopTimer()
-	backoffSequenceSeconds = oBOSS
-}
-
-// Baseline for the rest. This does not retry.
-func BenchmarkRetryBody0(b *testing.B) { benchmarkRetryBodyN(b, 0) }
-func BenchmarkRetryBody1(b *testing.B) { benchmarkRetryBodyN(b, 1) }
-func BenchmarkRetryBody2(b *testing.B) { benchmarkRetryBodyN(b, 2) }
-func BenchmarkRetryBody4(b *testing.B) { benchmarkRetryBodyN(b, 4) }
-func BenchmarkRetryBody8(b *testing.B) { benchmarkRetryBodyN(b, 8) }

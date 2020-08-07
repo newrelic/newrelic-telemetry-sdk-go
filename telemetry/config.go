@@ -120,13 +120,6 @@ func ConfigSpansURLOverride(url string) func(*Config) {
 	}
 }
 
-// configTesting is the config function to be used when testing. It sets the
-// APIKey but disables the harvest goroutine.
-func configTesting(cfg *Config) {
-	cfg.APIKey = "api-key"
-	cfg.HarvestPeriod = 0
-}
-
 func (cfg *Config) logError(fields map[string]interface{}) {
 	if nil == cfg.ErrorLogger {
 		return

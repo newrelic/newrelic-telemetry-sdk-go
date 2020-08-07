@@ -1,5 +1,6 @@
 // Copyright 2019 New Relic Corporation. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
+// +build unit
 
 package telemetry
 
@@ -37,7 +38,7 @@ func Example() {
 	})
 
 	// Record spans using RecordSpan.
-	h.RecordSpan(Span{
+	err = h.RecordSpan(Span{
 		ID:          "12345",
 		TraceID:     "67890",
 		Name:        "purple-span",
@@ -48,6 +49,9 @@ func Example() {
 			"color": "purple",
 		},
 	})
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	// Aggregate individual datapoints into metrics using the
 	// MetricAggregator.  You can do this in a single line:
@@ -98,7 +102,8 @@ func ExampleConfigSpansURLOverride() {
 		// and path.
 		ConfigSpansURLOverride("https://nr-internal.aws-us-east-1.tracing.edge.nr-data.net/trace/v1"),
 	)
-	h.RecordSpan(Span{
+
+	err := h.RecordSpan(Span{
 		ID:          "12345",
 		TraceID:     "67890",
 		Name:        "purple-span",
@@ -109,4 +114,7 @@ func ExampleConfigSpansURLOverride() {
 			"color": "purple",
 		},
 	})
+	if err != nil {
+		fmt.Println(err)
+	}
 }

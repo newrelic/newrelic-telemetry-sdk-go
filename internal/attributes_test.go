@@ -1,16 +1,18 @@
 // Copyright 2019 New Relic Corporation. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
+// +build unit
 
 package internal
 
 import (
 	"bytes"
 	"math"
-	"strconv"
 	"testing"
 )
 
 func TestAttributesWriteJSON(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		key    string
 		val    interface{}
@@ -44,7 +46,7 @@ func TestAttributesWriteJSON(t *testing.T) {
 			test.key: test.val,
 		})
 		ats.WriteJSON(buf)
-		got := string(buf.Bytes())
+		got := buf.String()
 		if got != test.expect {
 			t.Errorf("key='%s' val=%v expect='%s' got='%s'",
 				test.key, test.val, test.expect, got)
@@ -53,16 +55,20 @@ func TestAttributesWriteJSON(t *testing.T) {
 }
 
 func TestEmptyAttributesWriteJSON(t *testing.T) {
+	t.Parallel()
+
 	var ats Attributes
 	buf := &bytes.Buffer{}
 	ats.WriteJSON(buf)
-	got := string(buf.Bytes())
+	got := buf.String()
 	if got != `{}` {
 		t.Error(got)
 	}
 }
 
 func TestOrderedAttributesWriteJSON(t *testing.T) {
+	t.Parallel()
+
 	ats := map[string]interface{}{
 		"z": 123,
 		"b": "hello",
@@ -78,53 +84,10 @@ func TestOrderedAttributesWriteJSON(t *testing.T) {
 }
 
 func TestEmptyOrderedAttributesWriteJSON(t *testing.T) {
+	t.Parallel()
+
 	got := string(MarshalOrderedAttributes(nil))
 	if got != `{}` {
 		t.Error(got)
-	}
-}
-
-func sampleAttributes(num int) map[string]interface{} {
-	attributes := make(map[string]interface{})
-	for i := 0; i < num; i++ {
-		istr := strconv.Itoa(i)
-		// Mix string and integer attributes:
-		if i%2 == 0 {
-			attributes[istr] = istr
-		} else {
-			attributes[istr] = i
-		}
-	}
-	return attributes
-}
-
-func BenchmarkAttributes(b *testing.B) {
-	attributes := Attributes(sampleAttributes(1000))
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		// Compare this to: `js, err := json.Marshal(attributes)`
-		buf := &bytes.Buffer{}
-		attributes.WriteJSON(buf)
-		if 0 == buf.Len() {
-			b.Fatal(buf.Len())
-		}
-	}
-}
-
-func BenchmarkOrderedAttributes(b *testing.B) {
-	attributes := sampleAttributes(1000)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		// Compare this to: `js, err := json.Marshal(attributes)`
-		js := MarshalOrderedAttributes(attributes)
-		if len(js) == 0 {
-			b.Fatal(string(js))
-		}
 	}
 }

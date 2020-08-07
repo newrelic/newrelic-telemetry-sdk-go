@@ -1,5 +1,6 @@
 // Copyright 2019 New Relic Corporation. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
+// +build unit
 
 package telemetry
 
@@ -57,23 +58,6 @@ func TestManyAttributes(t *testing.T) {
 	h.MetricAggregator().Gauge("myGauge", attributes).valueNow(2.0, now)
 	if ms := h.swapOutMetrics(time.Now()); len(ms) != 1 {
 		t.Fatal(len(ms))
-	}
-}
-
-func BenchmarkAggregatedMetric(b *testing.B) {
-	// This benchmark tests creating and aggregating a summary.
-	h, _ := NewHarvester(configTesting)
-	attributes := map[string]interface{}{"zip": "zap", "zop": 123}
-
-	b.ResetTimer()
-	b.ReportAllocs()
-
-	for i := 0; i < b.N; i++ {
-		summary := h.MetricAggregator().Summary("mySummary", attributes)
-		summary.Record(12.3)
-		if nil == summary {
-			b.Fatal("nil summary")
-		}
 	}
 }
 

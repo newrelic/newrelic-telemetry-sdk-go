@@ -1,45 +1,15 @@
 // Copyright 2019 New Relic Corporation. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
+// +build unit
 
 package telemetry
 
 import (
-	"bytes"
-	"encoding/json"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
-
-func BenchmarkSpansJSON(b *testing.B) {
-	// This benchmark tests the overhead of turning spans into JSON.
-	batch := &spanBatch{}
-	numSpans := 10 * 1000
-	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
-
-	for i := 0; i < numSpans; i++ {
-		batch.Spans = append(batch.Spans, Span{
-			ID:             "myid",
-			TraceID:        "mytraceid",
-			Name:           "myname",
-			ParentID:       "myparent",
-			Timestamp:      tm,
-			Duration:       2 * time.Second,
-			ServiceName:    "myentity",
-			AttributesJSON: json.RawMessage(`{"zip":"zap","zop":123}`),
-		})
-	}
-
-	b.ResetTimer()
-	b.ReportAllocs()
-
-	for i := 0; i < b.N; i++ {
-		buf := &bytes.Buffer{}
-		batch.writeJSON(buf)
-		if bts := buf.Bytes(); nil == bts || len(bts) == 0 {
-			b.Fatal(string(bts))
-		}
-	}
-}
 
 func testHarvesterSpans(t testing.TB, h *Harvester, expect string) {
 	reqs := h.swapOutSpans()
@@ -68,8 +38,11 @@ func testHarvesterSpans(t testing.TB, h *Harvester, expect string) {
 
 func TestSpan(t *testing.T) {
 	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
-	h, _ := NewHarvester(configTesting)
-	h.RecordSpan(Span{
+	h, err := NewHarvester(configTesting)
+	assert.NoError(t, err)
+	assert.NotNil(t, h)
+
+	err = h.RecordSpan(Span{
 		ID:          "myid",
 		TraceID:     "mytraceid",
 		Name:        "myname",
@@ -81,6 +54,8 @@ func TestSpan(t *testing.T) {
 			"zip": "zap",
 		},
 	})
+	assert.NoError(t, err)
+
 	expect := `[{"common":{},"spans":[{
 		"id":"myid",
 		"trace.id":"mytraceid",
@@ -98,8 +73,11 @@ func TestSpan(t *testing.T) {
 
 func TestSpanInvalidAttribute(t *testing.T) {
 	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
-	h, _ := NewHarvester(configTesting)
-	h.RecordSpan(Span{
+	h, err := NewHarvester(configTesting)
+	assert.NoError(t, err)
+	assert.NotNil(t, h)
+
+	err = h.RecordSpan(Span{
 		ID:          "myid",
 		TraceID:     "mytraceid",
 		Name:        "myname",
@@ -112,6 +90,8 @@ func TestSpanInvalidAttribute(t *testing.T) {
 			"nil-gets-removed":                   nil,
 		},
 	})
+	assert.NoError(t, err)
+
 	expect := `[{"common":{},"spans":[{
 		"id":"myid",
 		"trace.id":"mytraceid",

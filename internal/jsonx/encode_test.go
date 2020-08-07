@@ -1,6 +1,7 @@
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+// +build unit
 
 package jsonx
 
@@ -8,50 +9,46 @@ import (
 	"bytes"
 	"math"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAppendFloat(t *testing.T) {
+	t.Parallel()
+
 	buf := &bytes.Buffer{}
 	AppendFloat(buf, math.NaN())
-	if want, got := `"NaN"`, buf.String(); want != got {
-		t.Error(got, want)
-	}
+	assert.Equal(t, `"NaN"`, buf.String())
 
 	buf.Reset()
 	AppendFloat(buf, math.Inf(1))
-	if want, got := `"infinity"`, buf.String(); want != got {
-		t.Error(got, want)
-	}
+	assert.Equal(t, `"infinity"`, buf.String())
 
 	buf.Reset()
 	AppendFloat(buf, math.Inf(-1))
-	if want, got := `"infinity"`, buf.String(); want != got {
-		t.Error(got, want)
-	}
+	assert.Equal(t, `"infinity"`, buf.String())
 }
 
 func TestAppendFloats(t *testing.T) {
+	t.Parallel()
+
 	buf := &bytes.Buffer{}
 
 	AppendFloatArray(buf)
-	if want, got := "[]", buf.String(); want != got {
-		t.Errorf("AppendFloatArray(buf)=%q want=%q", got, want)
-	}
+	assert.Equal(t, "[]", buf.String())
 
 	buf.Reset()
 	AppendFloatArray(buf, 3.14)
-	if want, got := "[3.14]", buf.String(); want != got {
-		t.Errorf("AppendFloatArray(buf)=%q want=%q", got, want)
-	}
+	assert.Equal(t, "[3.14]", buf.String())
 
 	buf.Reset()
 	AppendFloatArray(buf, 1, 2)
-	if want, got := "[1,2]", buf.String(); want != got {
-		t.Errorf("AppendFloatArray(buf)=%q want=%q", got, want)
-	}
+	assert.Equal(t, "[1,2]", buf.String())
 }
 
 func TestAppendInt(t *testing.T) {
+	t.Parallel()
+
 	buf := &bytes.Buffer{}
 
 	AppendInt(buf, 42)
@@ -67,6 +64,8 @@ func TestAppendInt(t *testing.T) {
 }
 
 func TestAppendIntArray(t *testing.T) {
+	t.Parallel()
+
 	buf := &bytes.Buffer{}
 
 	AppendIntArray(buf)
@@ -94,6 +93,8 @@ func TestAppendIntArray(t *testing.T) {
 }
 
 func TestAppendUint(t *testing.T) {
+	t.Parallel()
+
 	buf := &bytes.Buffer{}
 
 	AppendUint(buf, 42)
@@ -103,6 +104,8 @@ func TestAppendUint(t *testing.T) {
 }
 
 func TestAppendUintArray(t *testing.T) {
+	t.Parallel()
+
 	buf := &bytes.Buffer{}
 
 	AppendUintArray(buf)
@@ -171,14 +174,14 @@ var encodeStringTests = []struct {
 }
 
 func TestAppendString(t *testing.T) {
+	t.Parallel()
+
 	buf := &bytes.Buffer{}
 
 	for _, tt := range encodeStringTests {
 		buf.Reset()
 
 		AppendString(buf, tt.in)
-		if got := buf.String(); got != tt.out {
-			t.Errorf("AppendString(%q) = %#q, want %#q", tt.in, got, tt.out)
-		}
+		assert.Equal(t, tt.out, buf.String())
 	}
 }
