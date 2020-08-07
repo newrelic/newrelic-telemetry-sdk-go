@@ -8,6 +8,9 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfigAPIKey(t *testing.T) {
@@ -134,25 +137,36 @@ func TestConfigMetricURL(t *testing.T) {
 	}
 }
 
-func TestConfigSpanURL(t *testing.T) {
+func TestConfigSpansURL(t *testing.T) {
 	t.Parallel()
 
+	// We get the default
 	h, err := NewHarvester(configTesting)
-	if nil == h || err != nil {
-		t.Fatal(h, err)
-	}
-	if u := h.config.spanURL(); u != defaultSpanURL {
-		t.Fatal(u)
-	}
-	h, err = NewHarvester(configTesting, func(cfg *Config) {
-		cfg.SpansURLOverride = "span-url-override"
-	})
-	if nil == h || err != nil {
-		t.Fatal(h, err)
-	}
-	if u := h.config.spanURL(); u != "span-url-override" {
-		t.Fatal(u)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, h)
+	assert.Equal(t, defaultSpanURL, h.config.spanURL())
+
+	// The override config option works
+	h, err = NewHarvester(configTesting, ConfigSpansURLOverride("span-url-override"))
+	require.NoError(t, err)
+	require.NotNil(t, h)
+	assert.Equal(t, "span-url-override", h.config.spanURL())
+}
+
+func TestConfigEventsURL(t *testing.T) {
+	t.Parallel()
+
+	// We get the default
+	h, err := NewHarvester(configTesting)
+	require.NoError(t, err)
+	require.NotNil(t, h)
+	assert.Equal(t, defaultEventURL, h.config.eventURL())
+
+	// The override config option works
+	h, err = NewHarvester(configTesting, ConfigEventsURLOverride("event-url-override"))
+	require.NoError(t, err)
+	require.NotNil(t, h)
+	assert.Equal(t, "event-url-override", h.config.eventURL())
 }
 
 func TestConfigUserAgent(t *testing.T) {

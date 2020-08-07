@@ -10,7 +10,34 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"testing"
+	"time"
 )
+
+var (
+	testTimestamp = time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
+	testInsertKey = "api-key"
+)
+
+const (
+	testTimeString = "1417136460000"
+)
+
+// NewIntegrationTestConfig grabs environment vars for required fields or skips the test.
+// returns a fully saturated configuration
+func NewIntegrationTestConfig(t *testing.T) func(*Config) {
+	envInsightsInsertKey := os.Getenv("NEW_RELIC_INSIGHTS_INSERT_KEY")
+
+	if envInsightsInsertKey == "" {
+		t.Skipf("integration testing requires NEW_RELIC_INSIGHTS_INSERT_KEY")
+	}
+
+	return func(cfg *Config) {
+		cfg.APIKey = envInsightsInsertKey
+		cfg.HarvestPeriod = 0
+	}
+}
 
 // configTesting is the config function to be used when testing. It sets the
 // APIKey but disables the harvest goroutine.

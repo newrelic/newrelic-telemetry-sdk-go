@@ -48,6 +48,22 @@ func TestNilHarvesterRecordSpan(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestHarvesterRecordSpan(t *testing.T) {
+	t.Parallel()
+
+	var h *Harvester
+
+	err := h.RecordEvent(Event{
+		EventType: "testEvent",
+		Timestamp: time.Now(),
+		Attributes: map[string]interface{}{
+			"testName": "TestHarvesterRecordSpan",
+		},
+	})
+
+	assert.NoError(t, err)
+}
+
 func TestHarvestErrorLogger(t *testing.T) {
 	t.Parallel()
 
