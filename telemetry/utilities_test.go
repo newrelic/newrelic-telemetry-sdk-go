@@ -11,6 +11,8 @@ import (
 )
 
 func TestJSONString(t *testing.T) {
+	t.Parallel()
+
 	// Test that the jsonString type has the intended behavior.
 	var emptySlice []byte
 	jstr := jsonString(emptySlice)
@@ -30,7 +32,8 @@ func TestJSONString(t *testing.T) {
 }
 
 func TestJSONOrString(t *testing.T) {
-	// Test that jsonOrString has the intended behavior.
+	t.Parallel()
+	// Test that  jsonOrString has the intended behavior.
 
 	out := jsonOrString(nil)
 	if js, _ := json.Marshal(out); string(js) != `""` {

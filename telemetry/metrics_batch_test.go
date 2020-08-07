@@ -14,6 +14,8 @@ import (
 )
 
 func TestMetrics(t *testing.T) {
+	t.Parallel()
+
 	metrics := &metricBatch{}
 	start := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	metrics.Metrics = []Metric{
@@ -129,6 +131,8 @@ func testBatchJSON(t testing.TB, batch *metricBatch, expect string) {
 }
 
 func TestSplit(t *testing.T) {
+	t.Parallel()
+
 	// test len 0
 	batch := &metricBatch{}
 	split := batch.split()
@@ -163,6 +167,8 @@ func TestSplit(t *testing.T) {
 }
 
 func TestMetricAttributesJSON(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		key    string
 		val    interface{}
@@ -199,6 +205,8 @@ func TestMetricAttributesJSON(t *testing.T) {
 }
 
 func TestCountAttributesJSON(t *testing.T) {
+	t.Parallel()
+
 	batch := &metricBatch{}
 	batch.Metrics = append(batch.Metrics, Count{
 		Attributes: map[string]interface{}{
@@ -216,6 +224,8 @@ func TestCountAttributesJSON(t *testing.T) {
 }
 
 func TestGaugeAttributesJSON(t *testing.T) {
+	t.Parallel()
+
 	start := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 
 	batch := &metricBatch{}
@@ -237,6 +247,8 @@ func TestGaugeAttributesJSON(t *testing.T) {
 }
 
 func TestSummaryAttributesJSON(t *testing.T) {
+	t.Parallel()
+
 	batch := &metricBatch{}
 	batch.Metrics = append(batch.Metrics, Summary{
 		Attributes: map[string]interface{}{
@@ -254,6 +266,8 @@ func TestSummaryAttributesJSON(t *testing.T) {
 }
 
 func TestBatchAttributesJSON(t *testing.T) {
+	t.Parallel()
+
 	batch := &metricBatch{
 		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
 	}
@@ -261,6 +275,8 @@ func TestBatchAttributesJSON(t *testing.T) {
 }
 
 func TestBatchStartEndTimesJSON(t *testing.T) {
+	t.Parallel()
+
 	start := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 
 	batch := &metricBatch{}
@@ -284,6 +300,8 @@ func TestBatchStartEndTimesJSON(t *testing.T) {
 }
 
 func TestCommonAttributes(t *testing.T) {
+	t.Parallel()
+
 	// Tests when the "common" key is included in the metrics payload
 	type testStruct struct {
 		start          time.Time

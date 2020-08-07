@@ -30,6 +30,8 @@ func (ts testRequestBuilder) split() []requestsBuilder {
 }
 
 func TestNewRequestsSplitSuccess(t *testing.T) {
+	t.Parallel()
+
 	ts := testRequestBuilder{
 		bodies: []json.RawMessage{
 			json.RawMessage(`12345678901234567890`),
@@ -50,6 +52,8 @@ func TestNewRequestsSplitSuccess(t *testing.T) {
 }
 
 func TestNewRequestsCantSplit(t *testing.T) {
+	t.Parallel()
+
 	ts := testRequestBuilder{
 		bodies: []json.RawMessage{
 			json.RawMessage(`12345678901234567890`),
@@ -78,6 +82,8 @@ func randomJSON(numBytes int) json.RawMessage {
 }
 
 func TestLargeRequestNeedsSplit(t *testing.T) {
+	t.Parallel()
+
 	js := randomJSON(4 * maxCompressedSizeBytes)
 	reqs, err := newRequests(testRequestBuilder{bodies: []json.RawMessage{js}}, "apiKey", defaultMetricURL, "userAgent")
 	if reqs != nil {
@@ -89,6 +95,8 @@ func TestLargeRequestNeedsSplit(t *testing.T) {
 }
 
 func TestLargeRequestNoSplit(t *testing.T) {
+	t.Parallel()
+
 	js := randomJSON(maxCompressedSizeBytes / 2)
 	reqs, err := newRequests(testRequestBuilder{bodies: []json.RawMessage{js}}, "apiKey", defaultMetricURL, "userAgent")
 	if err != nil {

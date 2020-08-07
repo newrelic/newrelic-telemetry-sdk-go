@@ -39,6 +39,8 @@ func Example() {
 }
 
 func TestCountMetricBasicUse(t *testing.T) {
+	t.Parallel()
+
 	// Test expected usage of CountMetric.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	dc := NewDeltaCalculator()
@@ -84,6 +86,8 @@ func TestCountMetricBasicUse(t *testing.T) {
 }
 
 func TestCountZeroDelta(t *testing.T) {
+	t.Parallel()
+
 	// Test that adding the same value twice results in a Count with a zero
 	// value.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
@@ -105,6 +109,8 @@ func TestCountZeroDelta(t *testing.T) {
 }
 
 func TestCountMetricNegativeDeltaReset(t *testing.T) {
+	t.Parallel()
+
 	// Test that CountMetric does not return a count metric with a negative
 	// value.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
@@ -128,6 +134,8 @@ func TestCountMetricNegativeDeltaReset(t *testing.T) {
 }
 
 func TestTimestampOrder(t *testing.T) {
+	t.Parallel()
+
 	// Test that CountMetric does not return a count metric when the
 	// timestamp values are not in increasing order.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
@@ -151,6 +159,8 @@ func TestTimestampOrder(t *testing.T) {
 }
 
 func TestCountMetricNoAttributes(t *testing.T) {
+	t.Parallel()
+
 	// Test that CountMetric works when no attributes are provided.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	dc := NewDeltaCalculator()
@@ -169,6 +179,8 @@ func TestCountMetricNoAttributes(t *testing.T) {
 }
 
 func TestExpirationDefaults(t *testing.T) {
+	t.Parallel()
+
 	// Test that expiration happens with the default settings.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	dc := NewDeltaCalculator()
@@ -191,6 +203,8 @@ func TestExpirationDefaults(t *testing.T) {
 }
 
 func TestExpirationCustomSettings(t *testing.T) {
+	t.Parallel()
+
 	// Test that expiration happens with custom settings.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	dc := NewDeltaCalculator().
@@ -218,6 +232,8 @@ func TestExpirationCustomSettings(t *testing.T) {
 }
 
 func TestManyAttributes(t *testing.T) {
+	t.Parallel()
+
 	// Test that attributes are turned into JSON in a fixed order.  Note
 	// that if JSON attribute order is random this test may still
 	// occasionally pass.

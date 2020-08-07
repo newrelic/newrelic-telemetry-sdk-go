@@ -11,6 +11,8 @@ import (
 )
 
 func TestConfigAPIKey(t *testing.T) {
+	t.Parallel()
+
 	apikey := "apikey"
 	h, err := NewHarvester(ConfigAPIKey(apikey))
 	if nil == h || err != nil {
@@ -22,6 +24,8 @@ func TestConfigAPIKey(t *testing.T) {
 }
 
 func TestConfigMissingAPIKey(t *testing.T) {
+	t.Parallel()
+
 	h, err := NewHarvester()
 	if nil != h || err != errAPIKeyUnset {
 		t.Fatal(h, err)
@@ -29,6 +33,8 @@ func TestConfigMissingAPIKey(t *testing.T) {
 }
 
 func TestConfigHarvestPeriod(t *testing.T) {
+	t.Parallel()
+
 	h, err := NewHarvester(ConfigAPIKey("apikey"), ConfigHarvestPeriod(0))
 	if nil == h || err != nil {
 		t.Fatal(h, err)
@@ -39,6 +45,8 @@ func TestConfigHarvestPeriod(t *testing.T) {
 }
 
 func TestConfigBasicErrorLogger(t *testing.T) {
+	t.Parallel()
+
 	buf := new(bytes.Buffer)
 	h, err := NewHarvester(configTesting, ConfigBasicErrorLogger(buf))
 	if nil == h || err != nil {
@@ -58,6 +66,8 @@ func TestConfigBasicErrorLogger(t *testing.T) {
 }
 
 func TestConfigBasicDebugLogger(t *testing.T) {
+	t.Parallel()
+
 	buf := new(bytes.Buffer)
 	h, err := NewHarvester(configTesting, ConfigBasicDebugLogger(buf))
 	if nil == h || err != nil {
@@ -77,6 +87,8 @@ func TestConfigBasicDebugLogger(t *testing.T) {
 }
 
 func TestConfigAuditLogger(t *testing.T) {
+	t.Parallel()
+
 	h, err := NewHarvester(configTesting)
 	if nil == h || err != nil {
 		t.Fatal(h, err)
@@ -102,6 +114,8 @@ func TestConfigAuditLogger(t *testing.T) {
 }
 
 func TestConfigMetricURL(t *testing.T) {
+	t.Parallel()
+
 	h, err := NewHarvester(configTesting)
 	if nil == h || err != nil {
 		t.Fatal(h, err)
@@ -121,6 +135,8 @@ func TestConfigMetricURL(t *testing.T) {
 }
 
 func TestConfigSpanURL(t *testing.T) {
+	t.Parallel()
+
 	h, err := NewHarvester(configTesting)
 	if nil == h || err != nil {
 		t.Fatal(h, err)
@@ -140,6 +156,8 @@ func TestConfigSpanURL(t *testing.T) {
 }
 
 func TestConfigUserAgent(t *testing.T) {
+	t.Parallel()
+
 	testcases := []struct {
 		option func(*Config)
 		expect string

@@ -14,6 +14,8 @@ import (
 )
 
 func TestDifferentAttributes(t *testing.T) {
+	t.Parallel()
+
 	// Test that attributes contribute to identity, ie, metrics with the
 	// same name but different attributes should generate different metrics.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
@@ -28,6 +30,8 @@ func TestDifferentAttributes(t *testing.T) {
 }
 
 func TestSameNameDifferentTypes(t *testing.T) {
+	t.Parallel()
+
 	// Test that type contributes to identity, ie, metrics with the same
 	// name and same attributes of different types should generate different
 	// metrics.
@@ -45,6 +49,8 @@ func TestSameNameDifferentTypes(t *testing.T) {
 }
 
 func TestManyAttributes(t *testing.T) {
+	t.Parallel()
+
 	// Test adding the same metric with many attributes to ensure that
 	// attributes are serialized into JSON in a fixed order.  Note that if
 	// JSON attribute order is random this test may still occasionally pass.
@@ -80,6 +86,8 @@ func ExampleMetricAggregator_Summary() {
 }
 
 func TestGauge(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	h, _ := NewHarvester(configTesting)
 	h.MetricAggregator().Gauge("myGauge", map[string]interface{}{"zip": "zap"}).valueNow(123.4, now)
@@ -89,6 +97,8 @@ func TestGauge(t *testing.T) {
 }
 
 func TestNilAggregatorGauges(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	var h *Harvester
 	gauge := h.MetricAggregator().Gauge("gauge", map[string]interface{}{})
@@ -96,17 +106,23 @@ func TestNilAggregatorGauges(t *testing.T) {
 }
 
 func TestNilGaugeMethods(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	var gauge *AggregatedGauge
 	gauge.valueNow(5.5, now)
 }
 
 func TestGaugeNilAggregator(t *testing.T) {
+	t.Parallel()
+
 	g := AggregatedGauge{}
 	g.Value(10)
 }
 
 func TestCount(t *testing.T) {
+	t.Parallel()
+
 	h, _ := NewHarvester(configTesting)
 	count := h.MetricAggregator().Count("myCount", map[string]interface{}{"zip": "zap"})
 	count.Increase(22.5)
@@ -117,6 +133,8 @@ func TestCount(t *testing.T) {
 }
 
 func TestCountNegative(t *testing.T) {
+	t.Parallel()
+
 	h, _ := NewHarvester(configTesting)
 	count := h.MetricAggregator().Count("myCount", map[string]interface{}{"zip": "zap"})
 	count.Increase(-123)
@@ -126,6 +144,8 @@ func TestCountNegative(t *testing.T) {
 }
 
 func TestNilAggregatorCounts(t *testing.T) {
+	t.Parallel()
+
 	var h *Harvester
 	count := h.MetricAggregator().Count("count", map[string]interface{}{})
 	count.Increment()
@@ -133,18 +153,24 @@ func TestNilAggregatorCounts(t *testing.T) {
 }
 
 func TestNilCountMethods(t *testing.T) {
+	t.Parallel()
+
 	var count *AggregatedCount
 	count.Increment()
 	count.Increase(5)
 }
 
 func TestCountNilAggregator(t *testing.T) {
+	t.Parallel()
+
 	c := AggregatedCount{}
 	c.Increment()
 	c.Increase(1)
 }
 
 func TestSummary(t *testing.T) {
+	t.Parallel()
+
 	h, _ := NewHarvester(configTesting)
 	summary := h.MetricAggregator().Summary("mySummary", map[string]interface{}{"zip": "zap"})
 	summary.Record(3)
@@ -156,6 +182,8 @@ func TestSummary(t *testing.T) {
 }
 
 func TestSummaryDuration(t *testing.T) {
+	t.Parallel()
+
 	h, _ := NewHarvester(configTesting)
 	summary := h.MetricAggregator().Summary("mySummary", map[string]interface{}{"zip": "zap"})
 	summary.RecordDuration(3 * time.Second)
@@ -167,6 +195,8 @@ func TestSummaryDuration(t *testing.T) {
 }
 
 func TestNilAggregatorSummaries(t *testing.T) {
+	t.Parallel()
+
 	var h *Harvester
 	summary := h.MetricAggregator().Summary("summary", map[string]interface{}{})
 	summary.Record(1)
@@ -174,18 +204,24 @@ func TestNilAggregatorSummaries(t *testing.T) {
 }
 
 func TestNilSummaryMethods(t *testing.T) {
+	t.Parallel()
+
 	var summary *AggregatedSummary
 	summary.Record(1)
 	summary.RecordDuration(time.Second)
 }
 
 func TestSummaryNilAggregator(t *testing.T) {
+	t.Parallel()
+
 	s := AggregatedSummary{}
 	s.Record(10)
 	s.RecordDuration(time.Second)
 }
 
 func TestSummaryMinMax(t *testing.T) {
+	t.Parallel()
+
 	h, _ := NewHarvester(configTesting)
 	s := h.MetricAggregator().Summary("sum", nil)
 	s.Record(2)
@@ -204,6 +240,8 @@ func configSaveErrors(savedErrors *[]map[string]interface{}) func(cfg *Config) {
 }
 
 func TestInvalidAggregatedSummaryValue(t *testing.T) {
+	t.Parallel()
+
 	var summary *AggregatedSummary
 	summary.Record(math.NaN())
 
@@ -224,6 +262,8 @@ func TestInvalidAggregatedSummaryValue(t *testing.T) {
 }
 
 func TestInvalidAggregatedCountValue(t *testing.T) {
+	t.Parallel()
+
 	var count *AggregatedCount
 	count.Increase(math.Inf(1))
 
@@ -244,6 +284,8 @@ func TestInvalidAggregatedCountValue(t *testing.T) {
 }
 
 func TestInvalidAggregatedGaugeValue(t *testing.T) {
+	t.Parallel()
+
 	var gauge *AggregatedGauge
 	gauge.Value(math.Inf(-1))
 

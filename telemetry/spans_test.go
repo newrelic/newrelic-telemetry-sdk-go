@@ -37,6 +37,8 @@ func testHarvesterSpans(t testing.TB, h *Harvester, expect string) {
 }
 
 func TestSpan(t *testing.T) {
+	t.Parallel()
+
 	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	h, err := NewHarvester(configTesting)
 	assert.NoError(t, err)
@@ -72,6 +74,8 @@ func TestSpan(t *testing.T) {
 }
 
 func TestSpanInvalidAttribute(t *testing.T) {
+	t.Parallel()
+
 	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	h, err := NewHarvester(configTesting)
 	assert.NoError(t, err)
@@ -108,6 +112,8 @@ func TestSpanInvalidAttribute(t *testing.T) {
 }
 
 func TestRecordSpanNilHarvester(t *testing.T) {
+	t.Parallel()
+
 	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	var h *Harvester
 	err := h.RecordSpan(Span{

@@ -12,6 +12,8 @@ import (
 )
 
 func TestMetricPayload(t *testing.T) {
+	t.Parallel()
+
 	// Test that a metric payload with timestamp, duration, and common
 	// attributes correctly marshals into JSON.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
@@ -67,6 +69,8 @@ func TestMetricPayload(t *testing.T) {
 }
 
 func TestVetAttributes(t *testing.T) {
+	t.Parallel()
+
 	testcases := []struct {
 		Input interface{}
 		Valid bool
@@ -129,6 +133,8 @@ func TestVetAttributes(t *testing.T) {
 }
 
 func TestValidateCount(t *testing.T) {
+	t.Parallel()
+
 	m := Count{
 		Name:  "my-count",
 		Value: math.NaN(),
@@ -150,6 +156,8 @@ func TestValidateCount(t *testing.T) {
 }
 
 func TestValidateGauge(t *testing.T) {
+	t.Parallel()
+
 	m := Gauge{
 		Name:  "my-gauge",
 		Value: math.Inf(1),
@@ -171,6 +179,8 @@ func TestValidateGauge(t *testing.T) {
 }
 
 func TestValidateSummary(t *testing.T) {
+	t.Parallel()
+
 	expectNaNErr := map[string]interface{}{
 		"message": "invalid summary field",
 		"name":    "my-summary",

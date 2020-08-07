@@ -50,6 +50,8 @@ func testSpanBatchJSON(t testing.TB, batch *spanBatch, expect string) {
 }
 
 func TestSpansPayloadSplit(t *testing.T) {
+	t.Parallel()
+
 	// test len 0
 	sp := &spanBatch{}
 	split := sp.split()
@@ -84,6 +86,8 @@ func TestSpansPayloadSplit(t *testing.T) {
 }
 
 func TestSpansJSON(t *testing.T) {
+	t.Parallel()
+
 	batch := &spanBatch{Spans: []Span{
 		{}, // Empty span
 		{ // Span with everything
@@ -121,6 +125,8 @@ func TestSpansJSON(t *testing.T) {
 }
 
 func TestSpansJSONWithCommonAttributesJSON(t *testing.T) {
+	t.Parallel()
+
 	batch := &spanBatch{
 		AttributesJSON: json.RawMessage(`{"zup":"wup"}`),
 		Spans: []Span{

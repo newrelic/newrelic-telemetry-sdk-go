@@ -121,6 +121,8 @@ func TestVetCommonAttributes(t *testing.T) {
 }
 
 func TestHarvestCancelled(t *testing.T) {
+	t.Parallel()
+
 	var errs int
 	var posts int
 	rt := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
@@ -165,6 +167,8 @@ func TestHarvestCancelled(t *testing.T) {
 }
 
 func TestNewRequestHeaders(t *testing.T) {
+	t.Parallel()
+
 	h, err := NewHarvester(configTesting, func(cfg *Config) {
 		cfg.Product = "myProduct"
 		cfg.ProductVersion = "0.1.0"
@@ -243,6 +247,8 @@ func testHarvesterMetrics(t testing.TB, h *Harvester, expect string) {
 }
 
 func TestRecordMetric(t *testing.T) {
+	t.Parallel()
+
 	start := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	h, _ := NewHarvester(configTesting)
 	h.RecordMetric(Count{
@@ -277,6 +283,8 @@ func TestRecordMetric(t *testing.T) {
 }
 
 func TestReturnCodes(t *testing.T) {
+	t.Parallel()
+
 	// tests which return codes should retry and which should not
 	testcases := []struct {
 		returnCode  int
@@ -327,6 +335,8 @@ func TestReturnCodes(t *testing.T) {
 }
 
 func Test429RetryAfterUsesConfig(t *testing.T) {
+	t.Parallel()
+
 	// Test when resp code is 429, retry backoff uses value from config if:
 	// * Retry-After header not set
 	// * Retry-After header not parsable
@@ -402,6 +412,8 @@ func Test429RetryAfterUsesConfig(t *testing.T) {
 }
 
 func TestResponseNeedsRetry(t *testing.T) {
+	t.Parallel()
+
 	testcases := []struct {
 		attempts      int
 		headerRetry   string
@@ -512,6 +524,8 @@ func TestResponseNeedsRetry(t *testing.T) {
 }
 
 func TestNoDataNoHarvest(t *testing.T) {
+	t.Parallel()
+
 	roundTripper := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		t.Error("harvest should not have been run")
 		return emptyResponse(200), nil
@@ -526,6 +540,8 @@ func TestNoDataNoHarvest(t *testing.T) {
 }
 
 func TestNewRequestErrorNoPost(t *testing.T) {
+	t.Parallel()
+
 	// Test that when newRequest returns an error, no post is made
 	roundTripper := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		t.Error("no post should not have been run")
@@ -543,11 +559,15 @@ func TestNewRequestErrorNoPost(t *testing.T) {
 }
 
 func TestRecordMetricNil(t *testing.T) {
+	t.Parallel()
+
 	var h *Harvester
 	h.RecordMetric(Count{})
 }
 
 func TestRecordSpanZeroTimestamp(t *testing.T) {
+	t.Parallel()
+
 	h, _ := NewHarvester(func(cfg *Config) {
 		cfg.HarvestPeriod = 0
 		cfg.APIKey = "APIKey"
@@ -564,6 +584,8 @@ func TestRecordSpanZeroTimestamp(t *testing.T) {
 }
 
 func TestHarvestAuditLog(t *testing.T) {
+	t.Parallel()
+
 	roundTripper := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return emptyResponse(200), nil
 	})
@@ -591,6 +613,8 @@ func TestHarvestAuditLog(t *testing.T) {
 }
 
 func TestRequiredSpanFields(t *testing.T) {
+	t.Parallel()
+
 	h, _ := NewHarvester(configTesting)
 	if err := h.RecordSpan(Span{ID: "12345"}); err != errTraceIDUnset {
 		t.Error(err)
@@ -601,6 +625,8 @@ func TestRequiredSpanFields(t *testing.T) {
 }
 
 func TestRecordInvalidMetric(t *testing.T) {
+	t.Parallel()
+
 	var savedErrors []map[string]interface{}
 	h, _ := NewHarvester(configTesting, configSaveErrors(&savedErrors))
 	h.RecordMetric(Count{
@@ -620,6 +646,8 @@ func TestRecordInvalidMetric(t *testing.T) {
 }
 
 func TestRequestRetryBody(t *testing.T) {
+	t.Parallel()
+
 	var attempt int
 	roundTripper := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		contentLen := int(req.ContentLength)
