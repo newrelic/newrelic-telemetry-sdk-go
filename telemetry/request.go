@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
+
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
@@ -53,6 +55,11 @@ func newRequestsInternal(batch requestsBuilder, apiKey string, url string, userA
 	req, err := http.NewRequest("POST", url, compressed)
 	if nil != err {
 		return nil, fmt.Errorf("error creating request: %v", err)
+	}
+
+	reqId, err := uuid.NewRandom()
+	if err == nil {
+		req.Header.Add("x-request-id", reqId.String())
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Api-Key", apiKey)
