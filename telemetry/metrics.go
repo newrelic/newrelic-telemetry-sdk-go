@@ -42,11 +42,21 @@ type Count struct {
 	Interval time.Duration
 }
 
-func (m Count) validate() map[string]interface{} {
-	if err := isFloatValid(m.Value); err != nil {
+// GetName returns the Name of the Count
+func (c Count) GetName() string {
+	return c.Name
+}
+
+// GetAttributes returns the Attributes of the Count
+func (c Count) GetAttributes() map[string]interface{} {
+	return c.Attributes
+}
+
+func (c Count) validate() map[string]interface{} {
+	if err := isFloatValid(c.Value); err != nil {
 		return map[string]interface{}{
 			"message": "invalid count value",
-			"name":    m.Name,
+			"name":    c.Name,
 			"err":     err.Error(),
 		}
 	}
@@ -55,6 +65,7 @@ func (m Count) validate() map[string]interface{} {
 
 // Metric is implemented by Count, Gauge, and Summary.
 type Metric interface {
+	DataType
 	writeJSON(buf *bytes.Buffer)
 	validate() map[string]interface{}
 }
@@ -68,17 +79,17 @@ func writeTimestampInterval(w *internal.JSONFieldsWriter, timestamp time.Time, i
 	}
 }
 
-func (m Count) writeJSON(buf *bytes.Buffer) {
+func (c Count) writeJSON(buf *bytes.Buffer) {
 	w := internal.JSONFieldsWriter{Buf: buf}
 	w.Buf.WriteByte('{')
-	w.StringField("name", m.Name)
+	w.StringField("name", c.Name)
 	w.StringField("type", "count")
-	w.FloatField("value", m.Value)
-	writeTimestampInterval(&w, m.Timestamp, m.Interval)
-	if nil != m.Attributes {
-		w.WriterField("attributes", internal.Attributes(m.Attributes))
-	} else if nil != m.AttributesJSON {
-		w.RawField("attributes", m.AttributesJSON)
+	w.FloatField("value", c.Value)
+	writeTimestampInterval(&w, c.Timestamp, c.Interval)
+	if nil != c.Attributes {
+		w.WriterField("attributes", internal.Attributes(c.Attributes))
+	} else if nil != c.AttributesJSON {
+		w.RawField("attributes", c.AttributesJSON)
 	}
 	w.Buf.WriteByte('}')
 }
@@ -117,28 +128,38 @@ type Summary struct {
 	Interval time.Duration
 }
 
-func (m Summary) validate() map[string]interface{} {
+// GetName returns the Name of the Summary
+func (s Summary) GetName() string {
+	return s.Name
+}
+
+// GetAttributes returns the Attributes of the Summary
+func (s Summary) GetAttributes() map[string]interface{} {
+	return s.Attributes
+}
+
+func (s Summary) validate() map[string]interface{} {
 	for _, v := range []float64{
-		m.Count,
-		m.Sum,
+		s.Count,
+		s.Sum,
 	} {
 		if err := isFloatValid(v); err != nil {
 			return map[string]interface{}{
 				"message": "invalid summary field",
-				"name":    m.Name,
+				"name":    s.Name,
 				"err":     err.Error(),
 			}
 		}
 	}
 
 	for _, v := range []float64{
-		m.Min,
-		m.Max,
+		s.Min,
+		s.Max,
 	} {
 		if math.IsInf(v, 0) {
 			return map[string]interface{}{
 				"message": "invalid summary field",
-				"name":    m.Name,
+				"name":    s.Name,
 				"err":     errFloatInfinity.Error(),
 			}
 		}
@@ -147,35 +168,35 @@ func (m Summary) validate() map[string]interface{} {
 	return nil
 }
 
-func (m Summary) writeJSON(buf *bytes.Buffer) {
+func (s Summary) writeJSON(buf *bytes.Buffer) {
 	w := internal.JSONFieldsWriter{Buf: buf}
 	buf.WriteByte('{')
 
-	w.StringField("name", m.Name)
+	w.StringField("name", s.Name)
 	w.StringField("type", "summary")
 
 	w.AddKey("value")
 	buf.WriteByte('{')
 	vw := internal.JSONFieldsWriter{Buf: buf}
-	vw.FloatField("sum", m.Sum)
-	vw.FloatField("count", m.Count)
-	if math.IsNaN(m.Min) {
+	vw.FloatField("sum", s.Sum)
+	vw.FloatField("count", s.Count)
+	if math.IsNaN(s.Min) {
 		w.RawField("min", json.RawMessage(`null`))
 	} else {
-		vw.FloatField("min", m.Min)
+		vw.FloatField("min", s.Min)
 	}
-	if math.IsNaN(m.Max) {
+	if math.IsNaN(s.Max) {
 		vw.RawField("max", json.RawMessage(`null`))
 	} else {
-		vw.FloatField("max", m.Max)
+		vw.FloatField("max", s.Max)
 	}
 	buf.WriteByte('}')
 
-	writeTimestampInterval(&w, m.Timestamp, m.Interval)
-	if nil != m.Attributes {
-		w.WriterField("attributes", internal.Attributes(m.Attributes))
-	} else if nil != m.AttributesJSON {
-		w.RawField("attributes", m.AttributesJSON)
+	writeTimestampInterval(&w, s.Timestamp, s.Interval)
+	if nil != s.Attributes {
+		w.WriterField("attributes", internal.Attributes(s.Attributes))
+	} else if nil != s.AttributesJSON {
+		w.RawField("attributes", s.AttributesJSON)
 	}
 	buf.WriteByte('}')
 }
@@ -206,28 +227,38 @@ type Gauge struct {
 	Timestamp time.Time
 }
 
-func (m Gauge) validate() map[string]interface{} {
-	if err := isFloatValid(m.Value); err != nil {
+// GetName returns the Attributes of the Gauge
+func (g Gauge) GetName() string {
+	return g.Name
+}
+
+// GetAttributes returns the Attributes of the Gauge
+func (g Gauge) GetAttributes() map[string]interface{} {
+	return g.Attributes
+}
+
+func (g Gauge) validate() map[string]interface{} {
+	if err := isFloatValid(g.Value); err != nil {
 		return map[string]interface{}{
 			"message": "invalid gauge field",
-			"name":    m.Name,
+			"name":    g.Name,
 			"err":     err.Error(),
 		}
 	}
 	return nil
 }
 
-func (m Gauge) writeJSON(buf *bytes.Buffer) {
+func (g Gauge) writeJSON(buf *bytes.Buffer) {
 	w := internal.JSONFieldsWriter{Buf: buf}
 	buf.WriteByte('{')
-	w.StringField("name", m.Name)
+	w.StringField("name", g.Name)
 	w.StringField("type", "gauge")
-	w.FloatField("value", m.Value)
-	writeTimestampInterval(&w, m.Timestamp, 0)
-	if nil != m.Attributes {
-		w.WriterField("attributes", internal.Attributes(m.Attributes))
-	} else if nil != m.AttributesJSON {
-		w.RawField("attributes", m.AttributesJSON)
+	w.FloatField("value", g.Value)
+	writeTimestampInterval(&w, g.Timestamp, 0)
+	if nil != g.Attributes {
+		w.WriterField("attributes", internal.Attributes(g.Attributes))
+	} else if nil != g.AttributesJSON {
+		w.RawField("attributes", g.AttributesJSON)
 	}
 	buf.WriteByte('}')
 }
@@ -286,28 +317,28 @@ func (c commonAttributes) WriteJSON(buf *bytes.Buffer) {
 	buf.WriteByte('}')
 }
 
-func (batch *metricBatch) writeJSON(buf *bytes.Buffer) {
+func (mb *metricBatch) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('[')
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
-	w.WriterField("common", commonAttributes(*batch))
-	w.WriterField("metrics", metricsArray(batch.Metrics))
+	w.WriterField("common", commonAttributes(*mb))
+	w.WriterField("metrics", metricsArray(mb.Metrics))
 	buf.WriteByte('}')
 	buf.WriteByte(']')
 }
 
 // split will split the metricBatch into 2 equal parts, returning a slice of metricBatches.
 // If the number of metrics in the original is 0 or 1 then nil is returned.
-func (batch *metricBatch) split() []requestsBuilder {
-	if len(batch.Metrics) < 2 {
+func (mb *metricBatch) split() []requestsBuilder {
+	if len(mb.Metrics) < 2 {
 		return nil
 	}
 
-	half := len(batch.Metrics) / 2
-	mb1 := *batch
-	mb1.Metrics = batch.Metrics[:half]
-	mb2 := *batch
-	mb2.Metrics = batch.Metrics[half:]
+	half := len(mb.Metrics) / 2
+	mb1 := *mb
+	mb1.Metrics = mb.Metrics[:half]
+	mb2 := *mb
+	mb2.Metrics = mb.Metrics[half:]
 
 	return []requestsBuilder{
 		requestsBuilder(&mb1),
@@ -315,8 +346,17 @@ func (batch *metricBatch) split() []requestsBuilder {
 	}
 }
 
-func (batch *metricBatch) makeBody() json.RawMessage {
+func (mb *metricBatch) makeBody() json.RawMessage {
 	buf := &bytes.Buffer{}
-	batch.writeJSON(buf)
+	mb.writeJSON(buf)
 	return buf.Bytes()
+}
+
+// GetDataTypes return a slice of Metric as a slice of DataType
+func (mb *metricBatch) GetDataTypes() (dataTypes []DataType) {
+	dataTypes = make([]DataType, len(mb.Metrics))
+	for i, m := range mb.Metrics {
+		dataTypes[i] = m
+	}
+	return
 }

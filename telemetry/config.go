@@ -49,6 +49,9 @@ type Config struct {
 	Product string
 	// ProductVersion is added to the User-Agent header. eg. "0.1.0".
 	ProductVersion string
+	// HeaderProcessor takes a DataType (such as a Metric) and will generate additional headers to be added to a request
+	// By default this is set to a noop function
+	HeaderProcessor func(DataBatch) []RequestHeader
 }
 
 // ConfigAPIKey sets the Config's APIKey which is required and refers to your
@@ -125,6 +128,7 @@ func ConfigSpansURLOverride(url string) func(*Config) {
 func configTesting(cfg *Config) {
 	cfg.APIKey = "api-key"
 	cfg.HarvestPeriod = 0
+	cfg.HeaderProcessor = defaultHeaderProcessorNoopFunc
 }
 
 func (cfg *Config) logError(fields map[string]interface{}) {
@@ -182,4 +186,8 @@ func (cfg *Config) userAgent() string {
 		}
 	}
 	return agent
+}
+
+func defaultHeaderProcessorNoopFunc(_ DataBatch) []RequestHeader {
+	return []RequestHeader{}
 }

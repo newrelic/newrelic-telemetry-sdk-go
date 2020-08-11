@@ -47,6 +47,16 @@ type Span struct {
 	AttributesJSON json.RawMessage
 }
 
+// GetName returns the Name of the Span
+func (s Span) GetName() string {
+	return s.Name
+}
+
+// GetAttributes returns the Attributes of the Span
+func (s Span) GetAttributes() map[string]interface{} {
+	return s.Attributes
+}
+
 func (s *Span) writeJSON(buf *bytes.Buffer) {
 	w := internal.JSONFieldsWriter{Buf: buf}
 	buf.WriteByte('{')
@@ -90,16 +100,16 @@ type spanBatch struct {
 
 // split will split the spanBatch into 2 equally sized batches.
 // If the number of spans in the original is 0 or 1 then nil is returned.
-func (batch *spanBatch) split() []requestsBuilder {
-	if len(batch.Spans) < 2 {
+func (sb *spanBatch) split() []requestsBuilder {
+	if len(sb.Spans) < 2 {
 		return nil
 	}
 
-	half := len(batch.Spans) / 2
-	b1 := *batch
-	b1.Spans = batch.Spans[:half]
-	b2 := *batch
-	b2.Spans = batch.Spans[half:]
+	half := len(sb.Spans) / 2
+	b1 := *sb
+	b1.Spans = sb.Spans[:half]
+	b2 := *sb
+	b2.Spans = sb.Spans[half:]
 
 	return []requestsBuilder{
 		requestsBuilder(&b1),
@@ -107,7 +117,7 @@ func (batch *spanBatch) split() []requestsBuilder {
 	}
 }
 
-func (batch *spanBatch) writeJSON(buf *bytes.Buffer) {
+func (sb *spanBatch) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('[')
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
@@ -115,14 +125,14 @@ func (batch *spanBatch) writeJSON(buf *bytes.Buffer) {
 	w.AddKey("common")
 	buf.WriteByte('{')
 	ww := internal.JSONFieldsWriter{Buf: buf}
-	if nil != batch.AttributesJSON {
-		ww.RawField("attributes", batch.AttributesJSON)
+	if nil != sb.AttributesJSON {
+		ww.RawField("attributes", sb.AttributesJSON)
 	}
 	buf.WriteByte('}')
 
 	w.AddKey("spans")
 	buf.WriteByte('[')
-	for idx, s := range batch.Spans {
+	for idx, s := range sb.Spans {
 		if idx > 0 {
 			buf.WriteByte(',')
 		}
@@ -133,8 +143,17 @@ func (batch *spanBatch) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte(']')
 }
 
-func (batch *spanBatch) makeBody() json.RawMessage {
+func (sb *spanBatch) makeBody() json.RawMessage {
 	buf := &bytes.Buffer{}
-	batch.writeJSON(buf)
+	sb.writeJSON(buf)
 	return buf.Bytes()
+}
+
+// GetDataTypes returns a slice of Span as a slice of DataType
+func (sb *spanBatch) GetDataTypes() (dataTypes []DataType) {
+	dataTypes = make([]DataType, len(sb.Spans))
+	for i, m := range sb.Spans {
+		dataTypes[i] = m
+	}
+	return
 }

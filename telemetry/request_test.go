@@ -5,6 +5,7 @@ package telemetry
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"testing"
 )
@@ -28,6 +29,10 @@ func (ts testRequestBuilder) split() []requestsBuilder {
 	}
 }
 
+func defaultTestNoopFunc(_ DataBatch) []RequestHeader {
+	return []RequestHeader{}
+}
+
 func TestNewRequestsSplitSuccess(t *testing.T) {
 	ts := testRequestBuilder{
 		bodies: []json.RawMessage{
@@ -37,7 +42,7 @@ func TestNewRequestsSplitSuccess(t *testing.T) {
 			json.RawMessage(`123456789`),
 		},
 	}
-	reqs, err := newRequestsInternal(ts, "", "", "", func(r request) bool {
+	reqs, err := newRequestsInternal(ts, "", "", "", defaultTestNoopFunc, func(r request) bool {
 		return len(r.UncompressedBody) >= 10
 	})
 	if err != nil {
@@ -56,7 +61,7 @@ func TestNewRequestsCantSplit(t *testing.T) {
 			json.RawMessage(`12345678901`),
 		},
 	}
-	reqs, err := newRequestsInternal(ts, "", "", "", func(r request) bool {
+	reqs, err := newRequestsInternal(ts, "", "", "", defaultTestNoopFunc, func(r request) bool {
 		return len(r.UncompressedBody) >= 10
 	})
 	if err != errUnableToSplit {
@@ -64,6 +69,60 @@ func TestNewRequestsCantSplit(t *testing.T) {
 	}
 	if len(reqs) != 0 {
 		t.Error(len(reqs))
+	}
+}
+
+func TestNewRequestsCanAddHeadersToRequest(t *testing.T) {
+	c := Count{
+		Name: "Count",
+		Attributes: map[string]interface{}{
+			"some-id": 1,
+		},
+	}
+	s := Summary{
+		Name: "Summary",
+		Attributes: map[string]interface{}{
+			"some-id": 2,
+		},
+	}
+	g := Gauge{
+		Name: "Gauge",
+		Attributes: map[string]interface{}{
+			"some-id": 3,
+		},
+	}
+	mb := &metricBatch{
+		Metrics: metricsArray{c, s, g},
+	}
+	reqs, err := newRequests(mb, "apiKey", defaultMetricURL, "userAgent", func(dataType DataBatch) []RequestHeader {
+		rh := []RequestHeader{{Key: "names", Value: ""}, {Key: "ids", Value: ""}}
+		for i := range dataType.GetDataTypes() {
+			rh[0].Value = rh[0].Value + dataType.GetDataTypes()[i].GetName() + ","
+			rh[1].Value = rh[1].Value + fmt.Sprint(dataType.GetDataTypes()[i].GetAttributes()["some-id"]) + ","
+		}
+		for i := range rh {
+			rh[i].Value = rh[i].Value[:len(rh[i].Value)-1]
+		}
+		return rh
+	})
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	if len(reqs) != 1 {
+		t.Fatal(len(reqs))
+	}
+
+	req := reqs[0]
+	names := req.Request.Header.Get("names")
+	if names != "Count,Summary,Gauge" {
+		t.Fatal(names)
+	}
+
+	ids := req.Request.Header.Get("ids")
+	if ids != "1,2,3" {
+		t.Fatal(ids)
 	}
 }
 
@@ -78,7 +137,7 @@ func randomJSON(numBytes int) json.RawMessage {
 
 func TestLargeRequestNeedsSplit(t *testing.T) {
 	js := randomJSON(4 * maxCompressedSizeBytes)
-	reqs, err := newRequests(testRequestBuilder{bodies: []json.RawMessage{js}}, "apiKey", defaultMetricURL, "userAgent")
+	reqs, err := newRequests(testRequestBuilder{bodies: []json.RawMessage{js}}, "apiKey", defaultMetricURL, "userAgent", defaultTestNoopFunc)
 	if reqs != nil {
 		t.Error(reqs)
 	}
@@ -89,7 +148,7 @@ func TestLargeRequestNeedsSplit(t *testing.T) {
 
 func TestLargeRequestNoSplit(t *testing.T) {
 	js := randomJSON(maxCompressedSizeBytes / 2)
-	reqs, err := newRequests(testRequestBuilder{bodies: []json.RawMessage{js}}, "apiKey", defaultMetricURL, "userAgent")
+	reqs, err := newRequests(testRequestBuilder{bodies: []json.RawMessage{js}}, "apiKey", defaultMetricURL, "userAgent", defaultTestNoopFunc)
 	if err != nil {
 		t.Fatal(err)
 	}

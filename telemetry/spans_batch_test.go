@@ -16,7 +16,7 @@ func testSpanBatchJSON(t testing.TB, batch *spanBatch, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
-	reqs, err := newRequests(batch, "apiKey", defaultSpanURL, "userAgent")
+	reqs, err := newRequests(batch, "apiKey", defaultSpanURL, "userAgent", defaultTestNoopFunc)
 	if nil != err {
 		t.Fatal(err)
 	}

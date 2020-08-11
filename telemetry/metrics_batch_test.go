@@ -80,7 +80,7 @@ func TestMetrics(t *testing.T) {
 		]
 	}]`)
 
-	reqs, err := newRequests(metrics, "my-api-key", defaultMetricURL, "userAgent")
+	reqs, err := newRequests(metrics, "my-api-key", defaultMetricURL, "userAgent", defaultTestNoopFunc)
 	if err != nil {
 		t.Error("error creating request", err)
 	}
@@ -113,7 +113,7 @@ func testBatchJSON(t testing.TB, batch *metricBatch, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
-	reqs, err := newRequests(batch, "my-api-key", defaultMetricURL, "userAgent")
+	reqs, err := newRequests(batch, "my-api-key", defaultMetricURL, "userAgent", defaultTestNoopFunc)
 	if nil != err {
 		t.Fatal(err)
 	}

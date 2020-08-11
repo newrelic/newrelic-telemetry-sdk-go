@@ -25,6 +25,25 @@ type request struct {
 	compressedBodyLength int
 }
 
+// RequestHeader is a representation of HTTP header which is to be added to the
+// generated HTTP requests
+type RequestHeader struct {
+	Key   string
+	Value string
+}
+
+// DataType is something that can return "name" as a String and
+// "attributes" as a Map[string]interface{}
+type DataType interface {
+	GetName() string
+	GetAttributes() map[string]interface{}
+}
+
+// DataBatch is something that returns a slice of DataType
+type DataBatch interface {
+	GetDataTypes() []DataType
+}
+
 type requestsBuilder interface {
 	makeBody() json.RawMessage
 	split() []requestsBuilder
@@ -38,11 +57,11 @@ func requestNeedsSplit(r request) bool {
 	return r.compressedBodyLength >= maxCompressedSizeBytes
 }
 
-func newRequests(batch requestsBuilder, apiKey string, url string, userAgent string) ([]request, error) {
-	return newRequestsInternal(batch, apiKey, url, userAgent, requestNeedsSplit)
+func newRequests(batch requestsBuilder, apiKey string, url string, userAgent string, processDataBatch func(dataType DataBatch) []RequestHeader) ([]request, error) {
+	return newRequestsInternal(batch, apiKey, url, userAgent, processDataBatch, requestNeedsSplit)
 }
 
-func newRequestsInternal(batch requestsBuilder, apiKey string, url string, userAgent string, needsSplit func(request) bool) ([]request, error) {
+func newRequestsInternal(batch requestsBuilder, apiKey string, url string, userAgent string, processDataType func(dataType DataBatch) []RequestHeader, needsSplit func(request) bool) ([]request, error) {
 	uncompressed := batch.makeBody()
 	compressed, err := internal.Compress(uncompressed)
 	if nil != err {
@@ -58,6 +77,14 @@ func newRequestsInternal(batch requestsBuilder, apiKey string, url string, userA
 	req.Header.Add("Api-Key", apiKey)
 	req.Header.Add("Content-Encoding", "gzip")
 	req.Header.Add("User-Agent", userAgent)
+
+	if dt, ok := batch.(DataBatch); ok {
+		requestHeaders := processDataType(dt)
+		for i := range requestHeaders {
+			req.Header.Add(requestHeaders[i].Key, requestHeaders[i].Value)
+		}
+	}
+
 	r := request{
 		Request:              req,
 		UncompressedBody:     uncompressed,
@@ -76,7 +103,7 @@ func newRequestsInternal(batch requestsBuilder, apiKey string, url string, userA
 	}
 
 	for _, b := range batches {
-		rs, err := newRequestsInternal(b, apiKey, url, userAgent, needsSplit)
+		rs, err := newRequestsInternal(b, apiKey, url, userAgent, processDataType, needsSplit)
 		if nil != err {
 			return nil, err
 		}

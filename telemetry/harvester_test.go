@@ -130,10 +130,10 @@ func TestHarvestCancelled(t *testing.T) {
 		}, nil
 	})
 	h, _ := NewHarvester(func(cfg *Config) {
+		configTesting(cfg)
 		cfg.ErrorLogger = func(e map[string]interface{}) {
 			errs++
 		}
-		cfg.HarvestPeriod = 0
 		cfg.Client.Transport = rt
 		cfg.APIKey = "key"
 	})
@@ -377,6 +377,7 @@ func Test429RetryAfterUsesConfig(t *testing.T) {
 	h, _ := NewHarvester(func(cfg *Config) {
 		cfg.Client.Transport = roundTripper("")
 		cfg.APIKey = "key"
+		cfg.HeaderProcessor = defaultHeaderProcessorNoopFunc
 	})
 	h.RecordSpan(span)
 	h.HarvestNow(context.Background())
@@ -388,6 +389,7 @@ func Test429RetryAfterUsesConfig(t *testing.T) {
 	h, _ = NewHarvester(func(cfg *Config) {
 		cfg.Client.Transport = roundTripper("hello world!")
 		cfg.APIKey = "key"
+		cfg.HeaderProcessor = defaultHeaderProcessorNoopFunc
 	})
 	h.RecordSpan(span)
 	h.HarvestNow(context.Background())
@@ -399,6 +401,7 @@ func Test429RetryAfterUsesConfig(t *testing.T) {
 	h, _ = NewHarvester(func(cfg *Config) {
 		cfg.Client.Transport = roundTripper("0")
 		cfg.APIKey = "key"
+		cfg.HeaderProcessor = defaultHeaderProcessorNoopFunc
 	})
 	h.RecordSpan(span)
 	h.HarvestNow(context.Background())
@@ -577,7 +580,7 @@ func TestHarvestAuditLog(t *testing.T) {
 	var audit map[string]interface{}
 
 	h, _ := NewHarvester(func(cfg *Config) {
-		cfg.HarvestPeriod = 0
+		configTesting(cfg)
 		cfg.APIKey = "APIKey"
 		cfg.Client.Transport = roundTripper
 		cfg.AuditLogger = func(fields map[string]interface{}) {
@@ -647,7 +650,7 @@ func TestRequestRetryBody(t *testing.T) {
 	})
 
 	h, _ := NewHarvester(func(cfg *Config) {
-		cfg.HarvestPeriod = 0
+		configTesting(cfg)
 		cfg.APIKey = "APIKey"
 		cfg.Client.Transport = roundTripper
 	})
@@ -679,8 +682,7 @@ func benchmarkRetryBodyN(b *testing.B, n int) {
 	count := Count{}
 	ctx := context.Background()
 	h, _ := NewHarvester(func(cfg *Config) {
-		cfg.HarvestPeriod = 0
-		cfg.APIKey = "APIKey"
+		configTesting(cfg)
 		cfg.Client.Transport = multiAttemptRoundTripper(n)
 	})
 

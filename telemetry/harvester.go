@@ -156,7 +156,7 @@ var (
 	backoffSequenceSeconds = []int{0, 1, 2, 4, 8, 16}
 )
 
-func (r response) needsRetry(cfg *Config, attempts int) (bool, time.Duration) {
+func (r response) needsRetry(_ *Config, attempts int) (bool, time.Duration) {
 	if attempts >= len(backoffSequenceSeconds) {
 		attempts = len(backoffSequenceSeconds) - 1
 	}
@@ -241,7 +241,7 @@ func (h *Harvester) swapOutMetrics(now time.Time) []request {
 		AttributesJSON: h.commonAttributesJSON,
 		Metrics:        rawMetrics,
 	}
-	reqs, err := newRequests(batch, h.config.APIKey, h.config.metricURL(), h.config.userAgent())
+	reqs, err := newRequests(batch, h.config.APIKey, h.config.metricURL(), h.config.userAgent(), h.config.HeaderProcessor)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -265,7 +265,7 @@ func (h *Harvester) swapOutSpans() []request {
 		AttributesJSON: h.commonAttributesJSON,
 		Spans:          sps,
 	}
-	reqs, err := newRequests(batch, h.config.APIKey, h.config.spanURL(), h.config.userAgent())
+	reqs, err := newRequests(batch, h.config.APIKey, h.config.spanURL(), h.config.userAgent(), h.config.HeaderProcessor)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
