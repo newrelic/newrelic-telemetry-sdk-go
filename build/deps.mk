@@ -8,7 +8,8 @@ VENDOR_CMD   ?= ${GO} mod tidy
 BUILD_DIR    ?= ./bin/
 
 # Go file to track tool deps with go modules
-TOOL_CONFIG  ?= tools/tools.go
+TOOL_DIR     ?= tools
+TOOL_CONFIG  ?= $(TOOL_DIR)/tools.go
 
 # These should be mirrored in /tools.go to keep versions consistent
 GOTOOLS      += github.com/client9/misspell/cmd/misspell
@@ -16,11 +17,16 @@ GOTOOLS      += github.com/client9/misspell/cmd/misspell
 
 tools: check-version tools-compile
 	@echo "=== $(PROJECT_NAME) === [ tools            ]: Installing tools required by the project..."
+	@cd $(TOOL_DIR)
 	@$(GO) install $(GOTOOLS)
+	@$(VENDOR_CMD)
+
 
 tools-update: check-version
 	@echo "=== $(PROJECT_NAME) === [ tools-update     ]: Updating tools required by the project..."
+	@cd $(TOOL_DIR)
 	@$(GO) get -u $(GOTOOLS)
+	@$(VENDOR_CMD)
 
 tools-config: tools
 	@echo "=== $(PROJECT_NAME) === [ tools-config     ]: Updating tool configuration $(TOOL_CONFIG) ..."
@@ -30,6 +36,7 @@ tools-config: tools
 	done
 	@echo ")" >> $(TOOL_CONFIG)
 	@$(GOFMT) -w $(TOOL_CONFIG)
+	@cd $(TOOL_DIR) && $(VENDOR_CMD)
 
 deps: tools deps-only
 
@@ -40,7 +47,7 @@ TOOL_COMMANDS   ?= $(shell find ${SRCDIR}/tools -depth 1 -type d)
 TOOL_BINS       := $(foreach tool,${TOOL_COMMANDS},$(notdir ${tool}))
 
 tools-compile: deps-only
-	@echo "=== $(PROJECT_NAME) === [ tools-compile    ]: building tools:"
+	@echo "=== $(PROJECT_NAME) === [ tools-compile    ]: building custom tools:"
 	@for b in $(TOOL_BINS); do \
 		echo "=== $(PROJECT_NAME) === [ tools-compile    ]:     $$b"; \
 		BUILD_FILES=`find $(SRCDIR)/tools/$$b -type f -name "*.go"` ; \
