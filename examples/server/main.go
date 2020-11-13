@@ -95,6 +95,16 @@ func wrapHandler(path string, handler func(http.ResponseWriter, *http.Request)) 
 				"http.method": req.Method,
 				"isWeb":       true,
 			},
+			Events: []telemetry.Event{
+				telemetry.Event{
+					Name: "exception",
+					Timestamp: before,
+					Attributes: map[string]interface{}{
+						"exception.message": "Everything is fine!",
+						"exception.type": "java.lang.EverythingIsFine",
+					},
+				},
+			},
 		})
 	}
 }

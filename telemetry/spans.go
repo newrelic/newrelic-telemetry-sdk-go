@@ -45,6 +45,9 @@ type Span struct {
 	// AttributesJSON is a json.RawMessage of attributes for this metric. It
 	// will only be sent if Attributes is nil.
 	AttributesJSON json.RawMessage
+	// Events is an array of events that occured during the execution of a span.
+	// This feature is a work in progress.
+	Events []Event
 }
 
 func (s *Span) writeJSON(buf *bytes.Buffer) {
@@ -73,9 +76,42 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	}
 
 	internal.AddAttributes(&ww, s.Attributes)
+	buf.WriteByte('}')
+
+	if len(s.Events) > 0 {
+		w.AddKey("events")
+		buf.WriteByte('[')
+		for i, e := range s.Events {
+			if i > 0 {
+				buf.WriteByte(',')
+			}
+			buf.WriteByte('{')
+			aw := internal.JSONFieldsWriter{Buf: buf}
+			aw.StringField("name", e.Name)
+			aw.IntField("timestamp", e.Timestamp.UnixNano()/(1000*1000))
+			aw.AddKey("attributes")
+			buf.WriteByte('{')
+			aw.NoComma()
+			internal.AddAttributes(&aw, e.Attributes)
+			buf.WriteByte('}')
+			buf.WriteByte('}')
+		}
+		buf.WriteByte(']')
+	}
 
 	buf.WriteByte('}')
-	buf.WriteByte('}')
+}
+
+type Event struct {
+	// Required Fields:
+	Name string
+	// Timestamp is when the event occurred. It should be after the Timestamp of its
+	// containing Span, and before the containing spans Timestamp + Duration.
+	Timestamp time.Time
+
+	// Attributes is a map of user specified tags on this event. The map values
+	// can be aany of bool, number, or string.
+	Attributes map[string]interface{}
 }
 
 // spanBatch represents a single batch of spans to report to New Relic.
