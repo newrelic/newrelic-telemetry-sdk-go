@@ -45,7 +45,7 @@ type Span struct {
 	// AttributesJSON is a json.RawMessage of attributes for this metric. It
 	// will only be sent if Attributes is nil.
 	AttributesJSON json.RawMessage
-	// Events is an array of events that occured during the execution of a span.
+	// Events is a slice of events that occurred during the execution of a span.
 	// This feature is a work in progress.
 	Events []Event
 }
@@ -103,7 +103,7 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 }
 
 type Event struct {
-	// Required Fields:
+	// Name is the identifier of an Event.
 	Name string
 	// Timestamp is when the event occurred. It should be after the Timestamp of its
 	// containing Span, and before the containing spans Timestamp + Duration.

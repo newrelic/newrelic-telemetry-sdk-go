@@ -34,7 +34,7 @@ func (w *JSONFieldsWriter) AddKey(key string) {
 	w.Buf.WriteByte(':')
 }
 
-// Call this to ensure that a comma won't be added before the next field this
+// NoComma ensures that a comma won't be added before the next field this
 // JsonFieldsWriter writes.
 func (w *JSONFieldsWriter) NoComma() {
 	w.needsComma = false
