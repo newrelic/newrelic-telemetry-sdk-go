@@ -11,7 +11,7 @@ the background.
 
   ```go
   harvester := telemetry.NewHarvester(
-    telemetry.ConfigAPIKey(os.Getenv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")),
+    telemetry.ConfigAPIKey(os.Getenv("NEW_RELIC_INSERT_API_KEY")),
   )
   ```
 
