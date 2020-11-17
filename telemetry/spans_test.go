@@ -148,21 +148,6 @@ func TestRecordSpanNilHarvester(t *testing.T) {
 	}
 }
 
-func TestEvents(t *testing.T) {
-	tm := time.Date(2020, time.November, 13, 1, 1, 0, 0, time.UTC)
-	event := Event{
-		Name:      "exception",
-		Timestamp: tm,
-		Attributes: map[string]interface{}{
-			"exception.message": "Everything is fine!",
-		},
-	}
-
-	if event.Name != "exception" {
-		t.Errorf("\nexpect=%s\nactual=%s\n", "exception", event.Name)
-	}
-}
-
 func TestSpanWithEvents(t *testing.T) {
 	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	h, _ := NewHarvester(configTesting)
