@@ -151,7 +151,7 @@ func TestRecordSpanNilHarvester(t *testing.T) {
 func TestEvents(t *testing.T) {
 	tm := time.Date(2020, time.November, 13, 1, 1, 0, 0, time.UTC)
 	event := Event{
-		Name: "exception",
+		Name:      "exception",
 		Timestamp: tm,
 		Attributes: map[string]interface{}{
 			"exception.message": "Everything is fine!",
@@ -174,14 +174,14 @@ func TestSpanWithEvents(t *testing.T) {
 		Timestamp:   tm,
 		Duration:    2 * time.Second,
 		ServiceName: "myentity",
-		Attributes: map[string]interface{}{},
+		Attributes:  map[string]interface{}{},
 		Events: []Event{
 			Event{
-				Name: "exception",
+				Name:      "exception",
 				Timestamp: tm,
 				Attributes: map[string]interface{}{
 					"exception.message": "Everything is fine!",
-					"exception.type": "java.lang.EverythingIsFine",
+					"exception.type":    "java.lang.EverythingIsFine",
 				},
 			},
 		},
