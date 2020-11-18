@@ -147,3 +147,50 @@ func TestRecordSpanNilHarvester(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestSpanWithEvents(t *testing.T) {
+	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
+	h, _ := NewHarvester(configTesting)
+	h.RecordSpan(Span{
+		ID:          "myid",
+		TraceID:     "mytraceid",
+		Name:        "myname",
+		ParentID:    "myparent",
+		Timestamp:   tm,
+		Duration:    2 * time.Second,
+		ServiceName: "myentity",
+		Attributes:  map[string]interface{}{},
+		Events: []Event{
+			Event{
+				Name:      "exception",
+				Timestamp: tm,
+				Attributes: map[string]interface{}{
+					"exception.message": "Everything is fine!",
+					"exception.type":    "java.lang.EverythingIsFine",
+				},
+			},
+		},
+	})
+	expect := `[{"common":{},"spans":[{
+		"id":"myid",
+		"trace.id":"mytraceid",
+		"timestamp":1417136460000,
+		"attributes": {
+			"name":"myname",
+			"parent.id":"myparent",
+			"duration.ms":2000,
+			"service.name":"myentity"
+		},
+		"events": [
+			{
+				"name": "exception",
+				"timestamp": 1417136460000,
+				"attributes": {
+					"exception.message": "Everything is fine!",
+					"exception.type": "java.lang.EverythingIsFine"
+				}
+			}
+		]
+	}]}]`
+	testHarvesterSpans(t, h, expect)
+}
