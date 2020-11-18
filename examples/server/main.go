@@ -97,7 +97,7 @@ func wrapHandler(path string, handler func(http.ResponseWriter, *http.Request)) 
 			},
 			Events: []telemetry.Event{
 				telemetry.Event{
-					Name:      "exception",
+					EventType: "exception",
 					Timestamp: before,
 					Attributes: map[string]interface{}{
 						"exception.message": "Everything is fine!",
