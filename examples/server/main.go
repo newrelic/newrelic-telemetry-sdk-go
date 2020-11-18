@@ -132,7 +132,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	var err error
 	h, err = telemetry.NewHarvester(
-		telemetry.ConfigAPIKey(mustGetEnv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")),
+		telemetry.ConfigAPIKey(mustGetEnv("NEW_RELIC_INSERT_API_KEY")),
 		telemetry.ConfigCommonAttributes(map[string]interface{}{
 			"app.name":  "myServer",
 			"host.name": "dev.server.com",

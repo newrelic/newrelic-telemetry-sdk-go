@@ -13,7 +13,7 @@ import (
 
 // Config customizes the behavior of a Harvester.
 type Config struct {
-	// APIKey is required  and refers to your New Relic Insights Insert API key.
+	// APIKey is required and refers to your New Relic Insert API key.
 	APIKey string
 	// Client is the http.Client used for making requests.
 	Client *http.Client
@@ -52,7 +52,7 @@ type Config struct {
 }
 
 // ConfigAPIKey sets the Config's APIKey which is required and refers to your
-// New Relic Insights Insert API key.
+// New Relic Insert API key.
 func ConfigAPIKey(key string) func(*Config) {
 	return func(cfg *Config) {
 		cfg.APIKey = key
