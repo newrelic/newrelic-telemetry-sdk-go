@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
- 	"github.com/stretchr/testify/assert"
 )
 
 // compactJSONString removes the whitespace from a JSON string.  This function
@@ -65,7 +64,9 @@ func TestHarvesterRecordSpan(t *testing.T) {
 		},
 	})
 
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestHarvestErrorLogger(t *testing.T) {

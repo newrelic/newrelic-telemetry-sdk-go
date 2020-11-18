@@ -1,31 +1,38 @@
 // Copyright 2019 New Relic Corporation. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
-// +build unit
 
 package telemetry
 
 import (
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func testHarvesterEvents(t testing.TB, h *Harvester, expect string) {
 	reqs := h.swapOutEvents()
-	if expect != "null" {
-		require.NotNil(t, reqs)
+	if nil == reqs {
+		if expect != "null" {
+			t.Error("nil spans", expect)
+		}
+		return
 	}
-	require.Equal(t, 1, len(reqs))
-	require.Equal(t, defaultEventURL, reqs[0].Request.URL.String())
+
+	if len(reqs) != 1 {
+		t.Fatal(reqs)
+	}
+	if u := reqs[0].Request.URL.String(); u != defaultEventURL {
+		t.Fatal(u)
+	}
 
 	js := reqs[0].UncompressedBody
 	actual := string(js)
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
-	assert.Equal(t, compactJSONString(expect), actual)
+	compactExpect := compactJSONString(expect)
+	if compactExpect != actual {
+		t.Errorf("\nexpect=%s\nactual=%s\n", compactExpect, actual)
+	}
 }
 
 func TestEvent(t *testing.T) {
@@ -33,8 +40,9 @@ func TestEvent(t *testing.T) {
 
 	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	h, err := NewHarvester(configTesting)
-	assert.NoError(t, err)
-	assert.NotNil(t, h)
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
 
 	err = h.RecordEvent(Event{
 		EventType: "testEvent",
@@ -43,7 +51,9 @@ func TestEvent(t *testing.T) {
 			"zip": "zap",
 		},
 	})
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	expect := `[{
 		"eventType":"testEvent",
@@ -59,8 +69,9 @@ func TestEventInvalidAttribute(t *testing.T) {
 
 	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	h, err := NewHarvester(configTesting)
-	assert.NoError(t, err)
-	assert.NotNil(t, h)
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
 
 	err = h.RecordEvent(Event{
 		EventType: "testEvent",
@@ -70,7 +81,9 @@ func TestEventInvalidAttribute(t *testing.T) {
 			"nil-gets-removed":                   nil,
 		},
 	})
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	expect := `[{
 		"eventType":"testEvent",
@@ -85,8 +98,9 @@ func TestRecordEventZeroTime(t *testing.T) {
 	t.Parallel()
 
 	h, err := NewHarvester(configTesting)
-	assert.NoError(t, err)
-	assert.NotNil(t, h)
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
 
 	err = h.RecordEvent(Event{
 		EventType: "testEvent",
@@ -96,15 +110,18 @@ func TestRecordEventZeroTime(t *testing.T) {
 		},
 	})
 
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 func TestRecordEventEmptyType(t *testing.T) {
 	t.Parallel()
 
 	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	h, err := NewHarvester(configTesting)
-	assert.NoError(t, err)
-	assert.NotNil(t, h)
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
 
 	err = h.RecordEvent(Event{
 		Timestamp: tm,
@@ -114,8 +131,9 @@ func TestRecordEventEmptyType(t *testing.T) {
 		},
 	})
 
-	assert.Error(t, err)
-	assert.Equal(t, errEventTypeUnset, err)
+	if err != errEventTypeUnset {
+		t.Fatal(h, err)
+	}
 }
 
 func TestRecordEventNilHarvester(t *testing.T) {
@@ -132,5 +150,7 @@ func TestRecordEventNilHarvester(t *testing.T) {
 		},
 	})
 
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 }

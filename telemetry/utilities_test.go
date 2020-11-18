@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestJSONString(t *testing.T) {
@@ -57,14 +55,20 @@ func TestJSONOrString(t *testing.T) {
 	}
 }
 
+func checkMinDuration(t *testing.T, expected time.Duration, actual time.Duration) {
+	if expected != actual {
+		t.Errorf("\nexpect=%s\nactual=%s\n", expected, actual)
+	}
+}
+
 func TestMinDuration(t *testing.T) {
 	t.Parallel()
 
 	t1 := time.Duration(1)
 	t2 := time.Duration(5)
 
-	assert.Equal(t, t1, minDuration(t1, t2))
-	assert.Equal(t, t1, minDuration(t1, t1))
-	assert.Equal(t, t1, minDuration(t2, t1))
-	assert.Equal(t, t2, minDuration(t2, t2))
+	checkMinDuration(t, t1, minDuration(t1, t2))
+	checkMinDuration(t, t1, minDuration(t1, t1))
+	checkMinDuration(t, t1, minDuration(t2, t1))
+	checkMinDuration(t, t2, minDuration(t2, t2))
 }

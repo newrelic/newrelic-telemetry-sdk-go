@@ -1,15 +1,12 @@
 // Copyright 2019 New Relic Corporation. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
-// +build unit
 
 package telemetry
 
 import (
 	"io/ioutil"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"time"
 
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
@@ -18,22 +15,36 @@ func testEventBatchJSON(t testing.TB, batch *eventBatch, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
-	reqs, err := newRequests(batch, "apiKey", defaultEventURL, "userAgent")
-	require.NoError(t, err)
-	require.Equal(t, 1, len(reqs))
-
+	reqs, err := newRequests(batch, "apiKey", defaultSpanURL, "userAgent")
+	if nil != err {
+		t.Fatal(err)
+	}
+	if len(reqs) != 1 {
+		t.Fatal(reqs)
+	}
 	req := reqs[0]
-	assert.Equal(t, compactJSONString(expect), string(req.UncompressedBody))
+	actual := string(req.UncompressedBody)
+	compact := compactJSONString(expect)
+	if actual != compact {
+		t.Errorf("\nexpect=%s\nactual=%s\n", compact, actual)
+	}
 
 	body, err := ioutil.ReadAll(req.Request.Body)
 	req.Request.Body.Close()
-	require.NoError(t, err)
-
-	assert.Equal(t, req.compressedBodyLength, len(body))
-
+	if err != nil {
+		t.Fatal("unable to read body", err)
+	}
+	if len(body) != req.compressedBodyLength {
+		t.Error("compressed body length mismatch",
+			len(body), req.compressedBodyLength)
+	}
 	uncompressed, err := internal.Uncompress(body)
-	require.NoError(t, err)
-	assert.Equal(t, string(req.UncompressedBody), string(uncompressed))
+	if err != nil {
+		t.Fatal("unable to uncompress body", err)
+	}
+	if string(uncompressed) != string(req.UncompressedBody) {
+		t.Error("request JSON mismatch", string(uncompressed), string(req.UncompressedBody))
+	}
 }
 
 func TestEventsPayloadSplit(t *testing.T) {
@@ -42,17 +53,23 @@ func TestEventsPayloadSplit(t *testing.T) {
 	// test len 0
 	ev := &eventBatch{}
 	split := ev.split()
-	assert.Nil(t, split)
+	if split != nil {
+		t.Error(split)
+	}
 
 	// test len 1
 	ev = &eventBatch{Events: []Event{{EventType: "a"}}}
 	split = ev.split()
-	assert.Nil(t, split)
+	if split != nil {
+		t.Error(split)
+	}
 
 	// test len 2
 	ev = &eventBatch{Events: []Event{{EventType: "a"}, {EventType: "b"}}}
 	split = ev.split()
-	assert.Equal(t, 2, len(split))
+	if len(split) != 2 {
+		t.Error("split into incorrect number of slices", len(split))
+	}
 
 	testEventBatchJSON(t, split[0].(*eventBatch), `[{"eventType":"a","timestamp":-6795364578871}]`)
 	testEventBatchJSON(t, split[1].(*eventBatch), `[{"eventType":"b","timestamp":-6795364578871}]`)
@@ -60,7 +77,9 @@ func TestEventsPayloadSplit(t *testing.T) {
 	// test len 3
 	ev = &eventBatch{Events: []Event{{EventType: "a"}, {EventType: "b"}, {EventType: "c"}}}
 	split = ev.split()
-	assert.Equal(t, 2, len(split))
+	if len(split) != 2 {
+		t.Error("split into incorrect number of slices", len(split))
+	}
 	testEventBatchJSON(t, split[0].(*eventBatch), `[{"eventType":"a","timestamp":-6795364578871}]`)
 	testEventBatchJSON(t, split[1].(*eventBatch), `[{"eventType":"b","timestamp":-6795364578871},{"eventType":"c","timestamp":-6795364578871}]`)
 }
@@ -72,7 +91,7 @@ func TestEventsJSON(t *testing.T) {
 		{}, // Empty
 		{ // with everything
 			EventType:  "testEvent",
-			Timestamp:  testTimestamp,
+			Timestamp:  time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
 			Attributes: map[string]interface{}{"zip": "zap"},
 		},
 	}}
@@ -84,7 +103,7 @@ func TestEventsJSON(t *testing.T) {
 		},
 		{
 			"eventType":"testEvent",
-			"timestamp":`+testTimeString+`,
+			"timestamp":1417136460000,
 			"zip":"zap"
 		}
 	]`)
