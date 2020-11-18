@@ -106,6 +106,17 @@ func wrapHandler(path string, handler func(http.ResponseWriter, *http.Request)) 
 				},
 			},
 		})
+
+		h.RecordEvent(telemetry.Event{
+			EventType: "CustomEvent",
+			Timestamp: before,
+			Attributes: map[string]interface{}{
+				"path":        path,
+				"http.method": req.Method,
+				"isWeb":       true,
+				"isExample":   true,
+			},
+		})
 	}
 }
 
@@ -132,7 +143,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	var err error
 	h, err = telemetry.NewHarvester(
-		telemetry.ConfigAPIKey(mustGetEnv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")),
+		telemetry.ConfigAPIKey(mustGetEnv("NEW_RELIC_INSERT_API_KEY")),
 		telemetry.ConfigCommonAttributes(map[string]interface{}{
 			"app.name":  "myServer",
 			"host.name": "dev.server.com",
@@ -141,8 +152,9 @@ func main() {
 		telemetry.ConfigBasicErrorLogger(os.Stderr),
 		telemetry.ConfigBasicDebugLogger(os.Stdout),
 		func(cfg *telemetry.Config) {
-			cfg.MetricsURLOverride = os.Getenv("NEW_RELIC_METRICS_URL")
-			cfg.SpansURLOverride = os.Getenv("NEW_RELIC_SPANS_URL")
+			cfg.MetricsURLOverride = os.Getenv("NEW_RELIC_METRIC_URL")
+			cfg.SpansURLOverride = os.Getenv("NEW_RELIC_TRACE_URL")
+			cfg.EventsURLOverride = os.Getenv("NEW_RELIC_EVENT_URL")
 		},
 	)
 	if nil != err {
