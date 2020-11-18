@@ -102,6 +102,7 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('}')
 }
 
+// Event represents something that occurred during the execution of a span.
 type Event struct {
 	// Name is the identifier of an Event.
 	Name string
