@@ -162,11 +162,10 @@ func TestSpanWithEvents(t *testing.T) {
 		Attributes:  map[string]interface{}{},
 		Events: []Event{
 			Event{
-				Name:      "exception",
+				EventType: "exception",
 				Timestamp: tm,
 				Attributes: map[string]interface{}{
 					"exception.message": "Everything is fine!",
-					"exception.type":    "java.lang.EverythingIsFine",
 				},
 			},
 		},
@@ -186,8 +185,7 @@ func TestSpanWithEvents(t *testing.T) {
 				"name": "exception",
 				"timestamp": 1417136460000,
 				"attributes": {
-					"exception.message": "Everything is fine!",
-					"exception.type": "java.lang.EverythingIsFine"
+					"exception.message": "Everything is fine!"
 				}
 			}
 		]

@@ -87,7 +87,7 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 			}
 			buf.WriteByte('{')
 			aw := internal.JSONFieldsWriter{Buf: buf}
-			aw.StringField("name", e.Name)
+			aw.StringField("name", e.EventType)
 			aw.IntField("timestamp", e.Timestamp.UnixNano()/(1000*1000))
 			aw.AddKey("attributes")
 			buf.WriteByte('{')
@@ -100,19 +100,6 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	}
 
 	buf.WriteByte('}')
-}
-
-// Event represents something that occurred during the execution of a span.
-type Event struct {
-	// Name is the identifier of an Event.
-	Name string
-	// Timestamp is when the event occurred. It should be after the Timestamp of its
-	// containing Span, and before the containing spans Timestamp + Duration.
-	Timestamp time.Time
-
-	// Attributes is a map of user specified tags on this event. The map values
-	// can be aany of bool, number, or string.
-	Attributes map[string]interface{}
 }
 
 // spanBatch represents a single batch of spans to report to New Relic.

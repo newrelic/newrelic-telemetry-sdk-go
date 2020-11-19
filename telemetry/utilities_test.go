@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestJSONString(t *testing.T) {
@@ -52,4 +53,22 @@ func TestJSONOrString(t *testing.T) {
 	if s := fmt.Sprintf("%v", out); s != `{"this is":"json"}` {
 		t.Error(s)
 	}
+}
+
+func checkMinDuration(t *testing.T, expected time.Duration, actual time.Duration) {
+	if expected != actual {
+		t.Errorf("\nexpect=%s\nactual=%s\n", expected, actual)
+	}
+}
+
+func TestMinDuration(t *testing.T) {
+	t.Parallel()
+
+	t1 := time.Duration(1)
+	t2 := time.Duration(5)
+
+	checkMinDuration(t, t1, minDuration(t1, t2))
+	checkMinDuration(t, t1, minDuration(t1, t1))
+	checkMinDuration(t, t1, minDuration(t2, t1))
+	checkMinDuration(t, t2, minDuration(t2, t2))
 }

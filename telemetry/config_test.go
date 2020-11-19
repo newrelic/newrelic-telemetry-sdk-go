@@ -119,7 +119,10 @@ func TestConfigMetricURL(t *testing.T) {
 	}
 }
 
-func TestConfigSpanURL(t *testing.T) {
+func TestConfigSpansURL(t *testing.T) {
+	t.Parallel()
+
+	// We get the default
 	h, err := NewHarvester(configTesting)
 	if nil == h || err != nil {
 		t.Fatal(h, err)
@@ -127,13 +130,35 @@ func TestConfigSpanURL(t *testing.T) {
 	if u := h.config.spanURL(); u != defaultSpanURL {
 		t.Fatal(u)
 	}
-	h, err = NewHarvester(configTesting, func(cfg *Config) {
-		cfg.SpansURLOverride = "span-url-override"
-	})
+
+	// The override config option works
+	h, err = NewHarvester(configTesting, ConfigSpansURLOverride("span-url-override"))
 	if nil == h || err != nil {
 		t.Fatal(h, err)
 	}
 	if u := h.config.spanURL(); u != "span-url-override" {
+		t.Fatal(u)
+	}
+}
+
+func TestConfigEventsURL(t *testing.T) {
+	t.Parallel()
+
+	// We get the default
+	h, err := NewHarvester(configTesting)
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	if u := h.config.eventURL(); u != defaultEventURL {
+		t.Fatal(u)
+	}
+
+	// The override config option works
+	h, err = NewHarvester(configTesting, ConfigEventsURLOverride("event-url-override"))
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	if u := h.config.eventURL(); u != "event-url-override" {
 		t.Fatal(u)
 	}
 }

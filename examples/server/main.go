@@ -97,13 +97,24 @@ func wrapHandler(path string, handler func(http.ResponseWriter, *http.Request)) 
 			},
 			Events: []telemetry.Event{
 				telemetry.Event{
-					Name:      "exception",
+					EventType: "exception",
 					Timestamp: before,
 					Attributes: map[string]interface{}{
 						"exception.message": "Everything is fine!",
 						"exception.type":    "java.lang.EverythingIsFine",
 					},
 				},
+			},
+		})
+
+		h.RecordEvent(telemetry.Event{
+			EventType: "CustomEvent",
+			Timestamp: before,
+			Attributes: map[string]interface{}{
+				"path":        path,
+				"http.method": req.Method,
+				"isWeb":       true,
+				"isExample":   true,
 			},
 		})
 	}
@@ -141,8 +152,9 @@ func main() {
 		telemetry.ConfigBasicErrorLogger(os.Stderr),
 		telemetry.ConfigBasicDebugLogger(os.Stdout),
 		func(cfg *telemetry.Config) {
-			cfg.MetricsURLOverride = os.Getenv("NEW_RELIC_METRICS_URL")
-			cfg.SpansURLOverride = os.Getenv("NEW_RELIC_SPANS_URL")
+			cfg.MetricsURLOverride = os.Getenv("NEW_RELIC_METRIC_URL")
+			cfg.SpansURLOverride = os.Getenv("NEW_RELIC_TRACE_URL")
+			cfg.EventsURLOverride = os.Getenv("NEW_RELIC_EVENT_URL")
 		},
 	)
 	if nil != err {
