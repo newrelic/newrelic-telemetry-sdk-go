@@ -10,6 +10,7 @@ Thanks for your interest in contributing to the Telemetry SDK! We look forward t
     * [golint](https://github.com/golang/lint)
     * [go vet](https://golang.org/cmd/vet/)
     * [go fmt](https://golang.org/cmd/gofmt/)
+  * If this is a notable change, please include a very short summary of your work in the "Unreleased" section of [CHANGELOG.md](./CHANGELOG.MD).
   * Sign the [Contributor Licensing Agreement](#contributor-license-agreement-cla), if you haven't already done so. (You will be prompted if we don't have a signed CLA already recorded.)
 
 ## How to Get Help or Ask Questions
