@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.5.1] - 2020-12-16
 - Fixed bug that resulted in payload size remaining slightly too large after
-splitting it into more manageable chunks.
+splitting it into more manageable chunks. (#39)
 
 ## [0.5.0] - 2020-11-19
 ### Added
