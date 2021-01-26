@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -9,13 +10,13 @@ import (
 	"net/url"
 )
 
-type Batch interface {
+type PayloadEntry interface {
 	Type() string
-	Bytes() []byte
+	ToPayload() interface{}
 }
 
 type RequestFactory interface {
-	BuildRequest(Batch, ...ClientOption) http.Request
+	BuildRequest([]PayloadEntry, ...ClientOption) http.Request
 }
 
 type requestFactory struct {
@@ -37,7 +38,7 @@ func configure(f *requestFactory, options []ClientOption) error {
 
 }
 
-func (f *requestFactory) BuildRequest(batch Batch, options ...ClientOption) http.Request {
+func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) http.Request {
 	configuredFactory := &requestFactory{
 		insertKey:    f.insertKey,
 		noDefaultKey: f.noDefaultKey,
@@ -52,12 +53,25 @@ func (f *requestFactory) BuildRequest(batch Batch, options ...ClientOption) http
 		configuredFactory = f
 	}
 
-	b := batch.Bytes()
+	var mappedEntries map[string]interface{}
+
+	var path string
+	for _, entry := range entries {
+		mappedEntries[entry.Type()] = entry.ToPayload()
+		thisEntryPath := configuredFactory.getPath(entry.Type())
+		if thisEntryPath != "" {
+			path = thisEntryPath
+		}
+	}
+
+	var payload []interface{}
+	payload = append(payload, mappedEntries)
+	b, _ := json.Marshal(payload)
+
 	// TODO: compress batch bytes
 	body := ioutil.NopCloser(bytes.NewReader(b))
 	host := configuredFactory.getHost()
 	headers := configuredFactory.getHeaders()
-	path := configuredFactory.getPath(batch.Type())
 
 	return http.Request{
 		Method: "POST",
