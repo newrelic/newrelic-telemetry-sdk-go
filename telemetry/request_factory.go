@@ -1,9 +1,14 @@
 package telemetry
 
+import (
+	"errors"
+	"net/http"
+)
+
 type DataPoint struct {}
 
 type RequestFactory interface {
-	BuildRequest([]DataPoint, ...ClientOption)
+	BuildRequest([]DataPoint, ...ClientOption) http.Request
 }
 
 type requestFactory struct {
@@ -13,23 +18,23 @@ type requestFactory struct {
 	port uint
 }
 
-func (r requestFactory) BuildRequest(points []DataPoint, option ...ClientOption) {
+func (f requestFactory) BuildRequest(points []DataPoint, option ...ClientOption) http.Request {
 	panic("implement me")
 }
 
 type ClientOption func(o *requestFactory)
 
-func NewRequestFactory(options ...ClientOption) RequestFactory {
+func NewRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{}
 	for _, opt := range options {
 		opt(f)
 	}
 
 	if f.insertKey == "" && !f.noDefaultKey {
-		panic("Insert key option must be specified! (one of WithInsertKey or WithNoDefaultKey)")
+		return nil, errors.New("insert key option must be specified! (one of WithInsertKey or WithNoDefaultKey)")
 	}
 
-	return f
+	return f, nil
 }
 
 func WithInsertKey(insertKey string) ClientOption {
