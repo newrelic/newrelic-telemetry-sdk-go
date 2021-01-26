@@ -2,8 +2,18 @@ package telemetry
 
 import "testing"
 
-func TestNewRequestFactorySuccess(t *testing.T) {
+func TestNewRequestFactoryNoInsertKeyConfigSuccess(t *testing.T) {
 	f, err := NewRequestFactory(WithNoDefaultKey())
+	if f == nil {
+		t.Error("Factory was not created")
+	}
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestNewRequestFactoryInsertKeyConfigSuccess(t *testing.T) {
+	f, err := NewRequestFactory(WithInsertKey("key!"))
 	if f == nil {
 		t.Error("Factory was not created")
 	}
