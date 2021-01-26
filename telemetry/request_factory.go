@@ -9,12 +9,10 @@ import (
 	"net/url"
 )
 
-type DataPoint interface{}
-
 type Batch interface {
 	Type() string
-	Bytes() *bytes.Buffer
-	DataPoints() []DataPoint
+	Bytes() []byte
+	writeJSON(*bytes.Buffer)
 }
 
 type RequestFactory interface {
@@ -55,8 +53,9 @@ func (f *requestFactory) BuildRequest(batch Batch, options ...ClientOption) http
 		configuredFactory = f
 	}
 
-	bytes := batch.Bytes()
-	body := ioutil.NopCloser(bytes)
+	b := batch.Bytes()
+	// TODO: compress batch bytes
+	body := ioutil.NopCloser(bytes.NewReader(b))
 	host := configuredFactory.getHost()
 	headers := configuredFactory.getHeaders()
 	path := configuredFactory.getPath(batch.Type())
@@ -70,7 +69,7 @@ func (f *requestFactory) BuildRequest(batch Batch, options ...ClientOption) http
 		},
 		Header:        headers,
 		Body:          body,
-		ContentLength: int64(bytes.Len()),
+		ContentLength: int64(len(b)),
 		Close:         false,
 		Host:          host,
 	}
