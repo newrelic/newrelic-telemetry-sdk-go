@@ -28,21 +28,32 @@ type requestFactory struct {
 	port         uint
 }
 
-func configure(factory *requestFactory, options []ClientOption) {
+func configure(f *requestFactory, options []ClientOption) error {
 	for _, option := range options {
-		option(factory)
+		option(f)
 	}
+
+	if f.insertKey == "" && !f.noDefaultKey {
+		return errors.New("insert key option must be specified! (one of WithInsertKey or WithNoDefaultKey)")
+	}
+	return nil
+
 }
 
 func (f *requestFactory) BuildRequest(batch Batch, options ...ClientOption) http.Request {
-	configuredFactory := requestFactory{
+	configuredFactory := &requestFactory{
 		insertKey:    f.insertKey,
 		noDefaultKey: f.noDefaultKey,
 		host:         f.host,
 		port:         f.port,
 	}
 
-	configure(&configuredFactory, options)
+	err := configure(configuredFactory, options)
+
+	// If unable to configure, just use the already configured request factory for the request
+	if err != nil {
+		configuredFactory = f
+	}
 
 	bytes := batch.Bytes()
 	body := ioutil.NopCloser(bytes)
@@ -94,10 +105,9 @@ type ClientOption func(o *requestFactory)
 
 func NewRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{}
-	configure(f, options)
-
-	if f.insertKey == "" && !f.noDefaultKey {
-		return nil, errors.New("insert key option must be specified! (one of WithInsertKey or WithNoDefaultKey)")
+	err := configure(f, options)
+	if err != nil {
+		return nil, err
 	}
 
 	return f, nil
