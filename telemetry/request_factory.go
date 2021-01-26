@@ -9,7 +9,7 @@ import (
 	"net/url"
 )
 
-type DataPoint interface {}
+type DataPoint interface{}
 
 type Batch interface {
 	Type() string
@@ -22,10 +22,16 @@ type RequestFactory interface {
 }
 
 type requestFactory struct {
-	insertKey string
+	insertKey    string
 	noDefaultKey bool
-	host string
-	port uint
+	host         string
+	port         uint
+}
+
+func configure(factory *requestFactory, options []ClientOption) {
+	for _, option := range options {
+		option(factory)
+	}
 }
 
 func (f *requestFactory) BuildRequest(batch Batch, options ...ClientOption) http.Request {
@@ -36,9 +42,7 @@ func (f *requestFactory) BuildRequest(batch Batch, options ...ClientOption) http
 		port:         f.port,
 	}
 
-	for _, option := range options {
-		option(&configuredFactory)
-	}
+	configure(&configuredFactory, options)
 
 	bytes := batch.Bytes()
 	body := ioutil.NopCloser(bytes)
@@ -47,26 +51,30 @@ func (f *requestFactory) BuildRequest(batch Batch, options ...ClientOption) http
 	path := configuredFactory.getPath(batch.Type())
 
 	return http.Request{
-		Method:           "POST",
-		URL:              &url.URL{
-			Scheme:      "https",
-			Host:        configuredFactory.host,
-			Path:        path,
+		Method: "POST",
+		URL: &url.URL{
+			Scheme: "https",
+			Host:   configuredFactory.host,
+			Path:   path,
 		},
-		Header:           headers,
-		Body:             body,
-		ContentLength:    int64(bytes.Len()),
-		Close:            false,
-		Host:             host,
+		Header:        headers,
+		Body:          body,
+		ContentLength: int64(bytes.Len()),
+		Close:         false,
+		Host:          host,
 	}
 }
 
 func (f *requestFactory) getPath(t string) string {
 	switch t {
-	case "spans": return "/trace/v1"
-	case "metrics": return "/metric/v1"
-	case "logs": return "/log/v1"
-	default: return ""
+	case "spans":
+		return "/trace/v1"
+	case "metrics":
+		return "/metric/v1"
+	case "logs":
+		return "/log/v1"
+	default:
+		return ""
 	}
 }
 
@@ -86,9 +94,7 @@ type ClientOption func(o *requestFactory)
 
 func NewRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{}
-	for _, opt := range options {
-		opt(f)
-	}
+	configure(f, options)
 
 	if f.insertKey == "" && !f.noDefaultKey {
 		return nil, errors.New("insert key option must be specified! (one of WithInsertKey or WithNoDefaultKey)")
