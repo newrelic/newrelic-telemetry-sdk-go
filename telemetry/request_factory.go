@@ -12,7 +12,6 @@ import (
 type Batch interface {
 	Type() string
 	Bytes() []byte
-	writeJSON(*bytes.Buffer)
 }
 
 type RequestFactory interface {
