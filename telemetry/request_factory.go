@@ -66,7 +66,6 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 	buf.WriteByte('}')
 	buf.WriteByte(']')
 
-	// TODO: compress batch bytes
 	buf, err = internal.Compress(buf.Bytes())
 	if err != nil {
 		return http.Request{}, err
