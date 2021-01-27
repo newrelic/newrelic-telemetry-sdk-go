@@ -2,9 +2,9 @@ package telemetry
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -12,11 +12,11 @@ import (
 
 type PayloadEntry interface {
 	Type() string
-	ToPayload() interface{}
+	Bytes() []byte
 }
 
 type RequestFactory interface {
-	BuildRequest([]PayloadEntry, ...ClientOption) http.Request
+	BuildRequest([]PayloadEntry, ...ClientOption) (http.Request, error)
 }
 
 type requestFactory struct {
@@ -39,33 +39,40 @@ func configure(f *requestFactory, options []ClientOption) error {
 
 }
 
-func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) http.Request {
+func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (http.Request, error) {
 	configuredFactory := &requestFactory{
 		insertKey:    f.insertKey,
 		noDefaultKey: f.noDefaultKey,
 		host:         f.host,
 		port:         f.port,
+		path:		  f.path,
 	}
 
 	err := configure(configuredFactory, options)
 
-	// If unable to configure, just use the already configured request factory for the request
 	if err != nil {
-		configuredFactory = f
+		return http.Request{}, errors.New("unable to configure this request based on options passed in")
 	}
 
-	var mappedEntries map[string]interface{}
+	buf := &bytes.Buffer{}
+	buf.WriteByte('[')
+	buf.WriteByte('{')
+	w := internal.JSONFieldsWriter{Buf: buf}
 
 	for _, entry := range entries {
-		mappedEntries[entry.Type()] = entry.ToPayload()
+		w.RawField(entry.Type(), entry.Bytes())
 	}
 
-	var payload []interface{}
-	payload = append(payload, mappedEntries)
-	b, _ := json.Marshal(payload)
+	buf.WriteByte('}')
+	buf.WriteByte(']')
 
 	// TODO: compress batch bytes
-	body := ioutil.NopCloser(bytes.NewReader(b))
+	buf, err = internal.Compress(buf.Bytes())
+	if err != nil {
+		return http.Request{}, err
+	}
+	var contentLength = int64(buf.Len())
+	body := ioutil.NopCloser(buf)
 	host := configuredFactory.getHost()
 	headers := configuredFactory.getHeaders()
 
@@ -78,10 +85,10 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 		},
 		Header:        headers,
 		Body:          body,
-		ContentLength: int64(len(b)),
+		ContentLength: contentLength,
 		Close:         false,
 		Host:          host,
-	}
+	}, nil
 }
 
 func (f *requestFactory) getHost() string {
@@ -93,7 +100,11 @@ func (f *requestFactory) getHost() string {
 }
 
 func (f *requestFactory) getHeaders() http.Header {
-	return http.Header{}
+	return http.Header{
+		"Content-Type": []string{"application/json"},
+		"Content-Encoding": []string{"gzip"},
+		"Api-Key": []string{f.insertKey},
+	}
 }
 
 type ClientOption func(o *requestFactory)
