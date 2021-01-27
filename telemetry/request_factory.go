@@ -24,6 +24,7 @@ type requestFactory struct {
 	noDefaultKey bool
 	host         string
 	port         uint
+	path         string
 }
 
 func configure(f *requestFactory, options []ClientOption) error {
@@ -55,13 +56,8 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 
 	var mappedEntries map[string]interface{}
 
-	var path string
 	for _, entry := range entries {
 		mappedEntries[entry.Type()] = entry.ToPayload()
-		thisEntryPath := configuredFactory.getPath(entry.Type())
-		if thisEntryPath != "" {
-			path = thisEntryPath
-		}
 	}
 
 	var payload []interface{}
@@ -78,26 +74,13 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 		URL: &url.URL{
 			Scheme: "https",
 			Host:   configuredFactory.host,
-			Path:   path,
+			Path:   configuredFactory.path,
 		},
 		Header:        headers,
 		Body:          body,
 		ContentLength: int64(len(b)),
 		Close:         false,
 		Host:          host,
-	}
-}
-
-func (f *requestFactory) getPath(t string) string {
-	switch t {
-	case "spans":
-		return "/trace/v1"
-	case "metrics":
-		return "/metric/v1"
-	case "logs":
-		return "/log/v1"
-	default:
-		return ""
 	}
 }
 
@@ -115,8 +98,18 @@ func (f *requestFactory) getHeaders() http.Header {
 
 type ClientOption func(o *requestFactory)
 
-func NewRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{}
+func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
+	f := &requestFactory{host: "trace-api.newrelic.com", path: "/trace/v1"}
+	err := configure(f, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return f, nil
+}
+
+func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
+	f := &requestFactory{host: "metric-api.newrelic.com", path: "/metric/v1"}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err

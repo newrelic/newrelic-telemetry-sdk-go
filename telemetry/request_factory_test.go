@@ -3,7 +3,7 @@ package telemetry
 import "testing"
 
 func TestNewRequestFactoryNoInsertKeyConfigSuccess(t *testing.T) {
-	f, err := NewRequestFactory(WithNoDefaultKey())
+	f, err := NewSpanRequestFactory(WithNoDefaultKey())
 	if f == nil {
 		t.Error("Factory was not created")
 	}
@@ -13,7 +13,7 @@ func TestNewRequestFactoryNoInsertKeyConfigSuccess(t *testing.T) {
 }
 
 func TestNewRequestFactoryInsertKeyConfigSuccess(t *testing.T) {
-	f, err := NewRequestFactory(WithInsertKey("key!"))
+	f, err := NewSpanRequestFactory(WithInsertKey("key!"))
 	if f == nil {
 		t.Error("Factory was not created")
 	}
@@ -23,7 +23,7 @@ func TestNewRequestFactoryInsertKeyConfigSuccess(t *testing.T) {
 }
 
 func TestNewRequestFactoryNoKeyFail(t *testing.T) {
-	f, err := NewRequestFactory()
+	f, err := NewSpanRequestFactory()
 	if f != nil {
 		t.Error("Factory was created without a specified api key or mode")
 	}
