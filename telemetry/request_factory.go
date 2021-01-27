@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 )
+const defaultUserAgent = "NewRelic-Go-TelemetrySDK/" + version
 
 type PayloadEntry interface {
 	Type() string
@@ -25,6 +26,7 @@ type requestFactory struct {
 	host         string
 	port         uint
 	path         string
+	userAgent    string
 }
 
 func configure(f *requestFactory, options []ClientOption) error {
@@ -45,7 +47,8 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 		noDefaultKey: f.noDefaultKey,
 		host:         f.host,
 		port:         f.port,
-		path:		  f.path,
+		path:         f.path,
+		userAgent:    f.userAgent,
 	}
 
 	err := configure(configuredFactory, options)
@@ -100,16 +103,17 @@ func (f *requestFactory) getHost() string {
 
 func (f *requestFactory) getHeaders() http.Header {
 	return http.Header{
-		"Content-Type": []string{"application/json"},
+		"Content-Type":     []string{"application/json"},
 		"Content-Encoding": []string{"gzip"},
-		"Api-Key": []string{f.insertKey},
+		"Api-Key":          []string{f.insertKey},
+		"User-Agent":       []string{f.userAgent},
 	}
 }
 
 type ClientOption func(o *requestFactory)
 
 func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{host: "trace-api.newrelic.com", path: "/trace/v1"}
+	f := &requestFactory{host: "trace-api.newrelic.com", path: "/trace/v1", userAgent: defaultUserAgent}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
@@ -119,7 +123,7 @@ func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
 }
 
 func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{host: "metric-api.newrelic.com", path: "/metric/v1"}
+	f := &requestFactory{host: "metric-api.newrelic.com", path: "/metric/v1", userAgent: defaultUserAgent}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
@@ -149,5 +153,11 @@ func WithHost(host string) ClientOption {
 func WithPort(port uint) ClientOption {
 	return func(o *requestFactory) {
 		o.port = port
+	}
+}
+
+func WithUserAgent(userAgent string) ClientOption {
+	return func(o *requestFactory) {
+		o.userAgent = defaultUserAgent + " " + userAgent
 	}
 }

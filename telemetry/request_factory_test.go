@@ -78,7 +78,7 @@ func TestSpanFactoryRequest(t *testing.T) {
 		t.Error("Incorrect api key header")
 	}
 
-	if request.Header.Get("User-Agent") != "FIXME" {
+	if request.Header.Get("User-Agent") != defaultUserAgent {
 		t.Error("Incorrect user agent")
 	}
 
