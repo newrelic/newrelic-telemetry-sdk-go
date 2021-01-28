@@ -4,65 +4,48 @@
 package telemetry
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
-
-	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
+	"net/url"
 )
 
 const (
 	maxCompressedSizeBytes = 1e6
 )
 
-// request contains an http.Request and the UncompressedBody which is provided
-// for logging.
-type request struct {
-	Request          *http.Request
-	UncompressedBody json.RawMessage
-
-	compressedBody       []byte
-	compressedBodyLength int
-}
-
-type requestsBuilder interface {
-	makeBody() json.RawMessage
-	split() []requestsBuilder
+type splittableBatch interface {
+	PayloadEntry
+	split()  []splittableBatch
 }
 
 var (
 	errUnableToSplit = fmt.Errorf("unable to split large payload further")
 )
 
-func requestNeedsSplit(r request) bool {
-	return r.compressedBodyLength >= maxCompressedSizeBytes
+func requestNeedsSplit(r http.Request) bool {
+	return r.ContentLength >= maxCompressedSizeBytes
 }
 
-func newRequests(batch requestsBuilder, apiKey string, url string, userAgent string) ([]request, error) {
-	return newRequestsInternal(batch, apiKey, url, userAgent, requestNeedsSplit)
+func newRequests(entries []PayloadEntry, apiKey string, rawUrl string, userAgent string) ([]request, error) {
+	return newRequestsInternal(entries, apiKey, rawUrl, userAgent, requestNeedsSplit)
 }
 
-func newRequestsInternal(batch requestsBuilder, apiKey string, url string, userAgent string, needsSplit func(request) bool) ([]request, error) {
-	uncompressed := batch.makeBody()
-	compressed, err := internal.Compress(uncompressed)
+func newRequestsInternal(common PayloadEntry, batch splittableBatch, apiKey string, rawUrl string, userAgent string, needsSplit func(http.Request) bool) ([]request, error) {
+	url, err := url.Parse(rawUrl)
 	if nil != err {
-		return nil, fmt.Errorf("error compressing data: %v", err)
+		return nil, err
 	}
-	compressedLen := compressed.Len()
-
-	req, err := http.NewRequest("POST", url, compressed)
-	if nil != err {
-		return nil, fmt.Errorf("error creating request: %v", err)
+	factory := &requestFactory{
+		insertKey:    apiKey,
+		noDefaultKey: false,
+		host:         url.Host,
+		path:         url.Path,
+		userAgent:    userAgent,
 	}
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Api-Key", apiKey)
-	req.Header.Add("Content-Encoding", "gzip")
-	req.Header.Add("User-Agent", userAgent)
-	r := request{
-		Request:              req,
-		UncompressedBody:     uncompressed,
-		compressedBody:       compressed.Bytes(),
-		compressedBodyLength: compressedLen,
+	if nil != common {
+		r, err := factory.BuildRequest([]PayloadEntry{common, batch})
+	} else {
+		r, err := factory.BuildRequest([]PayloadEntry{batch})
 	}
 
 	if !needsSplit(r) {

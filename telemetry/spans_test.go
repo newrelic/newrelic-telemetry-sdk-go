@@ -5,7 +5,6 @@ package telemetry
 
 import (
 	"bytes"
-	"encoding/json"
 	"testing"
 	"time"
 )
@@ -25,7 +24,6 @@ func BenchmarkSpansJSON(b *testing.B) {
 			Timestamp:      tm,
 			Duration:       2 * time.Second,
 			ServiceName:    "myentity",
-			AttributesJSON: json.RawMessage(`{"zip":"zap","zop":123}`),
 		})
 	}
 

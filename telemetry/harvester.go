@@ -23,7 +23,7 @@ type Harvester struct {
 	// These fields are not modified after Harvester creation.  They may be
 	// safely accessed without locking.
 	config               Config
-	commonAttributesJSON json.RawMessage
+	entries 		     []PayloadEntry
 
 	// lock protects the mutable fields below.
 	lock              sync.Mutex
@@ -63,6 +63,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		config:            cfg,
 		lastHarvest:       time.Now(),
 		aggregatedMetrics: make(map[metricIdentity]*metric),
+		entries:           make([]PayloadEntry, 1),
 	}
 
 	// Marshal the common attributes to JSON here to avoid doing it on every
@@ -78,7 +79,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 				"message": "error marshaling common attributes",
 			})
 		} else {
-			h.commonAttributesJSON = attributesJSON
+			h.entries[0] = &CommonBlock{RawJSON: attributesJSON}
 		}
 		h.config.CommonAttributes = nil
 	}
@@ -260,7 +261,7 @@ func (h *Harvester) swapOutMetrics(now time.Time) []request {
 	batch := &metricBatch{
 		Timestamp:      lastHarvest,
 		Interval:       now.Sub(lastHarvest),
-		AttributesJSON: h.commonAttributesJSON,
+		AttributesJSON: nil, //FIXME
 		Metrics:        rawMetrics,
 	}
 	reqs, err := newRequests(batch, h.config.APIKey, h.config.metricURL(), h.config.userAgent())
@@ -283,11 +284,11 @@ func (h *Harvester) swapOutSpans() []request {
 	if nil == sps {
 		return nil
 	}
-	batch := &spanBatch{
-		AttributesJSON: h.commonAttributesJSON,
+	batch := &SpanBatch{
 		Spans:          sps,
 	}
-	reqs, err := newRequests(batch, h.config.APIKey, h.config.spanURL(), h.config.userAgent())
+	entries := append(h.entries, batch)
+	reqs, err := newRequests(entries, h.config.APIKey, h.config.spanURL(), h.config.userAgent())
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -335,7 +336,7 @@ func harvestRequest(req request, cfg *Config) {
 			cfg.logAudit(map[string]interface{}{
 				"event": "uncompressed request body",
 				"url":   req.Request.URL.String(),
-				"data":  jsonString(req.UncompressedBody),
+				"data":  jsonString(internal.Uncompress(GetBody))
 			})
 		}
 
@@ -369,7 +370,8 @@ func harvestRequest(req request, cfg *Config) {
 
 		// Reattach request body because the original one has already been read
 		// and closed.
-		req.Request.Body = ioutil.NopCloser(bytes.NewBuffer(req.compressedBody))
+		//req.Request.Body = ioutil.NopCloser(bytes.NewBuffer(req.compressedBody))
+		req.Body = req.GetBody()
 	}
 }
 

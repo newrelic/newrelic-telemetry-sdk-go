@@ -3,8 +3,8 @@ package telemetry
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -24,7 +24,6 @@ type requestFactory struct {
 	insertKey    string
 	noDefaultKey bool
 	host         string
-	port         uint
 	path         string
 	userAgent    string
 }
@@ -46,7 +45,6 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 		insertKey:    f.insertKey,
 		noDefaultKey: f.noDefaultKey,
 		host:         f.host,
-		port:         f.port,
 		path:         f.path,
 		userAgent:    f.userAgent,
 	}
@@ -58,24 +56,27 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 	}
 
 	buf := &bytes.Buffer{}
-	buf.WriteByte('[')
-	buf.WriteByte('{')
+	buf.Write([]byte{'[', '{'})
 	w := internal.JSONFieldsWriter{Buf: buf}
 
 	for _, entry := range entries {
 		w.RawField(entry.Type(), entry.Bytes())
 	}
 
-	buf.WriteByte('}')
-	buf.WriteByte(']')
+	buf.Write([]byte{'}', ']'})
 
 	buf, err = internal.Compress(buf.Bytes())
 	if err != nil {
 		return http.Request{}, err
 	}
+
+	getBody := func() (io.ReadCloser, error){
+		return ioutil.NopCloser(bytes.NewBuffer(buf.Bytes())), nil
+	}
+
 	var contentLength = int64(buf.Len())
-	body := ioutil.NopCloser(buf)
-	host := configuredFactory.getHost()
+	body, _ := getBody()
+	host := configuredFactory.host
 	headers := configuredFactory.getHeaders()
 
 	return http.Request{
@@ -87,18 +88,11 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 		},
 		Header:        headers,
 		Body:          body,
+		GetBody: 	   getBody,
 		ContentLength: contentLength,
 		Close:         false,
 		Host:          host,
 	}, nil
-}
-
-func (f *requestFactory) getHost() string {
-	s := f.host
-	if f.port > 0 {
-		s = s + fmt.Sprintf(":%d", f.port)
-	}
-	return s
 }
 
 func (f *requestFactory) getHeaders() http.Header {
@@ -147,12 +141,6 @@ func WithNoDefaultKey() ClientOption {
 func WithHost(host string) ClientOption {
 	return func(o *requestFactory) {
 		o.host = host
-	}
-}
-
-func WithPort(port uint) ClientOption {
-	return func(o *requestFactory) {
-		o.port = port
 	}
 }
 

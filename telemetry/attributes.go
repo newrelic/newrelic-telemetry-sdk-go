@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -43,4 +44,16 @@ func vetAttributes(attributes map[string]interface{}, errorLogger func(map[strin
 		}
 	}
 	return validAttributes
+}
+
+type CommonBlock struct {
+	RawJSON json.RawMessage
+}
+
+func (c *CommonBlock) Type() string {
+	return "common"
+}
+
+func (c *CommonBlock) Bytes() []byte {
+	return c.RawJSON
 }
