@@ -47,7 +47,7 @@ type eventBatch struct {
 
 // split will split the eventBatch into 2 equally sized batches.
 // If the number of events in the original is 0 or 1 then nil is returned.
-func (batch *eventBatch) split() []requestsBuilder {
+func (batch *eventBatch) split() []*eventBatch {
 	if len(batch.Events) < 2 {
 		return nil
 	}
@@ -58,10 +58,7 @@ func (batch *eventBatch) split() []requestsBuilder {
 	b2 := *batch
 	b2.Events = batch.Events[half:]
 
-	return []requestsBuilder{
-		requestsBuilder(&b1),
-		requestsBuilder(&b2),
-	}
+	return []*eventBatch{&b1, &b2}
 }
 
 func (batch *eventBatch) writeJSON(buf *bytes.Buffer) {
