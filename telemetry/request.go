@@ -57,13 +57,16 @@ func newRequestsInternal(entries []PayloadEntry, apiKey string, rawUrl string, u
 		splittable, isPayloadSplittable := e.(splittablePayloadEntry)
 		if isPayloadSplittable {
 			splitEntry := splittable.split()
-			splitPayload1 = append(splitPayload1, splitEntry[0].(PayloadEntry))
-			splitPayload2 = append(splitPayload2, splitEntry[1].(PayloadEntry))
-			payloadWasSplit = true
-		} else {
-			splitPayload1 = append(splitPayload1, e)
-			splitPayload2 = append(splitPayload2, e)
+			if splitEntry != nil {
+				splitPayload1 = append(splitPayload1, splitEntry[0].(PayloadEntry))
+				splitPayload2 = append(splitPayload2, splitEntry[1].(PayloadEntry))
+				payloadWasSplit = true
+				continue
+			}
 		}
+
+		splitPayload1 = append(splitPayload1, e)
+		splitPayload2 = append(splitPayload2, e)
 	}
 
 	if !payloadWasSplit {
