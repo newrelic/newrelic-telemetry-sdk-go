@@ -123,6 +123,9 @@ func (batch *SpanBatch) Bytes() []byte {
 }
 
 func (batch *SpanBatch) split() []*SpanBatch {
+	if len(batch.Spans) < 2 {
+		return nil
+	}
 	middle := len(batch.Spans) / 2
 	return []*SpanBatch{&SpanBatch{Spans: batch.Spans[0:middle]}, &SpanBatch{Spans: batch.Spans[middle:]}}
 }
