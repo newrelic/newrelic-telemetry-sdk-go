@@ -298,7 +298,7 @@ func (batch *metricBatch) writeJSON(buf *bytes.Buffer) {
 
 // split will split the metricBatch into 2 equal parts, returning a slice of metricBatches.
 // If the number of metrics in the original is 0 or 1 then nil is returned.
-func (batch *metricBatch) split() []requestsBuilder {
+func (batch *metricBatch) split() []*metricBatch {
 	if len(batch.Metrics) < 2 {
 		return nil
 	}
@@ -309,10 +309,7 @@ func (batch *metricBatch) split() []requestsBuilder {
 	mb2 := *batch
 	mb2.Metrics = batch.Metrics[half:]
 
-	return []requestsBuilder{
-		requestsBuilder(&mb1),
-		requestsBuilder(&mb2),
-	}
+	return []*metricBatch{&mb1, &mb2}
 }
 
 func (batch *metricBatch) makeBody() json.RawMessage {
