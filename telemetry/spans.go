@@ -102,7 +102,7 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 
 // SpanBatch represents a single batch of spans to report to New Relic.
 type SpanBatch struct {
-	Spans          []Span
+	Spans []Span
 }
 
 func (batch *SpanBatch) Type() string {
@@ -120,4 +120,9 @@ func (batch *SpanBatch) Bytes() []byte {
 	}
 	buf.WriteByte(']')
 	return buf.Bytes()
+}
+
+func (batch *SpanBatch) split() []*SpanBatch {
+	middle := len(batch.Spans) / 2
+	return []*SpanBatch{&SpanBatch{Spans: batch.Spans[0:middle]}, &SpanBatch{Spans: batch.Spans[middle:]}}
 }

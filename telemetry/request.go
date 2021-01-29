@@ -13,9 +13,9 @@ const (
 	maxCompressedSizeBytes = 1e6
 )
 
-type splittableBatch interface {
+type splittablePayloadEntry interface {
 	PayloadEntry
-	split()  []splittableBatch
+	split() []splittablePayloadEntry
 }
 
 var (
@@ -26,11 +26,11 @@ func requestNeedsSplit(r http.Request) bool {
 	return r.ContentLength >= maxCompressedSizeBytes
 }
 
-func newRequests(entries []PayloadEntry, apiKey string, rawUrl string, userAgent string) ([]request, error) {
+func newRequests(entries []PayloadEntry, apiKey string, rawUrl string, userAgent string) ([]http.Request, error) {
 	return newRequestsInternal(entries, apiKey, rawUrl, userAgent, requestNeedsSplit)
 }
 
-func newRequestsInternal(common PayloadEntry, batch splittableBatch, apiKey string, rawUrl string, userAgent string, needsSplit func(http.Request) bool) ([]request, error) {
+func newRequestsInternal(entries []PayloadEntry, apiKey string, rawUrl string, userAgent string, needsSplit func(http.Request) bool) ([]http.Request, error) {
 	url, err := url.Parse(rawUrl)
 	if nil != err {
 		return nil, err
@@ -42,24 +42,36 @@ func newRequestsInternal(common PayloadEntry, batch splittableBatch, apiKey stri
 		path:         url.Path,
 		userAgent:    userAgent,
 	}
-	if nil != common {
-		r, err := factory.BuildRequest([]PayloadEntry{common, batch})
-	} else {
-		r, err := factory.BuildRequest([]PayloadEntry{batch})
-	}
+
+	r, err := factory.BuildRequest(entries)
 
 	if !needsSplit(r) {
-		return []request{r}, nil
+		return []http.Request{r}, nil
 	}
 
-	var reqs []request
-	batches := batch.split()
-	if nil == batches {
+	var reqs []http.Request
+	var splitPayload1 []PayloadEntry
+	var splitPayload2 []PayloadEntry
+	payloadWasSplit := false
+	for _, e := range entries {
+		splittable, isPayloadSplittable := e.(splittablePayloadEntry)
+		if isPayloadSplittable {
+			splitEntry := splittable.split()
+			splitPayload1 = append(splitPayload1, splitEntry[0].(PayloadEntry))
+			splitPayload2 = append(splitPayload2, splitEntry[1].(PayloadEntry))
+			payloadWasSplit = true
+		} else {
+			splitPayload1 = append(splitPayload1, e)
+			splitPayload2 = append(splitPayload2, e)
+		}
+	}
+
+	if !payloadWasSplit {
 		return nil, errUnableToSplit
 	}
 
-	for _, b := range batches {
-		rs, err := newRequestsInternal(b, apiKey, url, userAgent, needsSplit)
+	for _, b := range [][]PayloadEntry{splitPayload1, splitPayload2} {
+		rs, err := newRequestsInternal(b, apiKey, rawUrl, userAgent, needsSplit)
 		if nil != err {
 			return nil, err
 		}
