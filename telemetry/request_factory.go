@@ -3,17 +3,20 @@ package telemetry
 import (
 	"bytes"
 	"errors"
-	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
+
 const defaultUserAgent = "NewRelic-Go-TelemetrySDK/" + version
 
 type PayloadEntry interface {
 	Type() string
 	Bytes() []byte
+	HasData() bool
 }
 
 type RequestFactory interface {
@@ -60,7 +63,9 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 	w := internal.JSONFieldsWriter{Buf: buf}
 
 	for _, entry := range entries {
-		w.RawField(entry.Type(), entry.Bytes())
+		if entry.HasData() {
+			w.RawField(entry.Type(), entry.Bytes())
+		}
 	}
 
 	buf.Write([]byte{'}', ']'})
@@ -70,7 +75,7 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 		return http.Request{}, err
 	}
 
-	getBody := func() (io.ReadCloser, error){
+	getBody := func() (io.ReadCloser, error) {
 		return ioutil.NopCloser(bytes.NewBuffer(buf.Bytes())), nil
 	}
 
@@ -88,7 +93,7 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 		},
 		Header:        headers,
 		Body:          body,
-		GetBody: 	   getBody,
+		GetBody:       getBody,
 		ContentLength: contentLength,
 		Close:         false,
 		Host:          host,

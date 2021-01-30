@@ -4,7 +4,6 @@
 package telemetry
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -22,8 +21,8 @@ import (
 type Harvester struct {
 	// These fields are not modified after Harvester creation.  They may be
 	// safely accessed without locking.
-	config               Config
-	entries 		     []PayloadEntry
+	config           Config
+	commonAttributes *CommonAttributes
 
 	// lock protects the mutable fields below.
 	lock              sync.Mutex
@@ -63,7 +62,6 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		config:            cfg,
 		lastHarvest:       time.Now(),
 		aggregatedMetrics: make(map[metricIdentity]*metric),
-		entries:           make([]PayloadEntry, 1),
 	}
 
 	// Marshal the common attributes to JSON here to avoid doing it on every
@@ -79,7 +77,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 				"message": "error marshaling common attributes",
 			})
 		} else {
-			h.entries[0] = &CommonBlock{RawJSON: attributesJSON}
+			h.commonAttributes = &CommonAttributes{RawJSON: attributesJSON}
 		}
 		h.config.CommonAttributes = nil
 	}
@@ -232,7 +230,7 @@ func postData(req *http.Request, client *http.Client) response {
 	return r
 }
 
-func (h *Harvester) swapOutMetrics(now time.Time) []request {
+func (h *Harvester) swapOutMetrics(now time.Time) []http.Request {
 	h.lock.Lock()
 	lastHarvest := h.lastHarvest
 	h.lastHarvest = now
@@ -258,13 +256,14 @@ func (h *Harvester) swapOutMetrics(now time.Time) []request {
 		return nil
 	}
 
-	batch := &metricBatch{
-		Timestamp:      lastHarvest,
-		Interval:       now.Sub(lastHarvest),
-		AttributesJSON: nil, //FIXME
-		Metrics:        rawMetrics,
+	commonBlock := &metricCommonBlock{
+		Timestamp:  lastHarvest,
+		Interval:   now.Sub(lastHarvest),
+		Attributes: h.commonAttributes,
 	}
-	reqs, err := newRequests(batch, h.config.APIKey, h.config.metricURL(), h.config.userAgent())
+	batch := &metricBatch{Metrics: rawMetrics}
+	entries := []PayloadEntry{commonBlock, batch}
+	reqs, err := newRequests(entries, h.config.APIKey, h.config.metricURL(), h.config.userAgent())
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -275,7 +274,7 @@ func (h *Harvester) swapOutMetrics(now time.Time) []request {
 	return reqs
 }
 
-func (h *Harvester) swapOutSpans() []request {
+func (h *Harvester) swapOutSpans() []http.Request {
 	h.lock.Lock()
 	sps := h.spans
 	h.spans = nil
@@ -284,10 +283,9 @@ func (h *Harvester) swapOutSpans() []request {
 	if nil == sps {
 		return nil
 	}
-	batch := &SpanBatch{
-		Spans:          sps,
-	}
-	entries := append(h.entries, batch)
+	commonBlock := &SpanCommonBlock{Attributes: h.commonAttributes}
+	batch := &SpanBatch{Spans: sps}
+	entries := []PayloadEntry{commonBlock, batch}
 	reqs, err := newRequests(entries, h.config.APIKey, h.config.spanURL(), h.config.userAgent())
 	if nil != err {
 		h.config.logError(map[string]interface{}{
@@ -299,7 +297,7 @@ func (h *Harvester) swapOutSpans() []request {
 	return reqs
 }
 
-func (h *Harvester) swapOutEvents() []request {
+func (h *Harvester) swapOutEvents() []http.Request {
 	h.lock.Lock()
 	events := h.events
 	h.events = nil
@@ -311,7 +309,8 @@ func (h *Harvester) swapOutEvents() []request {
 	batch := &eventBatch{
 		Events: events,
 	}
-	reqs, err := newRequests(batch, h.config.APIKey, h.config.eventURL(), h.config.userAgent())
+	entries := []PayloadEntry{batch}
+	reqs, err := newRequests(entries, h.config.APIKey, h.config.eventURL(), h.config.userAgent())
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -322,7 +321,7 @@ func (h *Harvester) swapOutEvents() []request {
 	return reqs
 }
 
-func harvestRequest(req request, cfg *Config) {
+func harvestRequest(req http.Request, cfg *Config) {
 	var attempts int
 	for {
 		cfg.logDebug(map[string]interface{}{
@@ -333,10 +332,11 @@ func harvestRequest(req request, cfg *Config) {
 		// Check if the audit log is enabled to prevent unnecessarily
 		// copying UncompressedBody.
 		if cfg.auditLogEnabled() {
+			uncompressedBody, _ := internal.Uncompress(req.Body)
 			cfg.logAudit(map[string]interface{}{
 				"event": "uncompressed request body",
 				"url":   req.Request.URL.String(),
-				"data":  jsonString(internal.Uncompress(GetBody))
+				"data":  jsonString(internal.Uncompress(GetBody)),
 			})
 		}
 
@@ -387,7 +387,7 @@ func (h *Harvester) HarvestNow(ct context.Context) {
 	ctx, cancel := context.WithTimeout(ct, h.config.HarvestTimeout)
 	defer cancel()
 
-	var reqs []request
+	var reqs []http.Request
 	reqs = append(reqs, h.swapOutMetrics(time.Now())...)
 	reqs = append(reqs, h.swapOutSpans()...)
 	reqs = append(reqs, h.swapOutEvents()...)

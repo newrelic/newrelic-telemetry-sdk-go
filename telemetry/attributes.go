@@ -46,14 +46,18 @@ func vetAttributes(attributes map[string]interface{}, errorLogger func(map[strin
 	return validAttributes
 }
 
-type CommonBlock struct {
+type CommonAttributes struct {
 	RawJSON json.RawMessage
 }
 
-func (c *CommonBlock) Type() string {
-	return "common"
+func (ca *CommonAttributes) Type() string {
+	return "attributes"
 }
 
-func (c *CommonBlock) Bytes() []byte {
-	return c.RawJSON
+func (ca *CommonAttributes) Bytes() []byte {
+	return ca.RawJSON
+}
+
+func (ca *CommonAttributes) HasData() bool {
+	return nil != ca.RawJSON
 }

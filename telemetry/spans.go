@@ -10,7 +10,7 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
-const SPAN_TYPE string = "spans"
+const spanTypeName string = "spans"
 
 // Span is a distributed tracing span.
 type Span struct {
@@ -100,13 +100,34 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('}')
 }
 
+type SpanCommonBlock struct {
+	Attributes *CommonAttributes
+}
+
+func (c *SpanCommonBlock) Type() string {
+	return "common"
+}
+
+func (c *SpanCommonBlock) Bytes() []byte {
+	buf := &bytes.Buffer{}
+	buf.WriteByte('{')
+	w := internal.JSONFieldsWriter{Buf: buf}
+	w.RawField(c.Attributes.Type(), c.Attributes.Bytes())
+	buf.WriteByte('}')
+	return buf.Bytes()
+}
+
+func (c *SpanCommonBlock) HasData() bool {
+	return nil != c.Attributes && c.Attributes.HasData()
+}
+
 // SpanBatch represents a single batch of spans to report to New Relic.
 type SpanBatch struct {
 	Spans []Span
 }
 
 func (batch *SpanBatch) Type() string {
-	return SPAN_TYPE
+	return spanTypeName
 }
 
 func (batch *SpanBatch) Bytes() []byte {
@@ -120,6 +141,10 @@ func (batch *SpanBatch) Bytes() []byte {
 	}
 	buf.WriteByte(']')
 	return buf.Bytes()
+}
+
+func (batch *SpanBatch) HasData() bool {
+	return len(batch.Spans) > 0
 }
 
 func (batch *SpanBatch) split() []*SpanBatch {

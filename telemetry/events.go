@@ -8,6 +8,8 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
+const eventTypeName string = "events"
+
 // Event is a unique set of data that happened at a specific point in time
 type Event struct {
 	// Required Fields:
@@ -76,4 +78,25 @@ func (batch *eventBatch) makeBody() json.RawMessage {
 	buf := &bytes.Buffer{}
 	batch.writeJSON(buf)
 	return buf.Bytes()
+}
+
+func (batch *eventBatch) Type() string {
+	return eventTypeName
+}
+
+func (batch *eventBatch) Bytes() []byte {
+	buf := &bytes.Buffer{}
+	buf.WriteByte('[')
+	for idx, e := range batch.Events {
+		if idx > 0 {
+			buf.WriteByte(',')
+		}
+		e.writeJSON(buf)
+	}
+	buf.WriteByte(']')
+	return buf.Bytes()
+}
+
+func (batch *eventBatch) HasData() bool {
+	return len(batch.Events) > 0
 }
