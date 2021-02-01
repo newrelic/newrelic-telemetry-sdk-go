@@ -16,7 +16,6 @@ const defaultUserAgent = "NewRelic-Go-TelemetrySDK/" + version
 type PayloadEntry interface {
 	Type() string
 	Bytes() []byte
-	HasData() bool
 }
 
 type RequestFactory interface {
@@ -63,9 +62,7 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 	w := internal.JSONFieldsWriter{Buf: buf}
 
 	for _, entry := range entries {
-		if entry.HasData() {
-			w.RawField(entry.Type(), entry.Bytes())
-		}
+		w.RawField(entry.Type(), entry.Bytes())
 	}
 
 	buf.Write([]byte{'}', ']'})

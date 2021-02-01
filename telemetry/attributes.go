@@ -57,7 +57,3 @@ func (ca *CommonAttributes) Type() string {
 func (ca *CommonAttributes) Bytes() []byte {
 	return ca.RawJSON
 }
-
-func (ca *CommonAttributes) HasData() bool {
-	return nil != ca.RawJSON
-}

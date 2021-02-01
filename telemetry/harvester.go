@@ -283,9 +283,12 @@ func (h *Harvester) swapOutSpans() []http.Request {
 	if nil == sps {
 		return nil
 	}
-	commonBlock := &SpanCommonBlock{Attributes: h.commonAttributes}
-	batch := &SpanBatch{Spans: sps}
-	entries := []PayloadEntry{commonBlock, batch}
+
+	entries := []PayloadEntry{}
+	if (nil != h.commonAttributes) {
+		entries = append(entries, &SpanCommonBlock{Attributes: h.commonAttributes})
+	}
+	entries = append(entries, &SpanBatch{Spans: sps})
 	reqs, err := newRequests(entries, h.config.APIKey, h.config.spanURL(), h.config.userAgent())
 	if nil != err {
 		h.config.logError(map[string]interface{}{

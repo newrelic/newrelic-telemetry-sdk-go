@@ -96,7 +96,3 @@ func (batch *eventBatch) Bytes() []byte {
 	buf.WriteByte(']')
 	return buf.Bytes()
 }
-
-func (batch *eventBatch) HasData() bool {
-	return len(batch.Events) > 0
-}

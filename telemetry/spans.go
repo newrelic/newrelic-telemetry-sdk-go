@@ -117,10 +117,6 @@ func (c *SpanCommonBlock) Bytes() []byte {
 	return buf.Bytes()
 }
 
-func (c *SpanCommonBlock) HasData() bool {
-	return nil != c.Attributes && c.Attributes.HasData()
-}
-
 // SpanBatch represents a single batch of spans to report to New Relic.
 type SpanBatch struct {
 	Spans []Span
@@ -141,10 +137,6 @@ func (batch *SpanBatch) Bytes() []byte {
 	}
 	buf.WriteByte(']')
 	return buf.Bytes()
-}
-
-func (batch *SpanBatch) HasData() bool {
-	return len(batch.Spans) > 0
 }
 
 func (batch *SpanBatch) split() []*SpanBatch {

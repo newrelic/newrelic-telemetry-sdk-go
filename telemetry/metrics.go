@@ -258,15 +258,11 @@ func (mcb *metricCommonBlock) Bytes() []byte {
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
 	writeTimestampInterval(&w, mcb.Timestamp, mcb.Interval)
-	if nil != mcb.Attributes && mcb.Attributes.HasData() {
+	if nil != mcb.Attributes {
 		w.RawField(mcb.Attributes.Type(), mcb.Attributes.Bytes())
 	}
 	buf.WriteByte('}')
 	return buf.Bytes()
-}
-
-func (mcb *metricCommonBlock) HasData() bool {
-	return !mcb.Timestamp.IsZero() || 0 != mcb.Interval || (nil != mcb.Attributes && mcb.Attributes.HasData())
 }
 
 // metricBatch represents a single batch of metrics to report to New Relic.
@@ -315,8 +311,4 @@ func (batch *metricBatch) Bytes() []byte {
 	}
 	buf.WriteByte(']')
 	return buf.Bytes()
-}
-
-func (batch *metricBatch) HasData() bool {
-	return len(batch.Metrics) > 0
 }
