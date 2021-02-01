@@ -324,26 +324,28 @@ func (h *Harvester) swapOutEvents() []http.Request {
 	return reqs
 }
 
-func harvestRequest(req http.Request, cfg *Config) {
+func harvestRequest(req *http.Request, cfg *Config) {
 	var attempts int
 	for {
 		cfg.logDebug(map[string]interface{}{
 			"event":       "data post",
-			"url":         req.Request.URL.String(),
-			"body-length": req.compressedBodyLength,
+			"url":         req.RequestURI,
+			"body-length": req.ContentLength,
 		})
 		// Check if the audit log is enabled to prevent unnecessarily
 		// copying UncompressedBody.
 		if cfg.auditLogEnabled() {
-			uncompressedBody, _ := internal.Uncompress(req.Body)
+			bodyReader, _ := req.GetBody()
+			compressedBody, _ := ioutil.ReadAll(bodyReader)
+			uncompressedBody, _ := internal.Uncompress(compressedBody)
 			cfg.logAudit(map[string]interface{}{
 				"event": "uncompressed request body",
-				"url":   req.Request.URL.String(),
-				"data":  jsonString(internal.Uncompress(GetBody)),
+				"url":   req.RequestURI,
+				"data":  jsonString(uncompressedBody),
 			})
 		}
 
-		resp := postData(req.Request, cfg.Client)
+		resp := postData(req, cfg.Client)
 
 		if nil != resp.err {
 			cfg.logError(map[string]interface{}{
@@ -365,7 +367,7 @@ func harvestRequest(req http.Request, cfg *Config) {
 		select {
 		case <-tmr.C:
 			break
-		case <-req.Request.Context().Done():
+		case <-req.Context().Done():
 			tmr.Stop()
 			return
 		}
@@ -374,7 +376,8 @@ func harvestRequest(req http.Request, cfg *Config) {
 		// Reattach request body because the original one has already been read
 		// and closed.
 		//req.Request.Body = ioutil.NopCloser(bytes.NewBuffer(req.compressedBody))
-		req.Body = req.GetBody()
+		originalBody, _ := req.GetBody()
+		req.Body = originalBody
 	}
 }
 
@@ -396,8 +399,8 @@ func (h *Harvester) HarvestNow(ct context.Context) {
 	reqs = append(reqs, h.swapOutEvents()...)
 
 	for _, req := range reqs {
-		req.Request = req.Request.WithContext(ctx)
-		harvestRequest(req, &h.config)
+		httpRequest := req.WithContext(ctx)
+		harvestRequest(httpRequest, &h.config)
 		if err := ctx.Err(); err != nil {
 			// NOTE: It is possible that the context was
 			// cancelled/timedout right after the request
