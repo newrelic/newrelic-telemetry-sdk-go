@@ -4,8 +4,11 @@
 package telemetry
 
 import (
+	"io/ioutil"
 	"testing"
 	"time"
+
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 func testHarvesterEvents(t testing.TB, h *Harvester, expect string) {
@@ -20,11 +23,13 @@ func testHarvesterEvents(t testing.TB, h *Harvester, expect string) {
 	if len(reqs) != 1 {
 		t.Fatal(reqs)
 	}
-	if u := reqs[0].Request.URL.String(); u != defaultEventURL {
+	if u := reqs[0].URL.String(); u != defaultEventURL {
 		t.Fatal(u)
 	}
 
-	js := reqs[0].UncompressedBody
+	bodyReader, _ := reqs[0].GetBody()
+	compressedBytes, _ := ioutil.ReadAll(bodyReader)
+	js, _ := internal.Uncompress(compressedBytes)
 	actual := string(js)
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
@@ -55,11 +60,11 @@ func TestEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expect := `[{
+	expect := `[{"events":[{
 		"eventType":"testEvent",
 		"timestamp":1417136460000,
 		"zip":"zap"
-	}]`
+	}]}]`
 
 	testHarvesterEvents(t, h, expect)
 }
@@ -85,11 +90,11 @@ func TestEventInvalidAttribute(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expect := `[{
+	expect := `[{"events":[{
 		"eventType":"testEvent",
 		"timestamp":1417136460000,
 		"weird-things-get-turned-to-strings":"struct {}"
-	}]`
+	}]}]`
 
 	testHarvesterEvents(t, h, expect)
 }
