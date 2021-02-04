@@ -628,7 +628,7 @@ func TestRequiredSpanFields(t *testing.T) {
 
 func TestRecordInvalidMetric(t *testing.T) {
 	var savedErrors []map[string]interface{}
-	h, _ := NewHarvester(configTesting, configureErrorLoggingToMap(&savedErrors))
+	h, _ := NewHarvester(configTesting, configureLoggingErrorsToMap(&savedErrors))
 	h.RecordMetric(Count{
 		Name:  "bad-metric",
 		Value: math.NaN(),
@@ -645,7 +645,7 @@ func TestRecordInvalidMetric(t *testing.T) {
 	}
 }
 
-func configureErrorLoggingToMap(savedErrors *[]map[string]interface{}) func(cfg *Config) {
+func configureLoggingErrorsToMap(savedErrors *[]map[string]interface{}) func(cfg *Config) {
 	return func(cfg *Config) {
 		cfg.ErrorLogger = func(e map[string]interface{}) {
 			*savedErrors = append(*savedErrors, e)
