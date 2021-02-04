@@ -15,7 +15,7 @@ func testEventBatchJSON(t testing.TB, batch *eventBatch, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
-	reqs, err := newRequests(batch, "apiKey", defaultSpanURL, "userAgent")
+	reqs, err := newRequests([]PayloadEntry{batch}, "apiKey", defaultSpanURL, "userAgent")
 	if nil != err {
 		t.Fatal(err)
 	}
@@ -23,27 +23,23 @@ func testEventBatchJSON(t testing.TB, batch *eventBatch, expect string) {
 		t.Fatal(reqs)
 	}
 	req := reqs[0]
-	actual := string(req.UncompressedBody)
+	bodyReader, _ := req.GetBody()
+	compressedBytes, _ := ioutil.ReadAll(bodyReader)
+	uncompressedBytes, _ := internal.Uncompress(compressedBytes)
+	actual := string(uncompressedBytes)
 	compact := compactJSONString(expect)
 	if actual != compact {
 		t.Errorf("\nexpect=%s\nactual=%s\n", compact, actual)
 	}
 
-	body, err := ioutil.ReadAll(req.Request.Body)
-	req.Request.Body.Close()
+	body, err := ioutil.ReadAll(req.Body)
+	req.Body.Close()
 	if err != nil {
 		t.Fatal("unable to read body", err)
 	}
-	if len(body) != req.compressedBodyLength {
+	if len(body) != int(req.ContentLength) {
 		t.Error("compressed body length mismatch",
-			len(body), req.compressedBodyLength)
-	}
-	uncompressed, err := internal.Uncompress(body)
-	if err != nil {
-		t.Fatal("unable to uncompress body", err)
-	}
-	if string(uncompressed) != string(req.UncompressedBody) {
-		t.Error("request JSON mismatch", string(uncompressed), string(req.UncompressedBody))
+			len(body), req.ContentLength)
 	}
 }
 
@@ -71,8 +67,8 @@ func TestEventsPayloadSplit(t *testing.T) {
 		t.Error("split into incorrect number of slices", len(split))
 	}
 
-	testEventBatchJSON(t, split[0].(*eventBatch), `[{"eventType":"a","timestamp":-6795364578871}]`)
-	testEventBatchJSON(t, split[1].(*eventBatch), `[{"eventType":"b","timestamp":-6795364578871}]`)
+	testEventBatchJSON(t, split[0], `[{"events":[{"eventType":"a","timestamp":-6795364578871}]}]`)
+	testEventBatchJSON(t, split[1], `[{"events":[{"eventType":"b","timestamp":-6795364578871}]}]`)
 
 	// test len 3
 	ev = &eventBatch{Events: []Event{{EventType: "a"}, {EventType: "b"}, {EventType: "c"}}}
@@ -80,8 +76,8 @@ func TestEventsPayloadSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testEventBatchJSON(t, split[0].(*eventBatch), `[{"eventType":"a","timestamp":-6795364578871}]`)
-	testEventBatchJSON(t, split[1].(*eventBatch), `[{"eventType":"b","timestamp":-6795364578871},{"eventType":"c","timestamp":-6795364578871}]`)
+	testEventBatchJSON(t, split[0], `[{"events":[{"eventType":"a","timestamp":-6795364578871}]}]`)
+	testEventBatchJSON(t, split[1], `[{"events":[{"eventType":"b","timestamp":-6795364578871},{"eventType":"c","timestamp":-6795364578871}]}]`)
 }
 
 func TestEventsJSON(t *testing.T) {
@@ -96,7 +92,7 @@ func TestEventsJSON(t *testing.T) {
 		},
 	}}
 
-	testEventBatchJSON(t, batch, `[
+	testEventBatchJSON(t, batch, `[{"events":[
 		{
 		  "eventType":"",
 			"timestamp":-6795364578871
@@ -106,5 +102,5 @@ func TestEventsJSON(t *testing.T) {
 			"timestamp":1417136460000,
 			"zip":"zap"
 		}
-	]`)
+	]}]`)
 }
