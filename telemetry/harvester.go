@@ -329,7 +329,7 @@ func harvestRequest(req *http.Request, cfg *Config) {
 	for {
 		cfg.logDebug(map[string]interface{}{
 			"event":       "data post",
-			"url":         req.RequestURI,
+			"url":         req.URL.String(),
 			"body-length": req.ContentLength,
 		})
 		// Check if the audit log is enabled to prevent unnecessarily
@@ -340,7 +340,7 @@ func harvestRequest(req *http.Request, cfg *Config) {
 			uncompressedBody, _ := internal.Uncompress(compressedBody)
 			cfg.logAudit(map[string]interface{}{
 				"event": "uncompressed request body",
-				"url":   req.RequestURI,
+				"url":   req.URL.String(),
 				"data":  jsonString(uncompressedBody),
 			})
 		}

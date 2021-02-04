@@ -184,11 +184,11 @@ func TestNewRequestHeaders(t *testing.T) {
 		t.Fatal(reqs)
 	}
 	req := reqs[0]
-	if h := req.Request.Header.Get("Content-Encoding"); "gzip" != h {
-		t.Error("incorrect Content-Encoding header", req.Request.Header)
+	if h := req.Header.Get("Content-Encoding"); "gzip" != h {
+		t.Error("incorrect Content-Encoding header", req.Header)
 	}
-	if h := req.Request.Header.Get("User-Agent"); expectUserAgent != h {
-		t.Error("User-Agent header incorrect", req.Request.Header)
+	if h := req.Header.Get("User-Agent"); expectUserAgent != h {
+		t.Error("User-Agent header incorrect", req.Header)
 	}
 
 	reqs = h.swapOutMetrics(time.Now())
@@ -196,16 +196,16 @@ func TestNewRequestHeaders(t *testing.T) {
 		t.Fatal(reqs)
 	}
 	req = reqs[0]
-	if h := req.Request.Header.Get("Content-Type"); "application/json" != h {
+	if h := req.Header.Get("Content-Type"); "application/json" != h {
 		t.Error("incorrect Content-Type", h)
 	}
-	if h := req.Request.Header.Get("Api-Key"); "api-key" != h {
+	if h := req.Header.Get("Api-Key"); "api-key" != h {
 		t.Error("incorrect Api-Key", h)
 	}
-	if h := req.Request.Header.Get("Content-Encoding"); "gzip" != h {
+	if h := req.Header.Get("Content-Encoding"); "gzip" != h {
 		t.Error("incorrect Content-Encoding header", h)
 	}
-	if h := req.Request.Header.Get("User-Agent"); expectUserAgent != h {
+	if h := req.Header.Get("User-Agent"); expectUserAgent != h {
 		t.Error("User-Agent header incorrect", h)
 	}
 }
@@ -258,10 +258,12 @@ func testHarvesterMetrics(t testing.TB, h *Harvester, expect string) {
 	if len(reqs) != 1 {
 		t.Fatal(reqs)
 	}
-	if u := reqs[0].Request.URL.String(); u != defaultMetricURL {
+	if u := reqs[0].URL.String(); u != defaultMetricURL {
 		t.Error(u)
 	}
-	js := reqs[0].UncompressedBody
+	bodyReader, _ := reqs[0].GetBody()
+	compressedBytes, _ := ioutil.ReadAll(bodyReader)
+	js, _ := internal.Uncompress(compressedBytes)
 	var helper []struct {
 		Metrics sortedMetricsHelper `json:"metrics"`
 	}
@@ -626,7 +628,7 @@ func TestRequiredSpanFields(t *testing.T) {
 
 func TestRecordInvalidMetric(t *testing.T) {
 	var savedErrors []map[string]interface{}
-	h, _ := NewHarvester(configTesting, configSaveErrors(&savedErrors))
+	h, _ := NewHarvester(configTesting, configureErrorLoggingToMap(&savedErrors))
 	h.RecordMetric(Count{
 		Name:  "bad-metric",
 		Value: math.NaN(),
@@ -640,6 +642,14 @@ func TestRecordInvalidMetric(t *testing.T) {
 	}
 	if len(h.rawMetrics) != 0 {
 		t.Error(len(h.rawMetrics))
+	}
+}
+
+func configureErrorLoggingToMap(savedErrors *[]map[string]interface{}) func(cfg *Config) {
+	return func(cfg *Config) {
+		cfg.ErrorLogger = func(e map[string]interface{}) {
+			*savedErrors = append(*savedErrors, e)
+		}
 	}
 }
 
