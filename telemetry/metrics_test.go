@@ -4,10 +4,13 @@
 package telemetry
 
 import (
+	"io/ioutil"
 	"math"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 func TestMetricPayload(t *testing.T) {
@@ -45,7 +48,9 @@ func TestMetricPayload(t *testing.T) {
 	if len(reqs) != 1 {
 		t.Fatal(reqs)
 	}
-	js := reqs[0].UncompressedBody
+	bodyReader, _ := reqs[0].GetBody()
+	compressedBytes, _ := ioutil.ReadAll(bodyReader)
+	js, _ := internal.Uncompress(compressedBytes)
 	actual := string(js)
 	expect := `[{
 		"common":{
