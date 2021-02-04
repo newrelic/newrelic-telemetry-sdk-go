@@ -250,7 +250,7 @@ type metricCommonBlock struct {
 }
 
 func (mcb *metricCommonBlock) Type() string {
-	return mcb.Attributes.Type()
+	return "common"
 }
 
 func (mcb *metricCommonBlock) Bytes() []byte {
