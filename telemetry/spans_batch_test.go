@@ -12,11 +12,11 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
-func testSpanBatchJSON(t testing.TB, batch *spanBatch, expect string) {
+func testSpanBatchJSON(t testing.TB, entries []PayloadEntry, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
-	reqs, err := newRequests(batch, "apiKey", defaultSpanURL, "userAgent")
+	reqs, err := newRequests(entries, "apiKey", defaultSpanURL, "userAgent")
 	if nil != err {
 		t.Fatal(err)
 	}
@@ -24,66 +24,66 @@ func testSpanBatchJSON(t testing.TB, batch *spanBatch, expect string) {
 		t.Fatal(reqs)
 	}
 	req := reqs[0]
-	actual := string(req.UncompressedBody)
+	bodyReader, _ := req.GetBody()
+	compressedBytes, _ := ioutil.ReadAll(bodyReader)
+	uncompressedBytes, err := internal.Uncompress(compressedBytes)
+	if err != nil {
+		t.Fatal("unable to uncompress body", err)
+	}
+	js := string(uncompressedBytes)
+	actual := string(js)
 	compact := compactJSONString(expect)
 	if actual != compact {
 		t.Errorf("\nexpect=%s\nactual=%s\n", compact, actual)
 	}
 
-	body, err := ioutil.ReadAll(req.Request.Body)
-	req.Request.Body.Close()
+	body, err := ioutil.ReadAll(req.Body)
+	req.Body.Close()
 	if err != nil {
 		t.Fatal("unable to read body", err)
 	}
-	if len(body) != req.compressedBodyLength {
+	if len(body) != int(req.ContentLength) {
 		t.Error("compressed body length mismatch",
-			len(body), req.compressedBodyLength)
-	}
-	uncompressed, err := internal.Uncompress(body)
-	if err != nil {
-		t.Fatal("unable to uncompress body", err)
-	}
-	if string(uncompressed) != string(req.UncompressedBody) {
-		t.Error("request JSON mismatch", string(uncompressed), string(req.UncompressedBody))
+			len(body), req.ContentLength)
 	}
 }
 
 func TestSpansPayloadSplit(t *testing.T) {
 	// test len 0
-	sp := &spanBatch{}
+	sp := &SpanBatch{}
 	split := sp.split()
 	if split != nil {
 		t.Error(split)
 	}
 
 	// test len 1
-	sp = &spanBatch{Spans: []Span{{Name: "a"}}}
+	sp = &SpanBatch{Spans: []Span{{Name: "a"}}}
 	split = sp.split()
 	if split != nil {
 		t.Error(split)
 	}
 
 	// test len 2
-	sp = &spanBatch{Spans: []Span{{Name: "a"}, {Name: "b"}}}
+	sp = &SpanBatch{Spans: []Span{{Name: "a"}, {Name: "b"}}}
 	split = sp.split()
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testSpanBatchJSON(t, split[0].(*spanBatch), `[{"common":{},"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
-	testSpanBatchJSON(t, split[1].(*spanBatch), `[{"common":{},"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}}]}]`)
+	testSpanBatchJSON(t, []PayloadEntry { split[0] }, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
+	testSpanBatchJSON(t, []PayloadEntry { split[1] }, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}}]}]`)
 
 	// test len 3
-	sp = &spanBatch{Spans: []Span{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
+	sp = &SpanBatch{Spans: []Span{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
 	split = sp.split()
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testSpanBatchJSON(t, split[0].(*spanBatch), `[{"common":{},"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
-	testSpanBatchJSON(t, split[1].(*spanBatch), `[{"common":{},"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}},{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"c"}}]}]`)
+	testSpanBatchJSON(t, []PayloadEntry { split[0] }, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
+	testSpanBatchJSON(t, []PayloadEntry { split[1] }, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}},{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"c"}}]}]`)
 }
 
 func TestSpansJSON(t *testing.T) {
-	batch := &spanBatch{Spans: []Span{
+	batch := &SpanBatch{Spans: []Span{
 		{}, // Empty span
 		{ // Span with everything
 			ID:          "myid",
@@ -96,7 +96,7 @@ func TestSpansJSON(t *testing.T) {
 			Attributes:  map[string]interface{}{"zip": "zap"},
 		},
 	}}
-	testSpanBatchJSON(t, batch, `[{"common":{},"spans":[
+	testSpanBatchJSON(t, []PayloadEntry { batch }, `[{"spans":[
 		{
 			"id":"",
 			"trace.id":"",
@@ -120,8 +120,11 @@ func TestSpansJSON(t *testing.T) {
 }
 
 func TestSpansJSONWithCommonAttributesJSON(t *testing.T) {
-	batch := &spanBatch{
-		AttributesJSON: json.RawMessage(`{"zup":"wup"}`),
+	commonBlock := &SpanCommonBlock {
+		Attributes: &CommonAttributes { RawJSON: json.RawMessage(`{"zup":"wup"}`) },
+	}
+
+	batch := &SpanBatch{
 		Spans: []Span{
 			{
 				ID:          "myid",
@@ -134,7 +137,7 @@ func TestSpansJSONWithCommonAttributesJSON(t *testing.T) {
 				Attributes:  map[string]interface{}{"zip": "zap"},
 			},
 		}}
-	testSpanBatchJSON(t, batch, `[{"common":{"attributes":{"zup":"wup"}},"spans":[
+	testSpanBatchJSON(t, []PayloadEntry {commonBlock, batch}, `[{"common":{"attributes":{"zup":"wup"}},"spans":[
 		{
 			"id":"myid",
 			"trace.id":"mytraceid",
