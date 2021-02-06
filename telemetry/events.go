@@ -8,7 +8,8 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
-const eventTypeName string = "events"
+//This needs to be null so that events are not stored as an element in a map
+const eventTypeName string = ""
 
 // Event is a unique set of data that happened at a specific point in time
 type Event struct {
@@ -64,14 +65,12 @@ func (batch *eventBatch) split() []*eventBatch {
 }
 
 func (batch *eventBatch) writeJSON(buf *bytes.Buffer) {
-	buf.WriteByte('[')
 	for idx, s := range batch.Events {
 		if idx > 0 {
 			buf.WriteByte(',')
 		}
 		s.writeJSON(buf)
 	}
-	buf.WriteByte(']')
 }
 
 func (batch *eventBatch) makeBody() json.RawMessage {
@@ -86,13 +85,6 @@ func (batch *eventBatch) Type() string {
 
 func (batch *eventBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
-	buf.WriteByte('[')
-	for idx, e := range batch.Events {
-		if idx > 0 {
-			buf.WriteByte(',')
-		}
-		e.writeJSON(buf)
-	}
-	buf.WriteByte(']')
+	batch.writeJSON(buf)
 	return buf.Bytes()
 }

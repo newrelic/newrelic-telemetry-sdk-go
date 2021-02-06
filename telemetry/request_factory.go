@@ -58,14 +58,28 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 	}
 
 	buf := &bytes.Buffer{}
-	buf.Write([]byte{'[', '{'})
+	buf.WriteByte('[')
+	shouldPutPayloadsInHash := f.shouldNestPayloadInHash(entries)
+	if (shouldPutPayloadsInHash) {
+		buf.WriteByte('{')
+	}
 	w := internal.JSONFieldsWriter{Buf: buf}
 
-	for _, entry := range entries {
-		w.RawField(entry.Type(), entry.Bytes())
+	for idx, entry := range entries {
+		if (shouldPutPayloadsInHash) {
+			w.RawField(entry.Type(), entry.Bytes())
+		} else {
+			if (idx > 0) {
+				buf.WriteByte(',')
+			}
+			buf.Write(entry.Bytes())
+		}
 	}
 
-	buf.Write([]byte{'}', ']'})
+	if (shouldPutPayloadsInHash) {
+		buf.WriteByte('}')
+	}
+	buf.WriteByte(']')
 
 	buf, err = internal.Compress(buf.Bytes())
 	if err != nil {
@@ -95,6 +109,16 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 		Close:         false,
 		Host:          host,
 	}, nil
+}
+
+func (f *requestFactory) shouldNestPayloadInHash(entries []PayloadEntry) bool {
+	for _, entry := range entries {
+		fieldName := entry.Type()
+		if (len(fieldName) <= 0) {
+			return false
+		}
+	}
+	return true
 }
 
 func (f *requestFactory) getHeaders() http.Header {

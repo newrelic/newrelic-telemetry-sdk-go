@@ -67,8 +67,8 @@ func TestEventsPayloadSplit(t *testing.T) {
 		t.Error("split into incorrect number of slices", len(split))
 	}
 
-	testEventBatchJSON(t, split[0], `[{"events":[{"eventType":"a","timestamp":-6795364578871}]}]`)
-	testEventBatchJSON(t, split[1], `[{"events":[{"eventType":"b","timestamp":-6795364578871}]}]`)
+	testEventBatchJSON(t, split[0], `[{"eventType":"a","timestamp":-6795364578871}]`)
+	testEventBatchJSON(t, split[1], `[{"eventType":"b","timestamp":-6795364578871}]`)
 
 	// test len 3
 	ev = &eventBatch{Events: []Event{{EventType: "a"}, {EventType: "b"}, {EventType: "c"}}}
@@ -76,8 +76,8 @@ func TestEventsPayloadSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testEventBatchJSON(t, split[0], `[{"events":[{"eventType":"a","timestamp":-6795364578871}]}]`)
-	testEventBatchJSON(t, split[1], `[{"events":[{"eventType":"b","timestamp":-6795364578871},{"eventType":"c","timestamp":-6795364578871}]}]`)
+	testEventBatchJSON(t, split[0], `[{"eventType":"a","timestamp":-6795364578871}]`)
+	testEventBatchJSON(t, split[1], `[{"eventType":"b","timestamp":-6795364578871},{"eventType":"c","timestamp":-6795364578871}]`)
 }
 
 func TestEventsJSON(t *testing.T) {
@@ -92,7 +92,7 @@ func TestEventsJSON(t *testing.T) {
 		},
 	}}
 
-	testEventBatchJSON(t, batch, `[{"events":[
+	testEventBatchJSON(t, batch, `[
 		{
 		  "eventType":"",
 			"timestamp":-6795364578871
@@ -102,5 +102,5 @@ func TestEventsJSON(t *testing.T) {
 			"timestamp":1417136460000,
 			"zip":"zap"
 		}
-	]}]`)
+	]`)
 }

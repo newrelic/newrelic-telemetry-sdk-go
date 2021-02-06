@@ -60,11 +60,11 @@ func TestEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expect := `[{"events":[{
+	expect := `[{
 		"eventType":"testEvent",
 		"timestamp":1417136460000,
 		"zip":"zap"
-	}]}]`
+	}]`
 
 	testHarvesterEvents(t, h, expect)
 }
@@ -90,11 +90,11 @@ func TestEventInvalidAttribute(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expect := `[{"events":[{
+	expect := `[{
 		"eventType":"testEvent",
 		"timestamp":1417136460000,
 		"weird-things-get-turned-to-strings":"struct {}"
-	}]}]`
+	}]`
 
 	testHarvesterEvents(t, h, expect)
 }
