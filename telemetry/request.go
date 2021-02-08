@@ -6,7 +6,6 @@ package telemetry
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 )
 
 const (
@@ -26,24 +25,15 @@ func requestNeedsSplit(r http.Request) bool {
 	return r.ContentLength >= maxCompressedSizeBytes
 }
 
-func newRequests(entries []PayloadEntry, apiKey string, rawUrl string, userAgent string) ([]http.Request, error) {
-	return newRequestsInternal(entries, apiKey, rawUrl, userAgent, requestNeedsSplit)
+func newRequests(entries []PayloadEntry, factory RequestFactory) ([]http.Request, error) {
+	return newRequestsInternal(entries, factory, requestNeedsSplit)
 }
 
-func newRequestsInternal(entries []PayloadEntry, apiKey string, rawUrl string, userAgent string, needsSplit func(http.Request) bool) ([]http.Request, error) {
-	url, err := url.Parse(rawUrl)
-	if nil != err {
+func newRequestsInternal(entries []PayloadEntry, factory RequestFactory, needsSplit func(http.Request) bool) ([]http.Request, error) {
+	r, err := factory.BuildRequest(entries)
+	if (nil != err) {
 		return nil, err
 	}
-	factory := &requestFactory{
-		insertKey:    apiKey,
-		noDefaultKey: false,
-		host:         url.Host,
-		path:         url.Path,
-		userAgent:    userAgent,
-	}
-
-	r, err := factory.BuildRequest(entries)
 
 	if !needsSplit(r) {
 		return []http.Request{r}, nil
@@ -74,7 +64,7 @@ func newRequestsInternal(entries []PayloadEntry, apiKey string, rawUrl string, u
 	}
 
 	for _, b := range [][]PayloadEntry{splitPayload1, splitPayload2} {
-		rs, err := newRequestsInternal(b, apiKey, rawUrl, userAgent, needsSplit)
+		rs, err := newRequestsInternal(b, factory, needsSplit)
 		if nil != err {
 			return nil, err
 		}

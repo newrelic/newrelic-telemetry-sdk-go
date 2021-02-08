@@ -15,7 +15,8 @@ func testEventBatchJSON(t testing.TB, batch *eventBatch, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
-	reqs, err := newRequests([]PayloadEntry{batch}, "apiKey", defaultSpanURL, "userAgent")
+	factory, _ := NewEventRequestFactory(WithNoDefaultKey())
+	reqs, err := newRequests([]PayloadEntry{batch}, factory)
 	if nil != err {
 		t.Fatal(err)
 	}

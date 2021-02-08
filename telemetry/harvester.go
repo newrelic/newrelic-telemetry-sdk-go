@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -25,12 +26,15 @@ type Harvester struct {
 	commonAttributes *CommonAttributes
 
 	// lock protects the mutable fields below.
-	lock              sync.Mutex
-	lastHarvest       time.Time
-	rawMetrics        []Metric
-	aggregatedMetrics map[metricIdentity]*metric
-	spans             []Span
-	events            []Event
+	lock                 sync.Mutex
+	lastHarvest          time.Time
+	rawMetrics           []Metric
+	aggregatedMetrics    map[metricIdentity]*metric
+	spans                []Span
+	events               []Event
+	spanRequestFactory   RequestFactory
+	metricRequestFactory RequestFactory
+	eventRequestFactory  RequestFactory
 }
 
 const (
@@ -91,6 +95,42 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		"events-url-override":    h.config.EventsURLOverride,
 		"version":                version,
 	})
+
+	spanURL, err := url.Parse(h.config.spanURL())
+	if nil != err {
+		return nil, err
+	}
+
+	h.spanRequestFactory, err = NewSpanRequestFactory(
+		WithInsertKey(h.config.APIKey), 
+		WithHost(spanURL.Host),
+		WithPath(spanURL.Path),
+		WithUserAgent(h.config.userAgent()),
+	)
+
+	metricURL, err := url.Parse(h.config.metricURL())
+	if nil != err {
+		return nil, err
+	}
+
+	h.metricRequestFactory, err = NewMetricRequestFactory(
+		WithInsertKey(h.config.APIKey), 
+		WithHost(metricURL.Host),
+		WithPath(metricURL.Path),
+		WithUserAgent(h.config.userAgent()),
+	)
+
+	eventURL, err := url.Parse(h.config.eventURL())
+	if nil != err {
+		return nil, err
+	}
+
+	h.eventRequestFactory, err = NewEventRequestFactory(
+		WithInsertKey(h.config.APIKey), 
+		WithHost(eventURL.Host),
+		WithPath(eventURL.Path),
+		WithUserAgent(h.config.userAgent()),
+	)
 
 	if 0 != h.config.HarvestPeriod {
 		go harvestRoutine(h)
@@ -263,7 +303,7 @@ func (h *Harvester) swapOutMetrics(now time.Time) []http.Request {
 	}
 	batch := &metricBatch{Metrics: rawMetrics}
 	entries := []PayloadEntry{commonBlock, batch}
-	reqs, err := newRequests(entries, h.config.APIKey, h.config.metricURL(), h.config.userAgent())
+	reqs, err := newRequests(entries, h.metricRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -289,7 +329,7 @@ func (h *Harvester) swapOutSpans() []http.Request {
 		entries = append(entries, &SpanCommonBlock{Attributes: h.commonAttributes})
 	}
 	entries = append(entries, &SpanBatch{Spans: sps})
-	reqs, err := newRequests(entries, h.config.APIKey, h.config.spanURL(), h.config.userAgent())
+	reqs, err := newRequests(entries, h.spanRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -313,7 +353,7 @@ func (h *Harvester) swapOutEvents() []http.Request {
 		Events: events,
 	}
 	entries := []PayloadEntry{batch}
-	reqs, err := newRequests(entries, h.config.APIKey, h.config.eventURL(), h.config.userAgent())
+	reqs, err := newRequests(entries, h.eventRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),

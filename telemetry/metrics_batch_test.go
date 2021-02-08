@@ -81,7 +81,8 @@ func TestMetrics(t *testing.T) {
 		]
 	}]`)
 
-	reqs, err := newRequests([]PayloadEntry{commonBlock, metrics}, "my-api-key", defaultMetricURL, "userAgent")
+	factory, _ := NewMetricRequestFactory(WithNoDefaultKey())
+	reqs, err := newRequests([]PayloadEntry{commonBlock, metrics}, factory)
 	if err != nil {
 		t.Error("error creating request", err)
 	}
@@ -116,7 +117,8 @@ func testBatchJSON(t testing.TB, entries []PayloadEntry, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
-	reqs, err := newRequests(entries, "my-api-key", defaultMetricURL, "userAgent")
+	factory, _ := NewMetricRequestFactory(WithNoDefaultKey())
+	reqs, err := newRequests(entries, factory)
 	if nil != err {
 		t.Fatal(err)
 	}

@@ -189,12 +189,12 @@ func (cfg *Config) eventURL() string {
 	return defaultEventURL
 }
 
-// userAgent creates the User-Agent header version according to the spec here:
+// userAgent creates the extended portion of the User-Agent header version according to the spec here:
 // https://github.com/newrelic/newrelic-telemetry-sdk-specs/blob/master/communication.md#user-agent
 func (cfg *Config) userAgent() string {
-	agent := "NewRelic-Go-TelemetrySDK/" + version
+	agent := ""
 	if "" != cfg.Product {
-		agent += " " + cfg.Product
+		agent += cfg.Product
 		if "" != cfg.ProductVersion {
 			agent += "/" + cfg.ProductVersion
 		}

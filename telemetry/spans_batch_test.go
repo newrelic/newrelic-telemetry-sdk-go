@@ -16,7 +16,8 @@ func testSpanBatchJSON(t testing.TB, entries []PayloadEntry, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
-	reqs, err := newRequests(entries, "apiKey", defaultSpanURL, "userAgent")
+	factory, _ := NewSpanRequestFactory(WithNoDefaultKey())
+	reqs, err := newRequests(entries, factory)
 	if nil != err {
 		t.Fatal(err)
 	}
