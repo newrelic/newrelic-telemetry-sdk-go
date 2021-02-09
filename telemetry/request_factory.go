@@ -19,7 +19,7 @@ type PayloadEntry interface {
 }
 
 type RequestFactory interface {
-	BuildRequest([]PayloadEntry, ...ClientOption) (http.Request, error)
+	BuildRequest([]PayloadEntry, ...ClientOption) (*http.Request, error)
 }
 
 type requestFactory struct {
@@ -51,17 +51,17 @@ func configure(f *requestFactory, options []ClientOption) error {
 
 }
 
-func (f *hashRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (http.Request, error) {
+func (f *hashRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (*http.Request, error) {
 	return f.buildRequest(entries, getHashedPayloadBytes, options)
 }
 
-func (f *eventRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (http.Request, error) {
+func (f *eventRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (*http.Request, error) {
 	return f.buildRequest(entries, getEventPayloadBytes, options)
 }
 
 type payloadWriter func(buf *bytes.Buffer, entries []PayloadEntry)
 
-func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes payloadWriter, options []ClientOption) (http.Request, error) {
+func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes payloadWriter, options []ClientOption) (*http.Request, error) {
 	configuredFactory := &requestFactory{
 		insertKey:     f.insertKey,
 		noDefaultKey:  f.noDefaultKey,
@@ -73,7 +73,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 	err := configure(configuredFactory, options)
 
 	if err != nil {
-		return http.Request{}, errors.New("unable to configure this request based on options passed in")
+		return &http.Request{}, errors.New("unable to configure this request based on options passed in")
 	}
 
 	buf := &bytes.Buffer{}
@@ -81,7 +81,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 
 	buf, err = internal.Compress(buf.Bytes())
 	if err != nil {
-		return http.Request{}, err
+		return &http.Request{}, err
 	}
 
 	getBody := func() (io.ReadCloser, error) {
@@ -93,7 +93,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 	host := configuredFactory.host
 	headers := configuredFactory.getHeaders()
 
-	return http.Request{
+	return &http.Request{
 		Method: "POST",
 		URL: &url.URL{
 			Scheme: "https",

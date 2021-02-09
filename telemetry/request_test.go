@@ -66,7 +66,7 @@ func (p *testSplittablePayloadEntry) split() []splittablePayloadEntry {
 func TestNewRequestNoSplitNeeded(t *testing.T) {
 	testPayload := testUnsplittablePayloadEntry{rawData: json.RawMessage(`123456789`)}
 	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r http.Request) bool {
+	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
 		return false
 	})
 	if err != nil {
@@ -86,7 +86,7 @@ func TestNewRequestSplitNeeded(t *testing.T) {
 		},
 	}
 	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r http.Request) bool {
+	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
 		shouldSplit, err := payloadContains(r, "testSplittable", "123456789")
 
 		if (nil != err) {
@@ -115,7 +115,7 @@ func TestNewRequestSplittingMultiplePayloadsNeeded(t *testing.T) {
 		},
 	}
 	entries := []PayloadEntry{&testUnsplittablePayloadEntry, &testSplittablePayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r http.Request) bool {
+	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
 		shouldSplit, err := payloadContains(r, "testSplittable", "123456789")
 
 		if (nil != err) {
@@ -156,7 +156,7 @@ func TestNewRequestCantSplitPayload(t *testing.T) {
 		rawData: json.RawMessage(`"123456789"`),
 	}
 	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r http.Request) bool {
+	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
 		shouldSplit, err := payloadContains(r, "testSplittable", "123456789")
 
 		if (nil != err) {
@@ -183,7 +183,7 @@ func TestNewRequestCantSplitPayloadsEnough(t *testing.T) {
 		},
 	}
 	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r http.Request) bool {
+	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
 		isOriginalPayload, err := payloadContains(r, "testSplittable", "123456789")
 
 		if (nil != err) {
@@ -235,7 +235,7 @@ func TestLargeRequestNoSplit(t *testing.T) {
 	}
 }
 
-func payloadContains(r http.Request, fieldName string, value string) (bool, error) {
+func payloadContains(r *http.Request, fieldName string, value string) (bool, error) {
 	bodyReader, _ := r.GetBody()
 	compressedBytes, _ := ioutil.ReadAll(bodyReader)
 	uncompressedBytes, _ := internal.Uncompress(compressedBytes)
