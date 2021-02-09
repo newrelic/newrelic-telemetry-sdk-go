@@ -51,6 +51,48 @@ func TestNilHarvesterRecordSpan(t *testing.T) {
 	})
 }
 
+func TestInvalidMetricsURLResultsInError(t *testing.T) {
+	h, err := NewHarvester(func(cfg *Config) {
+		configTesting(cfg)
+		cfg.MetricsURLOverride = "\n"
+	})
+
+	if err == nil {
+		t.Error("Expected a url parsing error but didn't get one.")
+	}
+	if h != nil {
+		t.Error("harvester should have been created.")
+	}
+}
+
+func TestInvalidSpansURLResultsInError(t *testing.T) {
+	h, err := NewHarvester(func(cfg *Config) {
+		configTesting(cfg)
+		cfg.SpansURLOverride = "\n"
+	})
+
+	if err == nil {
+		t.Error("Expected a url parsing error but didn't get one.")
+	}
+	if h != nil {
+		t.Error("harvester should have been created.")
+	}
+}
+
+func TestInvalidEventsURLResultsInError(t *testing.T) {
+	h, err := NewHarvester(func(cfg *Config) {
+		configTesting(cfg)
+		cfg.EventsURLOverride = "\n"
+	})
+
+	if err == nil {
+		t.Error("Expected a url parsing error but didn't get one.")
+	}
+	if h != nil {
+		t.Error("harvester should have been created.")
+	}
+}
+
 func TestHarvesterRecordSpan(t *testing.T) {
 	t.Parallel()
 

@@ -49,20 +49,6 @@ func (p *testSplittablePayloadEntry) split() []splittablePayloadEntry {
 	return splitPayloads
 }
 
-// func TestInvalidUrlResultsInError(t *testing.T) {
-// 	testPayload := testUnsplittablePayloadEntry{rawData: json.RawMessage(`123456789`)}
-// 	entries := []PayloadEntry{&testPayload}
-// 	reqs, err := newRequestsInternal(entries, "apikey", "\n", "testua", func(r http.Request) bool {
-// 		return false
-// 	})
-// 	if err == nil {
-// 		t.Error("Expected a url parsing error but didn't get one.")
-// 	}
-// 	if reqs != nil {
-// 		t.Error("No requests should have been generated.")
-// 	}
-// }
-
 func TestNewRequestNoSplitNeeded(t *testing.T) {
 	testPayload := testUnsplittablePayloadEntry{rawData: json.RawMessage(`123456789`)}
 	entries := []PayloadEntry{&testPayload}

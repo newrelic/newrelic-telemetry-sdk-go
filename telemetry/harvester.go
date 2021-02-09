@@ -86,16 +86,6 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		h.config.CommonAttributes = nil
 	}
 
-	h.config.logDebug(map[string]interface{}{
-		"event":                  "harvester created",
-		"api-key":                h.config.APIKey,
-		"harvest-period-seconds": h.config.HarvestPeriod.Seconds(),
-		"metrics-url-override":   h.config.MetricsURLOverride,
-		"spans-url-override":     h.config.SpansURLOverride,
-		"events-url-override":    h.config.EventsURLOverride,
-		"version":                version,
-	})
-
 	spanURL, err := url.Parse(h.config.spanURL())
 	if nil != err {
 		return nil, err
@@ -128,6 +118,16 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		WithHost(eventURL.Host),
 		WithUserAgent(h.config.userAgent()),
 	)
+
+	h.config.logDebug(map[string]interface{}{
+		"event":                  "harvester created",
+		"api-key":                h.config.APIKey,
+		"harvest-period-seconds": h.config.HarvestPeriod.Seconds(),
+		"metrics-url-override":   h.config.MetricsURLOverride,
+		"spans-url-override":     h.config.SpansURLOverride,
+		"events-url-override":    h.config.EventsURLOverride,
+		"version":                version,
+	})
 
 	if 0 != h.config.HarvestPeriod {
 		go harvestRoutine(h)
