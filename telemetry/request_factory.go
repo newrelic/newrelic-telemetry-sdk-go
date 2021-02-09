@@ -31,6 +31,14 @@ type requestFactory struct {
 	useRawPayload bool
 }
 
+type hashRequestFactory struct {
+	* requestFactory
+}
+
+type eventRequestFactory struct {
+	* requestFactory
+}
+
 func configure(f *requestFactory, options []ClientOption) error {
 	for _, option := range options {
 		option(f)
@@ -43,14 +51,23 @@ func configure(f *requestFactory, options []ClientOption) error {
 
 }
 
-func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (http.Request, error) {
+func (f *hashRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (http.Request, error) {
+	return f.buildRequest(entries, getHashedPayloadBytes, options)
+}
+
+func (f *eventRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (http.Request, error) {
+	return f.buildRequest(entries, getEventPayloadBytes, options)
+}
+
+type payloadWriter func(buf *bytes.Buffer, entries []PayloadEntry)
+
+func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes payloadWriter, options []ClientOption) (http.Request, error) {
 	configuredFactory := &requestFactory{
 		insertKey:     f.insertKey,
 		noDefaultKey:  f.noDefaultKey,
 		host:          f.host,
 		path:          f.path,
 		userAgent:     f.userAgent,
-		useRawPayload: f.useRawPayload,
 	}
 
 	err := configure(configuredFactory, options)
@@ -60,27 +77,7 @@ func (f *requestFactory) BuildRequest(entries []PayloadEntry, options ...ClientO
 	}
 
 	buf := &bytes.Buffer{}
-	buf.WriteByte('[')
-	if (!f.useRawPayload) {
-		buf.WriteByte('{')
-	}
-	w := internal.JSONFieldsWriter{Buf: buf}
-
-	for idx, entry := range entries {
-		if (!f.useRawPayload) {
-			w.RawField(entry.Type(), entry.Bytes())
-		} else {
-			if (idx > 0) {
-				buf.WriteByte(',')
-			}
-			buf.Write(entry.Bytes())
-		}
-	}
-
-	if (!f.useRawPayload) {
-		buf.WriteByte('}')
-	}
-	buf.WriteByte(']')
+	getPayloadBytes(buf, entries)
 
 	buf, err = internal.Compress(buf.Bytes())
 	if err != nil {
@@ -121,36 +118,60 @@ func (f *requestFactory) getHeaders() http.Header {
 	}
 }
 
+func getHashedPayloadBytes(buf *bytes.Buffer, entries []PayloadEntry) {
+	buf.Write([]byte{'[', '{'})
+	w := internal.JSONFieldsWriter{Buf: buf}
+
+	for _, entry := range entries {
+		w.RawField(entry.Type(), entry.Bytes())
+	}
+
+	buf.Write([]byte{'}', ']'})
+}
+
+func getEventPayloadBytes(buf *bytes.Buffer, entries []PayloadEntry) {
+	buf.WriteByte('[')
+
+	for idx, entry := range entries {
+		if (idx > 0) {
+			buf.WriteByte(',')
+		}
+		buf.Write(entry.Bytes())
+	}
+
+	buf.WriteByte(']')
+}
+
 type ClientOption func(o *requestFactory)
 
 func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{host: "trace-api.newrelic.com", path: "/trace/v1", userAgent: defaultUserAgent, useRawPayload: false}
+	f := &requestFactory{host: "trace-api.newrelic.com", path: "/trace/v1", userAgent: defaultUserAgent}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
 	}
 
-	return f, nil
+	return &hashRequestFactory{requestFactory: f}, nil
 }
 
 func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{host: "metric-api.newrelic.com", path: "/metric/v1", userAgent: defaultUserAgent, useRawPayload: false}
+	f := &requestFactory{host: "metric-api.newrelic.com", path: "/metric/v1", userAgent: defaultUserAgent}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
 	}
 
-	return f, nil
+	return &hashRequestFactory{requestFactory: f}, nil
 }
 
 func NewEventRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{host: "insights-collector.newrelic.com", path: "/v1/accounts/events", userAgent: defaultUserAgent, useRawPayload: true}
+	f := &requestFactory{host: "insights-collector.newrelic.com", path: "/v1/accounts/events", userAgent: defaultUserAgent}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
 	}
 
-	return f, nil
+	return &eventRequestFactory{requestFactory: f}, nil
 }
 
 func WithInsertKey(insertKey string) ClientOption {
