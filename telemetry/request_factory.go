@@ -171,12 +171,6 @@ func WithHost(host string) ClientOption {
 	}
 }
 
-func WithPath(path string) ClientOption {
-	return func(o *requestFactory) {
-		o.path = path
-	}
-}
-
 func WithUserAgent(userAgent string) ClientOption {
 	return func(o *requestFactory) {
 		o.userAgent = defaultUserAgent + " " + userAgent
