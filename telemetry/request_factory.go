@@ -62,24 +62,27 @@ func (f *eventRequestFactory) BuildRequest(entries []PayloadEntry, options ...Cl
 type payloadWriter func(buf *bytes.Buffer, entries []PayloadEntry)
 
 func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes payloadWriter, options []ClientOption) (*http.Request, error) {
-	configuredFactory := &requestFactory{
-		insertKey:     f.insertKey,
-		noDefaultKey:  f.noDefaultKey,
-		host:          f.host,
-		path:          f.path,
-		userAgent:     f.userAgent,
-	}
+	configuredFactory := f
+	if (len(options) > 0) {
+		configuredFactory = &requestFactory{
+			insertKey:     f.insertKey,
+			noDefaultKey:  f.noDefaultKey,
+			host:          f.host,
+			path:          f.path,
+			userAgent:     f.userAgent,
+		}
 
-	err := configure(configuredFactory, options)
+		err := configure(configuredFactory, options)
 
-	if err != nil {
-		return &http.Request{}, errors.New("unable to configure this request based on options passed in")
+		if err != nil {
+			return &http.Request{}, errors.New("unable to configure this request based on options passed in")
+		}
 	}
 
 	buf := &bytes.Buffer{}
 	getPayloadBytes(buf, entries)
 
-	buf, err = internal.Compress(buf.Bytes())
+	buf, err := internal.Compress(buf.Bytes())
 	if err != nil {
 		return &http.Request{}, err
 	}
