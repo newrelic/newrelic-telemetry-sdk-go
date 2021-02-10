@@ -108,9 +108,7 @@ func TestConfigMetricURL(t *testing.T) {
 	if u := h.config.metricURL(); u != defaultMetricURL {
 		t.Fatal(u)
 	}
-	h, err = NewHarvester(configTesting, func(cfg *Config) {
-		cfg.MetricsURLOverride = "metric-url-override"
-	})
+	h, err = NewHarvester(configTesting, ConfigMetricsURLOverride("metric-url-override"))
 	if nil == h || err != nil {
 		t.Fatal(h, err)
 	}

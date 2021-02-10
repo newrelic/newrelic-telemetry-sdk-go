@@ -114,6 +114,14 @@ func ConfigBasicAuditLogger(w io.Writer) func(*Config) {
 	}
 }
 
+// ConfigMetricsURLOverride sets the Config's MetricsURLOverride field which
+// overrides the metrics endpoint if not empty.
+func ConfigMetricsURLOverride(url string) func(*Config) {
+	return func(cfg *Config) {
+		cfg.MetricsURLOverride = url
+	}
+}
+
 // ConfigSpansURLOverride sets the Config's SpansURLOverride field which
 // overrides the spans endpoint if not empty.
 func ConfigSpansURLOverride(url string) func(*Config) {
