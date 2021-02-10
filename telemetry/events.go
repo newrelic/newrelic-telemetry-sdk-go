@@ -8,8 +8,7 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
-//This needs to be null so that events are not stored as an element in a map
-const eventTypeName string = ""
+const eventTypeName string = "events"
 
 // Event is a unique set of data that happened at a specific point in time
 type Event struct {
