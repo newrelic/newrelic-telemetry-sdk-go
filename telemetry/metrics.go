@@ -246,7 +246,7 @@ type metricCommonBlock struct {
 	Interval time.Duration
 	// Attributes is the reference to the common attributes that apply to
 	// all metrics in the batch.
-	Attributes *CommonAttributes
+	Attributes *commonAttributes
 }
 
 func (mcb *metricCommonBlock) Type() string {
@@ -263,6 +263,14 @@ func (mcb *metricCommonBlock) Bytes() []byte {
 	}
 	buf.WriteByte('}')
 	return buf.Bytes()
+}
+
+func newMetricCommonBlock(timestamp time.Time, interval time.Duration, attributes map[string]interface{}, errorLogger func(map[string]interface{})) (PayloadEntry) {
+	return &metricCommonBlock{
+		Timestamp: timestamp,
+		Interval: interval,
+		Attributes: newCommonAttributes(attributes, errorLogger),
+	}
 }
 
 // metricBatch represents a single batch of metrics to report to New Relic.

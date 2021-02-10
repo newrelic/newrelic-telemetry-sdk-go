@@ -100,15 +100,19 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('}')
 }
 
-type SpanCommonBlock struct {
-	Attributes *CommonAttributes
+type spanCommonBlock struct {
+	Attributes *commonAttributes
 }
 
-func (c *SpanCommonBlock) Type() string {
+func NewSpanCommonBlock(attributes map[string]interface{}, errorLogger func(map[string]interface{})) (PayloadEntry) {
+	return &spanCommonBlock{Attributes: newCommonAttributes(attributes, errorLogger)}
+}
+
+func (c *spanCommonBlock) Type() string {
 	return "common"
 }
 
-func (c *SpanCommonBlock) Bytes() []byte {
+func (c *spanCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}

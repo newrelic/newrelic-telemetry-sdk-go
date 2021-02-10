@@ -5,7 +5,6 @@ package telemetry
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -23,7 +22,7 @@ type Harvester struct {
 	// These fields are not modified after Harvester creation.  They may be
 	// safely accessed without locking.
 	config           Config
-	commonAttributes *CommonAttributes
+	commonAttributes *commonAttributes
 
 	// lock protects the mutable fields below.
 	lock                 sync.Mutex
@@ -73,16 +72,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	// the consumer modifies the CommonAttributes map after calling
 	// NewHarvester.
 	if nil != h.config.CommonAttributes {
-		attrs := vetAttributes(h.config.CommonAttributes, h.config.logError)
-		attributesJSON, err := json.Marshal(attrs)
-		if err != nil {
-			h.config.logError(map[string]interface{}{
-				"err":     err.Error(),
-				"message": "error marshaling common attributes",
-			})
-		} else {
-			h.commonAttributes = &CommonAttributes{RawJSON: attributesJSON}
-		}
+		h.commonAttributes = newCommonAttributes(h.config.CommonAttributes, h.config.logError)
 		h.config.CommonAttributes = nil
 	}
 
@@ -323,7 +313,7 @@ func (h *Harvester) swapOutSpans() []*http.Request {
 
 	entries := []PayloadEntry{}
 	if (nil != h.commonAttributes) {
-		entries = append(entries, &SpanCommonBlock{Attributes: h.commonAttributes})
+		entries = append(entries, &spanCommonBlock{Attributes: h.commonAttributes})
 	}
 	entries = append(entries, &SpanBatch{Spans: sps})
 	reqs, err := newRequests(entries, h.spanRequestFactory)
