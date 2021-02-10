@@ -148,5 +148,5 @@ func (batch *SpanBatch) split() []*SpanBatch {
 		return nil
 	}
 	middle := len(batch.Spans) / 2
-	return []*SpanBatch{&SpanBatch{Spans: batch.Spans[0:middle]}, &SpanBatch{Spans: batch.Spans[middle:]}}
+	return []*SpanBatch{{Spans: batch.Spans[0:middle]}, {Spans: batch.Spans[middle:]}}
 }

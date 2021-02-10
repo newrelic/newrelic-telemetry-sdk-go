@@ -162,7 +162,7 @@ func TestSpanWithEvents(t *testing.T) {
 		ServiceName: "myentity",
 		Attributes:  map[string]interface{}{},
 		Events: []Event{
-			Event{
+			{
 				EventType: "exception",
 				Timestamp: tm,
 				Attributes: map[string]interface{}{
