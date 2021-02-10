@@ -104,10 +104,6 @@ type spanCommonBlock struct {
 	Attributes *commonAttributes
 }
 
-func NewSpanCommonBlock(attributes map[string]interface{}, errorLogger func(map[string]interface{})) (PayloadEntry) {
-	return &spanCommonBlock{Attributes: newCommonAttributes(attributes, errorLogger)}
-}
-
 func (c *spanCommonBlock) Type() string {
 	return "common"
 }

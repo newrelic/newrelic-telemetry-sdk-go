@@ -265,14 +265,6 @@ func (mcb *metricCommonBlock) Bytes() []byte {
 	return buf.Bytes()
 }
 
-func newMetricCommonBlock(timestamp time.Time, interval time.Duration, attributes map[string]interface{}, errorLogger func(map[string]interface{})) (PayloadEntry) {
-	return &metricCommonBlock{
-		Timestamp: timestamp,
-		Interval: interval,
-		Attributes: newCommonAttributes(attributes, errorLogger),
-	}
-}
-
 // metricBatch represents a single batch of metrics to report to New Relic.
 //
 // Timestamp/Interval are optional and can be used to represent the start and
