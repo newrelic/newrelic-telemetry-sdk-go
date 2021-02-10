@@ -104,10 +104,12 @@ type spanCommonBlock struct {
 	Attributes *commonAttributes
 }
 
+// Type returns the type of data contained in this PayloadEntry.
 func (c *spanCommonBlock) Type() string {
 	return "common"
 }
 
+// Bytes returns the json serialized bytes of the PayloadEntry.
 func (c *spanCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
@@ -122,10 +124,12 @@ type SpanBatch struct {
 	Spans []Span
 }
 
+// Type returns the type of data contained in this PayloadEntry.
 func (batch *SpanBatch) Type() string {
 	return spanTypeName
 }
 
+// Bytes returns the json serialized bytes of the PayloadEntry.
 func (batch *SpanBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('[')

@@ -13,12 +13,24 @@ import (
 
 const defaultUserAgent = "NewRelic-Go-TelemetrySDK/" + version
 
+// PayloadEntry represents a piece of the telemetry data that is included in a single
+// request that should be sent to New Relic. Example PayloadEntry types include SpanBatch
+// and the internal spanCommonBlock.
 type PayloadEntry interface {
+	// Type returns the type of data contained in this PayloadEntry.
 	Type() string
+	// Bytes returns the json serialized bytes of the PayloadEntry.
 	Bytes() []byte
 }
 
+// RequestFactory is used for sending telemetry data to New Relic when you want to have
+// direct access to the http.Request and you want to manually send the request using a
+// http.Client. Consider using the Harvester if you do not want to manage the requests
+// and corresponding responses manually.
 type RequestFactory interface {
+	// BuildRequest converts the telemetry payload entries into an http.Request.
+	// Do not mix telemetry data types in a single call to build request. Each 
+	// telemetry data type has its own RequestFactory.
 	BuildRequest([]PayloadEntry, ...ClientOption) (*http.Request, error)
 }
 
@@ -145,8 +157,11 @@ func getEventPayloadBytes(buf *bytes.Buffer, entries []PayloadEntry) {
 	buf.WriteByte(']')
 }
 
+// ClientOption is a function that can be used to configure the RequestFactory
+// or a generated request.
 type ClientOption func(o *requestFactory)
 
+// NewSpanRequestFactory creates a new instance of a RequestFactory that can be used to send Span data to New Relic,
 func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{host: "trace-api.newrelic.com", path: "/trace/v1", userAgent: defaultUserAgent}
 	err := configure(f, options)
@@ -157,6 +172,7 @@ func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	return &hashRequestFactory{requestFactory: f}, nil
 }
 
+// NewMetricRequestFactory creates a new instance of a RequestFactory that can be used to send Metric data to New Relic.
 func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{host: "metric-api.newrelic.com", path: "/metric/v1", userAgent: defaultUserAgent}
 	err := configure(f, options)
@@ -167,6 +183,7 @@ func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	return &hashRequestFactory{requestFactory: f}, nil
 }
 
+// NewEventRequestFactory creates a new instance of a RequestFactory that can be used to send Event data to New Relic.
 func NewEventRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{host: "insights-collector.newrelic.com", path: "/v1/accounts/events", userAgent: defaultUserAgent}
 	err := configure(f, options)
@@ -177,24 +194,29 @@ func NewEventRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	return &eventRequestFactory{requestFactory: f}, nil
 }
 
+// WithInsertKey creates a ClientOption to specify the api key to use when generating requests.
 func WithInsertKey(insertKey string) ClientOption {
 	return func(o *requestFactory) {
 		o.insertKey = insertKey
 	}
 }
 
+// WithNoDefaultKey creates a ClientOption to specify that each time a request is generated the api key will
+// need to be provided as a ClientOption to BuildRequest.
 func WithNoDefaultKey() ClientOption {
 	return func(o *requestFactory) {
 		o.noDefaultKey = true
 	}
 }
 
+// WithHost creates a ClientOption to specify the host to use for the generated requests.
 func WithHost(host string) ClientOption {
 	return func(o *requestFactory) {
 		o.host = host
 	}
 }
 
+// WithUserAgent creates a ClientOption to specify additional user agent information for the generated requests.
 func WithUserAgent(userAgent string) ClientOption {
 	return func(o *requestFactory) {
 		o.userAgent = defaultUserAgent + " " + userAgent

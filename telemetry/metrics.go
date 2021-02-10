@@ -249,10 +249,12 @@ type metricCommonBlock struct {
 	Attributes *commonAttributes
 }
 
+// Type returns the type of data contained in this PayloadEntry.
 func (mcb *metricCommonBlock) Type() string {
 	return "common"
 }
 
+// Bytes returns the json serialized bytes of the PayloadEntry.
 func (mcb *metricCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
@@ -296,10 +298,12 @@ func (batch *metricBatch) split() []*metricBatch {
 	return []*metricBatch{&mb1, &mb2}
 }
 
+// Type returns the type of data contained in this PayloadEntry.
 func (batch *metricBatch) Type() string {
 	return metricTypeName
 }
 
+// Bytes returns the json serialized bytes of the PayloadEntry.
 func (batch *metricBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('[')

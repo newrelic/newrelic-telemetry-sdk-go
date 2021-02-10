@@ -79,10 +79,12 @@ func (batch *eventBatch) makeBody() json.RawMessage {
 	return buf.Bytes()
 }
 
+// Type returns the type of data contained in this PayloadEntry.
 func (batch *eventBatch) Type() string {
 	return eventTypeName
 }
 
+// Bytes returns the json serialized bytes of the PayloadEntry.
 func (batch *eventBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	batch.writeJSON(buf)
