@@ -37,7 +37,7 @@ type RequestFactory interface {
 type requestFactory struct {
 	insertKey     string
 	noDefaultKey  bool
-	host          string
+	endpoint      string
 	path          string
 	userAgent     string
 	useRawPayload bool
@@ -79,7 +79,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 		configuredFactory = &requestFactory{
 			insertKey:     f.insertKey,
 			noDefaultKey:  f.noDefaultKey,
-			host:          f.host,
+			endpoint:      f.endpoint,
 			path:          f.path,
 			userAgent:     f.userAgent,
 		}
@@ -105,14 +105,14 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 
 	var contentLength = int64(buf.Len())
 	body, _ := getBody()
-	host := configuredFactory.host
+	endpoint := configuredFactory.endpoint
 	headers := configuredFactory.getHeaders()
 
 	return &http.Request{
 		Method: "POST",
 		URL: &url.URL{
 			Scheme: "https",
-			Host:   configuredFactory.host,
+			Host:   configuredFactory.endpoint,
 			Path:   configuredFactory.path,
 		},
 		Header:        headers,
@@ -120,7 +120,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 		GetBody:       getBody,
 		ContentLength: contentLength,
 		Close:         false,
-		Host:          host,
+		Host:          endpoint,
 	}, nil
 }
 
@@ -163,7 +163,7 @@ type ClientOption func(o *requestFactory)
 
 // NewSpanRequestFactory creates a new instance of a RequestFactory that can be used to send Span data to New Relic,
 func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{host: "trace-api.newrelic.com", path: "/trace/v1", userAgent: defaultUserAgent}
+	f := &requestFactory{endpoint: "trace-api.newrelic.com", path: "/trace/v1", userAgent: defaultUserAgent}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
@@ -174,7 +174,7 @@ func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
 
 // NewMetricRequestFactory creates a new instance of a RequestFactory that can be used to send Metric data to New Relic.
 func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{host: "metric-api.newrelic.com", path: "/metric/v1", userAgent: defaultUserAgent}
+	f := &requestFactory{endpoint: "metric-api.newrelic.com", path: "/metric/v1", userAgent: defaultUserAgent}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
@@ -185,7 +185,7 @@ func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
 
 // NewEventRequestFactory creates a new instance of a RequestFactory that can be used to send Event data to New Relic.
 func NewEventRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{host: "insights-collector.newrelic.com", path: "/v1/accounts/events", userAgent: defaultUserAgent}
+	f := &requestFactory{endpoint: "insights-collector.newrelic.com", path: "/v1/accounts/events", userAgent: defaultUserAgent}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
@@ -209,10 +209,10 @@ func WithNoDefaultKey() ClientOption {
 	}
 }
 
-// WithHost creates a ClientOption to specify the host to use for the generated requests.
-func WithHost(host string) ClientOption {
+// WithEndpoint creates a ClientOption to specify the hostname and port to use for the generated requests.
+func WithEndpoint(endpoint string) ClientOption {
 	return func(o *requestFactory) {
-		o.host = host
+		o.endpoint = endpoint
 	}
 }
 
