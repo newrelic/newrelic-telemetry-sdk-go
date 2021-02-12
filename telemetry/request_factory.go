@@ -12,6 +12,7 @@ import (
 )
 
 const defaultUserAgent = "NewRelic-Go-TelemetrySDK/" + version
+const defaultScheme = "https"
 
 // PayloadEntry represents a piece of the telemetry data that is included in a single
 // request that should be sent to New Relic. Example PayloadEntry types include SpanBatch
@@ -37,6 +38,7 @@ type RequestFactory interface {
 type requestFactory struct {
 	insertKey     string
 	noDefaultKey  bool
+	scheme        string
 	endpoint      string
 	path          string
 	userAgent     string
@@ -111,7 +113,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 	return &http.Request{
 		Method: "POST",
 		URL: &url.URL{
-			Scheme: "https",
+			Scheme: configuredFactory.scheme,
 			Host:   configuredFactory.endpoint,
 			Path:   configuredFactory.path,
 		},
@@ -163,7 +165,7 @@ type ClientOption func(o *requestFactory)
 
 // NewSpanRequestFactory creates a new instance of a RequestFactory that can be used to send Span data to New Relic,
 func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{endpoint: "trace-api.newrelic.com", path: "/trace/v1", userAgent: defaultUserAgent}
+	f := &requestFactory{endpoint: "trace-api.newrelic.com", path: "/trace/v1", userAgent: defaultUserAgent, scheme: defaultScheme}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
@@ -174,7 +176,7 @@ func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
 
 // NewMetricRequestFactory creates a new instance of a RequestFactory that can be used to send Metric data to New Relic.
 func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{endpoint: "metric-api.newrelic.com", path: "/metric/v1", userAgent: defaultUserAgent}
+	f := &requestFactory{endpoint: "metric-api.newrelic.com", path: "/metric/v1", userAgent: defaultUserAgent, scheme: defaultScheme}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
@@ -185,7 +187,7 @@ func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
 
 // NewEventRequestFactory creates a new instance of a RequestFactory that can be used to send Event data to New Relic.
 func NewEventRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{endpoint: "insights-collector.newrelic.com", path: "/v1/accounts/events", userAgent: defaultUserAgent}
+	f := &requestFactory{endpoint: "insights-collector.newrelic.com", path: "/v1/accounts/events", userAgent: defaultUserAgent, scheme: defaultScheme}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
@@ -220,5 +222,20 @@ func WithEndpoint(endpoint string) ClientOption {
 func WithUserAgent(userAgent string) ClientOption {
 	return func(o *requestFactory) {
 		o.userAgent = defaultUserAgent + " " + userAgent
+	}
+}
+
+// WithInsecure creates a ClientOption to speficy that requests should be sent over http instead of https.
+func WithInsecure() ClientOption {
+	return func(o *requestFactory) {
+		o.scheme = "http"
+	}
+}
+
+// withScheme is meant to be used with the harvester because the harvester requires specifying
+// an absolute uri which includes the scheme.
+func withScheme(scheme string) ClientOption {
+	return func(o *requestFactory) {
+		o.scheme = scheme
 	}
 }

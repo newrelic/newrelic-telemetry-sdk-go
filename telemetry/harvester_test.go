@@ -93,7 +93,7 @@ func TestInvalidEventsURLResultsInError(t *testing.T) {
 	}
 }
 
-func TestOnlyHostnameAndPortAreUsedFromUrls(t *testing.T) {
+func TestPathNotUsedFromUrls(t *testing.T) {
 	h, _ := NewHarvester(func(cfg *Config) {
 		configTesting(cfg)
 		cfg.MetricsURLOverride = "http://test.metrics.newrelic.com:8001/mybadpath"
@@ -109,9 +109,9 @@ func TestOnlyHostnameAndPortAreUsedFromUrls(t *testing.T) {
 	spanReqs := h.swapOutSpans()
 	eventReqs := h.swapOutEvents()
 
-	validateReqUsedCorrectEndpointValues(metricReqs, "https://test.metrics.newrelic.com:8001/metric/v1", "test.metrics.newrelic.com:8001", t)
-	validateReqUsedCorrectEndpointValues(spanReqs, "https://test.spans.newrelic.com:8002/trace/v1", "test.spans.newrelic.com:8002", t)
-	validateReqUsedCorrectEndpointValues(eventReqs, "https://test.events.newrelic.com:8003/v1/accounts/events", "test.events.newrelic.com:8003", t)
+	validateReqUsedCorrectEndpointValues(metricReqs, "http://test.metrics.newrelic.com:8001/metric/v1", "test.metrics.newrelic.com:8001", t)
+	validateReqUsedCorrectEndpointValues(spanReqs, "http://test.spans.newrelic.com:8002/trace/v1", "test.spans.newrelic.com:8002", t)
+	validateReqUsedCorrectEndpointValues(eventReqs, "http://test.events.newrelic.com:8003/v1/accounts/events", "test.events.newrelic.com:8003", t)
 }
 
 func validateReqUsedCorrectEndpointValues(reqs []*http.Request, expectedURL string, expectedEndpoint string, t *testing.T) {

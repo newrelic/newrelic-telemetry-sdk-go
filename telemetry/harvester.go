@@ -82,7 +82,8 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	}
 
 	h.spanRequestFactory, err = NewSpanRequestFactory(
-		WithInsertKey(h.config.APIKey), 
+		WithInsertKey(h.config.APIKey),
+		withScheme(spanURL.Scheme),
 		WithEndpoint(spanURL.Host),
 		WithUserAgent(h.config.userAgent()),
 	)
@@ -93,7 +94,8 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	}
 
 	h.metricRequestFactory, err = NewMetricRequestFactory(
-		WithInsertKey(h.config.APIKey), 
+		WithInsertKey(h.config.APIKey),
+		withScheme(metricURL.Scheme),
 		WithEndpoint(metricURL.Host),
 		WithUserAgent(h.config.userAgent()),
 	)
@@ -104,7 +106,8 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	}
 
 	h.eventRequestFactory, err = NewEventRequestFactory(
-		WithInsertKey(h.config.APIKey), 
+		WithInsertKey(h.config.APIKey),
+		withScheme(eventURL.Scheme),
 		WithEndpoint(eventURL.Host),
 		WithUserAgent(h.config.userAgent()),
 	)
