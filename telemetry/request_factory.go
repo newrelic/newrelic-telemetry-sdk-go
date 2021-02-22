@@ -2,11 +2,13 @@ package telemetry
 
 import (
 	"bytes"
+	"compress/gzip"
 	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
@@ -42,6 +44,7 @@ type requestFactory struct {
 	endpoint      string
 	path          string
 	userAgent     string
+	zippers       *sync.Pool
 }
 
 type hashRequestFactory struct {
@@ -83,6 +86,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 			endpoint:      f.endpoint,
 			path:          f.path,
 			userAgent:     f.userAgent,
+			zippers:       f.zippers,
 		}
 
 		err := configure(configuredFactory, options)
@@ -95,10 +99,15 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 	buf := &bytes.Buffer{}
 	getPayloadBytes(buf, entries)
 
-	buf, err := internal.Compress(buf.Bytes())
+	var compressedBuffer bytes.Buffer
+	zipper := configuredFactory.zippers.Get().(*gzip.Writer)
+	defer configuredFactory.zippers.Put(zipper)
+	zipper.Reset(&compressedBuffer)
+	err := internal.CompressWithWriter(buf.Bytes(), zipper)
 	if err != nil {
 		return &http.Request{}, err
 	}
+	buf = &compressedBuffer
 
 	getBody := func() (io.ReadCloser, error) {
 		return ioutil.NopCloser(bytes.NewBuffer(buf.Bytes())), nil
@@ -164,7 +173,13 @@ type ClientOption func(o *requestFactory)
 
 // NewSpanRequestFactory creates a new instance of a RequestFactory that can be used to send Span data to New Relic,
 func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{endpoint: "trace-api.newrelic.com", path: "/trace/v1", userAgent: defaultUserAgent, scheme: defaultScheme}
+	f := &requestFactory{
+		endpoint: "trace-api.newrelic.com",
+		path: "/trace/v1",
+		userAgent: defaultUserAgent,
+		scheme: defaultScheme,
+		zippers: newGzipPool(),
+	}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
@@ -175,7 +190,13 @@ func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
 
 // NewMetricRequestFactory creates a new instance of a RequestFactory that can be used to send Metric data to New Relic.
 func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{endpoint: "metric-api.newrelic.com", path: "/metric/v1", userAgent: defaultUserAgent, scheme: defaultScheme}
+	f := &requestFactory{
+		endpoint: "metric-api.newrelic.com",
+		path: "/metric/v1",
+		userAgent: defaultUserAgent,
+		scheme: defaultScheme,
+		zippers: newGzipPool(),
+	}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
@@ -186,13 +207,26 @@ func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
 
 // NewEventRequestFactory creates a new instance of a RequestFactory that can be used to send Event data to New Relic.
 func NewEventRequestFactory(options ...ClientOption) (RequestFactory, error) {
-	f := &requestFactory{endpoint: "insights-collector.newrelic.com", path: "/v1/accounts/events", userAgent: defaultUserAgent, scheme: defaultScheme}
+	f := &requestFactory{
+		endpoint: "insights-collector.newrelic.com",
+		path: "/v1/accounts/events",
+		userAgent: defaultUserAgent,
+		scheme: defaultScheme,
+		zippers: newGzipPool(),
+	}
 	err := configure(f, options)
 	if err != nil {
 		return nil, err
 	}
 
 	return &eventRequestFactory{requestFactory: f}, nil
+}
+
+func newGzipPool() *sync.Pool {
+	pool := sync.Pool{New: func() interface{} {
+		return gzip.NewWriter(nil)
+	}}
+	return &pool
 }
 
 // WithInsertKey creates a ClientOption to specify the api key to use when generating requests.
