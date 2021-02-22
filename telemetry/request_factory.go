@@ -42,7 +42,6 @@ type requestFactory struct {
 	endpoint      string
 	path          string
 	userAgent     string
-	useRawPayload bool
 }
 
 type hashRequestFactory struct {
