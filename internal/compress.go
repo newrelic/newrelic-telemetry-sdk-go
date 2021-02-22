@@ -9,7 +9,8 @@ import (
 	"io/ioutil"
 )
 
-// Compress gzips the given input.
+// Compress gzips the given input. For better performance use CompressWithWriter
+// with a pooled gzip.Writer.
 func Compress(b []byte) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	w := gzip.NewWriter(&buf)
