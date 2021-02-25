@@ -32,27 +32,27 @@ type PayloadEntry interface {
 // and corresponding responses manually.
 type RequestFactory interface {
 	// BuildRequest converts the telemetry payload entries into an http.Request.
-	// Do not mix telemetry data types in a single call to build request. Each 
+	// Do not mix telemetry data types in a single call to build request. Each
 	// telemetry data type has its own RequestFactory.
 	BuildRequest([]PayloadEntry, ...ClientOption) (*http.Request, error)
 }
 
 type requestFactory struct {
-	insertKey     string
-	noDefaultKey  bool
-	scheme        string
-	endpoint      string
-	path          string
-	userAgent     string
-	zippers       *sync.Pool
+	insertKey    string
+	noDefaultKey bool
+	scheme       string
+	endpoint     string
+	path         string
+	userAgent    string
+	zippers      *sync.Pool
 }
 
 type hashRequestFactory struct {
-	* requestFactory
+	*requestFactory
 }
 
 type eventRequestFactory struct {
-	* requestFactory
+	*requestFactory
 }
 
 func configure(f *requestFactory, options []ClientOption) error {
@@ -79,14 +79,15 @@ type payloadWriter func(buf *bytes.Buffer, entries []PayloadEntry)
 
 func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes payloadWriter, options []ClientOption) (*http.Request, error) {
 	configuredFactory := f
-	if (len(options) > 0) {
+	if len(options) > 0 {
 		configuredFactory = &requestFactory{
-			insertKey:     f.insertKey,
-			noDefaultKey:  f.noDefaultKey,
-			endpoint:      f.endpoint,
-			path:          f.path,
-			userAgent:     f.userAgent,
-			zippers:       f.zippers,
+			insertKey:    f.insertKey,
+			noDefaultKey: f.noDefaultKey,
+			scheme:       f.scheme,
+			endpoint:     f.endpoint,
+			path:         f.path,
+			userAgent:    f.userAgent,
+			zippers:      f.zippers,
 		}
 
 		err := configure(configuredFactory, options)
@@ -158,7 +159,7 @@ func getEventPayloadBytes(buf *bytes.Buffer, entries []PayloadEntry) {
 	buf.WriteByte('[')
 
 	for idx, entry := range entries {
-		if (idx > 0) {
+		if idx > 0 {
 			buf.WriteByte(',')
 		}
 		buf.Write(entry.Bytes())
@@ -174,11 +175,11 @@ type ClientOption func(o *requestFactory)
 // NewSpanRequestFactory creates a new instance of a RequestFactory that can be used to send Span data to New Relic,
 func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{
-		endpoint: "trace-api.newrelic.com",
-		path: "/trace/v1",
+		endpoint:  "trace-api.newrelic.com",
+		path:      "/trace/v1",
 		userAgent: defaultUserAgent,
-		scheme: defaultScheme,
-		zippers: newGzipPool(),
+		scheme:    defaultScheme,
+		zippers:   newGzipPool(),
 	}
 	err := configure(f, options)
 	if err != nil {
@@ -191,11 +192,11 @@ func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
 // NewMetricRequestFactory creates a new instance of a RequestFactory that can be used to send Metric data to New Relic.
 func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{
-		endpoint: "metric-api.newrelic.com",
-		path: "/metric/v1",
+		endpoint:  "metric-api.newrelic.com",
+		path:      "/metric/v1",
 		userAgent: defaultUserAgent,
-		scheme: defaultScheme,
-		zippers: newGzipPool(),
+		scheme:    defaultScheme,
+		zippers:   newGzipPool(),
 	}
 	err := configure(f, options)
 	if err != nil {
@@ -208,11 +209,11 @@ func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
 // NewEventRequestFactory creates a new instance of a RequestFactory that can be used to send Event data to New Relic.
 func NewEventRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{
-		endpoint: "insights-collector.newrelic.com",
-		path: "/v1/accounts/events",
+		endpoint:  "insights-collector.newrelic.com",
+		path:      "/v1/accounts/events",
 		userAgent: defaultUserAgent,
-		scheme: defaultScheme,
-		zippers: newGzipPool(),
+		scheme:    defaultScheme,
+		zippers:   newGzipPool(),
 	}
 	err := configure(f, options)
 	if err != nil {
