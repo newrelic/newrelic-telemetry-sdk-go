@@ -168,27 +168,27 @@ func TestConfigUserAgent(t *testing.T) {
 	}{
 		{
 			option: func(*Config) {},
-			expect: "NewRelic-Go-TelemetrySDK/" + version,
+			expect: "",
 		},
 		{
 			option: func(cfg *Config) {
 				cfg.Product = "myProduct"
 			},
-			expect: "NewRelic-Go-TelemetrySDK/" + version + " myProduct",
+			expect: "myProduct",
 		},
 		{
 			option: func(cfg *Config) {
 				cfg.Product = "myProduct"
 				cfg.ProductVersion = "0.1.0"
 			},
-			expect: "NewRelic-Go-TelemetrySDK/" + version + " myProduct/0.1.0",
+			expect: "myProduct/0.1.0",
 		},
 		{
 			option: func(cfg *Config) {
 				// Only use ProductVersion if Product is set.
 				cfg.ProductVersion = "0.1.0"
 			},
-			expect: "NewRelic-Go-TelemetrySDK/" + version,
+			expect: "",
 		},
 	}
 

@@ -51,6 +51,84 @@ func TestNilHarvesterRecordSpan(t *testing.T) {
 	})
 }
 
+func TestInvalidMetricsURLResultsInError(t *testing.T) {
+	h, err := NewHarvester(func(cfg *Config) {
+		configTesting(cfg)
+		cfg.MetricsURLOverride = "\n"
+	})
+
+	if err == nil {
+		t.Error("Expected a url parsing error but didn't get one.")
+	}
+	if h != nil {
+		t.Error("harvester should have been created.")
+	}
+}
+
+func TestInvalidSpansURLResultsInError(t *testing.T) {
+	h, err := NewHarvester(func(cfg *Config) {
+		configTesting(cfg)
+		cfg.SpansURLOverride = "\n"
+	})
+
+	if err == nil {
+		t.Error("Expected a url parsing error but didn't get one.")
+	}
+	if h != nil {
+		t.Error("harvester should have been created.")
+	}
+}
+
+func TestInvalidEventsURLResultsInError(t *testing.T) {
+	h, err := NewHarvester(func(cfg *Config) {
+		configTesting(cfg)
+		cfg.EventsURLOverride = "\n"
+	})
+
+	if err == nil {
+		t.Error("Expected a url parsing error but didn't get one.")
+	}
+	if h != nil {
+		t.Error("harvester should have been created.")
+	}
+}
+
+func TestPathNotUsedFromUrls(t *testing.T) {
+	h, _ := NewHarvester(func(cfg *Config) {
+		configTesting(cfg)
+		cfg.MetricsURLOverride = "http://test.metrics.newrelic.com:8001/mybadpath"
+		cfg.SpansURLOverride = "http://test.spans.newrelic.com:8002/mybadpath"
+		cfg.EventsURLOverride = "http://test.events.newrelic.com:8003/mybadpath"
+	})
+
+	h.RecordSpan(Span{TraceID: "id", ID: "id"})
+	h.RecordMetric(Gauge{})
+	h.RecordEvent(Event{EventType: "customEvent", Timestamp: time.Now()})
+
+	metricReqs := h.swapOutMetrics(time.Now())
+	spanReqs := h.swapOutSpans()
+	eventReqs := h.swapOutEvents()
+
+	validateReqUsedCorrectEndpointValues(metricReqs, "http://test.metrics.newrelic.com:8001/metric/v1", "test.metrics.newrelic.com:8001", t)
+	validateReqUsedCorrectEndpointValues(spanReqs, "http://test.spans.newrelic.com:8002/trace/v1", "test.spans.newrelic.com:8002", t)
+	validateReqUsedCorrectEndpointValues(eventReqs, "http://test.events.newrelic.com:8003/v1/accounts/events", "test.events.newrelic.com:8003", t)
+}
+
+func validateReqUsedCorrectEndpointValues(reqs []*http.Request, expectedURL string, expectedEndpoint string, t *testing.T) {
+	if (len(reqs) < 1) {
+		t.Error("Expected at least 1 requst to validate")
+	}
+
+	for _, req := range reqs {
+		if (req.Host != expectedEndpoint) {
+			t.Errorf("Got req.Host %v but expected %v", req.Host, expectedEndpoint)
+		}
+		if (req.URL.String() != expectedURL) {
+			t.Errorf("Got req.URL %v but expected %v", req.URL.String(), expectedURL)
+		}
+	}
+}
+
 func TestHarvesterRecordSpan(t *testing.T) {
 	t.Parallel()
 
@@ -184,11 +262,11 @@ func TestNewRequestHeaders(t *testing.T) {
 		t.Fatal(reqs)
 	}
 	req := reqs[0]
-	if h := req.Request.Header.Get("Content-Encoding"); "gzip" != h {
-		t.Error("incorrect Content-Encoding header", req.Request.Header)
+	if h := req.Header.Get("Content-Encoding"); "gzip" != h {
+		t.Error("incorrect Content-Encoding header", req.Header)
 	}
-	if h := req.Request.Header.Get("User-Agent"); expectUserAgent != h {
-		t.Error("User-Agent header incorrect", req.Request.Header)
+	if h := req.Header.Get("User-Agent"); expectUserAgent != h {
+		t.Error("User-Agent header incorrect", req.Header)
 	}
 
 	reqs = h.swapOutMetrics(time.Now())
@@ -196,16 +274,16 @@ func TestNewRequestHeaders(t *testing.T) {
 		t.Fatal(reqs)
 	}
 	req = reqs[0]
-	if h := req.Request.Header.Get("Content-Type"); "application/json" != h {
+	if h := req.Header.Get("Content-Type"); "application/json" != h {
 		t.Error("incorrect Content-Type", h)
 	}
-	if h := req.Request.Header.Get("Api-Key"); "api-key" != h {
+	if h := req.Header.Get("Api-Key"); "api-key" != h {
 		t.Error("incorrect Api-Key", h)
 	}
-	if h := req.Request.Header.Get("Content-Encoding"); "gzip" != h {
+	if h := req.Header.Get("Content-Encoding"); "gzip" != h {
 		t.Error("incorrect Content-Encoding header", h)
 	}
-	if h := req.Request.Header.Get("User-Agent"); expectUserAgent != h {
+	if h := req.Header.Get("User-Agent"); expectUserAgent != h {
 		t.Error("User-Agent header incorrect", h)
 	}
 }
@@ -258,10 +336,12 @@ func testHarvesterMetrics(t testing.TB, h *Harvester, expect string) {
 	if len(reqs) != 1 {
 		t.Fatal(reqs)
 	}
-	if u := reqs[0].Request.URL.String(); u != defaultMetricURL {
+	if u := reqs[0].URL.String(); u != defaultMetricURL {
 		t.Error(u)
 	}
-	js := reqs[0].UncompressedBody
+	bodyReader, _ := reqs[0].GetBody()
+	compressedBytes, _ := ioutil.ReadAll(bodyReader)
+	js, _ := internal.Uncompress(compressedBytes)
 	var helper []struct {
 		Metrics sortedMetricsHelper `json:"metrics"`
 	}
@@ -626,7 +706,7 @@ func TestRequiredSpanFields(t *testing.T) {
 
 func TestRecordInvalidMetric(t *testing.T) {
 	var savedErrors []map[string]interface{}
-	h, _ := NewHarvester(configTesting, configSaveErrors(&savedErrors))
+	h, _ := NewHarvester(configTesting, configureLoggingErrorsToMap(&savedErrors))
 	h.RecordMetric(Count{
 		Name:  "bad-metric",
 		Value: math.NaN(),
@@ -640,6 +720,14 @@ func TestRecordInvalidMetric(t *testing.T) {
 	}
 	if len(h.rawMetrics) != 0 {
 		t.Error(len(h.rawMetrics))
+	}
+}
+
+func configureLoggingErrorsToMap(savedErrors *[]map[string]interface{}) func(cfg *Config) {
+	return func(cfg *Config) {
+		cfg.ErrorLogger = func(e map[string]interface{}) {
+			*savedErrors = append(*savedErrors, e)
+		}
 	}
 }
 

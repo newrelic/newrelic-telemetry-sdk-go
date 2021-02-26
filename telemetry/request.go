@@ -4,79 +4,67 @@
 package telemetry
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
-
-	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 const (
 	maxCompressedSizeBytes = 1e6
 )
 
-// request contains an http.Request and the UncompressedBody which is provided
-// for logging.
-type request struct {
-	Request          *http.Request
-	UncompressedBody json.RawMessage
-
-	compressedBody       []byte
-	compressedBodyLength int
-}
-
-type requestsBuilder interface {
-	makeBody() json.RawMessage
-	split() []requestsBuilder
+type splittablePayloadEntry interface {
+	PayloadEntry
+	split() []splittablePayloadEntry
 }
 
 var (
 	errUnableToSplit = fmt.Errorf("unable to split large payload further")
 )
 
-func requestNeedsSplit(r request) bool {
-	return r.compressedBodyLength >= maxCompressedSizeBytes
+func requestNeedsSplit(r *http.Request) bool {
+	return r.ContentLength >= maxCompressedSizeBytes
 }
 
-func newRequests(batch requestsBuilder, apiKey string, url string, userAgent string) ([]request, error) {
-	return newRequestsInternal(batch, apiKey, url, userAgent, requestNeedsSplit)
+func newRequests(entries []PayloadEntry, factory RequestFactory) ([]*http.Request, error) {
+	return newRequestsInternal(entries, factory, requestNeedsSplit)
 }
 
-func newRequestsInternal(batch requestsBuilder, apiKey string, url string, userAgent string, needsSplit func(request) bool) ([]request, error) {
-	uncompressed := batch.makeBody()
-	compressed, err := internal.Compress(uncompressed)
-	if nil != err {
-		return nil, fmt.Errorf("error compressing data: %v", err)
-	}
-	compressedLen := compressed.Len()
-
-	req, err := http.NewRequest("POST", url, compressed)
-	if nil != err {
-		return nil, fmt.Errorf("error creating request: %v", err)
-	}
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Api-Key", apiKey)
-	req.Header.Add("Content-Encoding", "gzip")
-	req.Header.Add("User-Agent", userAgent)
-	r := request{
-		Request:              req,
-		UncompressedBody:     uncompressed,
-		compressedBody:       compressed.Bytes(),
-		compressedBodyLength: compressedLen,
+func newRequestsInternal(entries []PayloadEntry, factory RequestFactory, needsSplit func(*http.Request) bool) ([]*http.Request, error) {
+	r, err := factory.BuildRequest(entries)
+	if (nil != err) {
+		return nil, err
 	}
 
 	if !needsSplit(r) {
-		return []request{r}, nil
+		return []*http.Request{r}, nil
 	}
 
-	var reqs []request
-	batches := batch.split()
-	if nil == batches {
+	var reqs []*http.Request
+	var splitPayload1 []PayloadEntry
+	var splitPayload2 []PayloadEntry
+	payloadWasSplit := false
+	for _, e := range entries {
+		splittable, isPayloadSplittable := e.(splittablePayloadEntry)
+		if isPayloadSplittable {
+			splitEntry := splittable.split()
+			if splitEntry != nil {
+				splitPayload1 = append(splitPayload1, splitEntry[0].(PayloadEntry))
+				splitPayload2 = append(splitPayload2, splitEntry[1].(PayloadEntry))
+				payloadWasSplit = true
+				continue
+			}
+		}
+
+		splitPayload1 = append(splitPayload1, e)
+		splitPayload2 = append(splitPayload2, e)
+	}
+
+	if !payloadWasSplit {
 		return nil, errUnableToSplit
 	}
 
-	for _, b := range batches {
-		rs, err := newRequestsInternal(b, apiKey, url, userAgent, needsSplit)
+	for _, b := range [][]PayloadEntry{splitPayload1, splitPayload2} {
+		rs, err := newRequestsInternal(b, factory, needsSplit)
 		if nil != err {
 			return nil, err
 		}

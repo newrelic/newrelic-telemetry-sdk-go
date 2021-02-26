@@ -8,6 +8,8 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
+const eventTypeName string = "events"
+
 // Event is a unique set of data that happened at a specific point in time
 type Event struct {
 	// Required Fields:
@@ -47,7 +49,7 @@ type eventBatch struct {
 
 // split will split the eventBatch into 2 equally sized batches.
 // If the number of events in the original is 0 or 1 then nil is returned.
-func (batch *eventBatch) split() []requestsBuilder {
+func (batch *eventBatch) split() []*eventBatch {
 	if len(batch.Events) < 2 {
 		return nil
 	}
@@ -58,24 +60,31 @@ func (batch *eventBatch) split() []requestsBuilder {
 	b2 := *batch
 	b2.Events = batch.Events[half:]
 
-	return []requestsBuilder{
-		requestsBuilder(&b1),
-		requestsBuilder(&b2),
-	}
+	return []*eventBatch{&b1, &b2}
 }
 
 func (batch *eventBatch) writeJSON(buf *bytes.Buffer) {
-	buf.WriteByte('[')
 	for idx, s := range batch.Events {
 		if idx > 0 {
 			buf.WriteByte(',')
 		}
 		s.writeJSON(buf)
 	}
-	buf.WriteByte(']')
 }
 
 func (batch *eventBatch) makeBody() json.RawMessage {
+	buf := &bytes.Buffer{}
+	batch.writeJSON(buf)
+	return buf.Bytes()
+}
+
+// Type returns the type of data contained in this PayloadEntry.
+func (batch *eventBatch) Type() string {
+	return eventTypeName
+}
+
+// Bytes returns the json serialized bytes of the PayloadEntry.
+func (batch *eventBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	batch.writeJSON(buf)
 	return buf.Bytes()

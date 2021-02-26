@@ -47,7 +47,8 @@ func TestMetrics(t *testing.T) {
 			Interval:  5 * time.Second,
 		},
 	}
-	metrics.AttributesJSON = json.RawMessage(`{"zip":"zap"}`)
+	commonAttributes := &commonAttributes{RawJSON: json.RawMessage(`{"zip":"zap"}`)}
+	commonBlock := &metricCommonBlock{Attributes: commonAttributes}
 
 	expect := compactJSONString(`[{
 		"common":{
@@ -80,7 +81,8 @@ func TestMetrics(t *testing.T) {
 		]
 	}]`)
 
-	reqs, err := newRequests(metrics, "my-api-key", defaultMetricURL, "userAgent")
+	factory, _ := NewMetricRequestFactory(WithNoDefaultKey())
+	reqs, err := newRequests([]PayloadEntry{commonBlock, metrics}, factory)
 	if err != nil {
 		t.Error("error creating request", err)
 	}
@@ -88,17 +90,19 @@ func TestMetrics(t *testing.T) {
 		t.Fatal(reqs)
 	}
 	req := reqs[0]
-	data := reqs[0].UncompressedBody
+	bodyReader, _ := req.GetBody()
+	compressedBytes, _ := ioutil.ReadAll(bodyReader)
+	data, _ := internal.Uncompress(compressedBytes)
 	if string(data) != expect {
 		t.Error("metrics JSON mismatch", string(data), expect)
 	}
-	body, err := ioutil.ReadAll(req.Request.Body)
-	req.Request.Body.Close()
+	body, err := ioutil.ReadAll(req.Body)
+	req.Body.Close()
 	if err != nil {
 		t.Fatal("unable to read body", err)
 	}
-	if len(body) != req.compressedBodyLength {
-		t.Error("compressed body length mismatch", len(body), req.compressedBodyLength)
+	if len(body) != int(req.ContentLength) {
+		t.Error("compressed body length mismatch", len(body), req.ContentLength)
 	}
 	uncompressed, err := internal.Uncompress(body)
 	if err != nil {
@@ -109,18 +113,21 @@ func TestMetrics(t *testing.T) {
 	}
 }
 
-func testBatchJSON(t testing.TB, batch *metricBatch, expect string) {
+func testBatchJSON(t testing.TB, entries []PayloadEntry, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
-	reqs, err := newRequests(batch, "my-api-key", defaultMetricURL, "userAgent")
+	factory, _ := NewMetricRequestFactory(WithNoDefaultKey())
+	reqs, err := newRequests(entries, factory)
 	if nil != err {
 		t.Fatal(err)
 	}
 	if len(reqs) != 1 {
 		t.Fatal(reqs)
 	}
-	js := reqs[0].UncompressedBody
+	bodyReader, _ := reqs[0].GetBody()
+	compressedBytes, _ := ioutil.ReadAll(bodyReader)
+	js, _ := internal.Uncompress(compressedBytes)
 	actual := string(js)
 	compactExpect := compactJSONString(expect)
 	if actual != compactExpect {
@@ -149,8 +156,8 @@ func TestSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testBatchJSON(t, split[0].(*metricBatch), `[{"common":{},"metrics":[{"name":"c1","type":"count","value":0}]}]`)
-	testBatchJSON(t, split[1].(*metricBatch), `[{"common":{},"metrics":[{"name":"c2","type":"count","value":0}]}]`)
+	testBatchJSON(t, []PayloadEntry{split[0]}, `[{"metrics":[{"name":"c1","type":"count","value":0}]}]`)
+	testBatchJSON(t, []PayloadEntry{split[1]}, `[{"metrics":[{"name":"c2","type":"count","value":0}]}]`)
 
 	// test len 3
 	batch = &metricBatch{Metrics: []Metric{Count{Name: "c1"}, Count{Name: "c2"}, Count{Name: "c3"}}}
@@ -158,15 +165,15 @@ func TestSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testBatchJSON(t, split[0].(*metricBatch), `[{"common":{},"metrics":[{"name":"c1","type":"count","value":0}]}]`)
-	testBatchJSON(t, split[1].(*metricBatch), `[{"common":{},"metrics":[{"name":"c2","type":"count","value":0},{"name":"c3","type":"count","value":0}]}]`)
+	testBatchJSON(t, []PayloadEntry{split[0]}, `[{"metrics":[{"name":"c1","type":"count","value":0}]}]`)
+	testBatchJSON(t, []PayloadEntry{split[1]}, `[{"metrics":[{"name":"c2","type":"count","value":0},{"name":"c3","type":"count","value":0}]}]`)
 }
 
 func BenchmarkMetricsJSON(b *testing.B) {
 	// This benchmark tests the overhead of turning metrics into JSON.
-	batch := &metricBatch{
-		AttributesJSON: json.RawMessage(`{"zip": "zap"}`),
-	}
+	commonAttributes := commonAttributes{RawJSON: json.RawMessage(`{"zip": "zap"}`)}
+	commonBlock := &metricCommonBlock{Attributes: &commonAttributes}
+	batch := &metricBatch{}
 	numMetrics := 10 * 1000
 	start := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 
@@ -199,10 +206,18 @@ func BenchmarkMetricsJSON(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
+	entries := []PayloadEntry{commonBlock, batch}
 	estimate := len(batch.Metrics) * 256
 	for i := 0; i < b.N; i++ {
 		buf := bytes.NewBuffer(make([]byte, 0, estimate))
-		batch.writeJSON(buf)
+
+		buf.Write([]byte{'[', '{'})
+		w := internal.JSONFieldsWriter{Buf: buf}
+		for _, entry := range entries {
+			w.RawField(entry.Type(), entry.Bytes())
+		}
+		buf.Write([]byte{'}', ']'})
+
 		bts := buf.Bytes()
 		if len(bts) == 0 {
 			b.Fatal(string(bts))
@@ -216,23 +231,23 @@ func TestMetricAttributesJSON(t *testing.T) {
 		val    interface{}
 		expect string
 	}{
-		{"string", "string", `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"string":"string"}}]}]`},
-		{"true", true, `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"true":true}}]}]`},
-		{"false", false, `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"false":false}}]}]`},
-		{"uint8", uint8(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint8":1}}]}]`},
-		{"uint16", uint16(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint16":1}}]}]`},
-		{"uint32", uint32(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint32":1}}]}]`},
-		{"uint64", uint64(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint64":1}}]}]`},
-		{"uint", uint(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint":1}}]}]`},
-		{"uintptr", uintptr(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"uintptr":1}}]}]`},
-		{"int8", int8(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"int8":1}}]}]`},
-		{"int16", int16(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"int16":1}}]}]`},
-		{"int32", int32(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"int32":1}}]}]`},
-		{"int64", int64(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"int64":1}}]}]`},
-		{"int", int(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"int":1}}]}]`},
-		{"float32", float32(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"float32":1}}]}]`},
-		{"float64", float64(1), `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"float64":1}}]}]`},
-		{"default", func() {}, `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"default":"func()"}}]}]`},
+		{"string", "string", `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"string":"string"}}]}]`},
+		{"true", true, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"true":true}}]}]`},
+		{"false", false, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"false":false}}]}]`},
+		{"uint8", uint8(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint8":1}}]}]`},
+		{"uint16", uint16(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint16":1}}]}]`},
+		{"uint32", uint32(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint32":1}}]}]`},
+		{"uint64", uint64(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint64":1}}]}]`},
+		{"uint", uint(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint":1}}]}]`},
+		{"uintptr", uintptr(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"uintptr":1}}]}]`},
+		{"int8", int8(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"int8":1}}]}]`},
+		{"int16", int16(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"int16":1}}]}]`},
+		{"int32", int32(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"int32":1}}]}]`},
+		{"int64", int64(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"int64":1}}]}]`},
+		{"int", int(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"int":1}}]}]`},
+		{"float32", float32(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"float32":1}}]}]`},
+		{"float64", float64(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"float64":1}}]}]`},
+		{"default", func() {}, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"default":"func()"}}]}]`},
 	}
 
 	for _, test := range tests {
@@ -242,7 +257,7 @@ func TestMetricAttributesJSON(t *testing.T) {
 				test.key: test.val,
 			},
 		})
-		testBatchJSON(t, batch, test.expect)
+		testBatchJSON(t, []PayloadEntry{batch}, test.expect)
 	}
 }
 
@@ -254,13 +269,13 @@ func TestCountAttributesJSON(t *testing.T) {
 		},
 		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
 	})
-	testBatchJSON(t, batch, `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"zip":"zap"}}]}]`)
+	testBatchJSON(t, []PayloadEntry{batch}, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"zip":"zap"}}]}]`)
 
 	batch = &metricBatch{}
 	batch.Metrics = append(batch.Metrics, Count{
 		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
 	})
-	testBatchJSON(t, batch, `[{"common":{},"metrics":[{"name":"","type":"count","value":0,"attributes":{"zing":"zang"}}]}]`)
+	testBatchJSON(t, []PayloadEntry{batch}, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"zing":"zang"}}]}]`)
 }
 
 func TestGaugeAttributesJSON(t *testing.T) {
@@ -274,14 +289,14 @@ func TestGaugeAttributesJSON(t *testing.T) {
 		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
 		Timestamp:      start,
 	})
-	testBatchJSON(t, batch, `[{"common":{},"metrics":[{"name":"","type":"gauge","value":0,"timestamp":1417136460000,"attributes":{"zip":"zap"}}]}]`)
+	testBatchJSON(t, []PayloadEntry{batch}, `[{"metrics":[{"name":"","type":"gauge","value":0,"timestamp":1417136460000,"attributes":{"zip":"zap"}}]}]`)
 
 	batch = &metricBatch{}
 	batch.Metrics = append(batch.Metrics, Gauge{
 		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
 		Timestamp:      start,
 	})
-	testBatchJSON(t, batch, `[{"common":{},"metrics":[{"name":"","type":"gauge","value":0,"timestamp":1417136460000,"attributes":{"zing":"zang"}}]}]`)
+	testBatchJSON(t, []PayloadEntry{batch}, `[{"metrics":[{"name":"","type":"gauge","value":0,"timestamp":1417136460000,"attributes":{"zing":"zang"}}]}]`)
 }
 
 func TestSummaryAttributesJSON(t *testing.T) {
@@ -292,43 +307,45 @@ func TestSummaryAttributesJSON(t *testing.T) {
 		},
 		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
 	})
-	testBatchJSON(t, batch, `[{"common":{},"metrics":[{"name":"","type":"summary","value":{"sum":0,"count":0,"min":0,"max":0},"attributes":{"zip":"zap"}}]}]`)
+	testBatchJSON(t, []PayloadEntry{batch}, `[{"metrics":[{"name":"","type":"summary","value":{"sum":0,"count":0,"min":0,"max":0},"attributes":{"zip":"zap"}}]}]`)
 
 	batch = &metricBatch{}
 	batch.Metrics = append(batch.Metrics, Summary{
 		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
 	})
-	testBatchJSON(t, batch, `[{"common":{},"metrics":[{"name":"","type":"summary","value":{"sum":0,"count":0,"min":0,"max":0},"attributes":{"zing":"zang"}}]}]`)
+	testBatchJSON(t, []PayloadEntry{batch}, `[{"metrics":[{"name":"","type":"summary","value":{"sum":0,"count":0,"min":0,"max":0},"attributes":{"zing":"zang"}}]}]`)
 }
 
 func TestBatchAttributesJSON(t *testing.T) {
-	batch := &metricBatch{
-		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
-	}
-	testBatchJSON(t, batch, `[{"common":{"attributes":{"zing":"zang"}},"metrics":[]}]`)
+	commonAttributes := &commonAttributes{RawJSON: json.RawMessage(`{"zing":"zang"}`)}
+	commonBlock := &metricCommonBlock{Attributes: commonAttributes}
+	batch := &metricBatch{}
+	testBatchJSON(t, []PayloadEntry{commonBlock, batch}, `[{"common":{"attributes":{"zing":"zang"}},"metrics":[]}]`)
 }
 
 func TestBatchStartEndTimesJSON(t *testing.T) {
 	start := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 
-	batch := &metricBatch{}
-	testBatchJSON(t, batch, `[{"common":{},"metrics":[]}]`)
+	commonBlock := &metricCommonBlock{}
+	emptyBatch := &metricBatch{}
 
-	batch = &metricBatch{
+	testBatchJSON(t, []PayloadEntry{commonBlock, emptyBatch}, `[{"common":{},"metrics":[]}]`)
+
+	commonBlock = &metricCommonBlock{
 		Timestamp: start,
 	}
-	testBatchJSON(t, batch, `[{"common":{"timestamp":1417136460000},"metrics":[]}]`)
+	testBatchJSON(t, []PayloadEntry{commonBlock, emptyBatch}, `[{"common":{"timestamp":1417136460000},"metrics":[]}]`)
 
-	batch = &metricBatch{
+	commonBlock = &metricCommonBlock{
 		Interval: 5 * time.Second,
 	}
-	testBatchJSON(t, batch, `[{"common":{"interval.ms":5000},"metrics":[]}]`)
+	testBatchJSON(t, []PayloadEntry{commonBlock, emptyBatch}, `[{"common":{"interval.ms":5000},"metrics":[]}]`)
 
-	batch = &metricBatch{
+	commonBlock = &metricCommonBlock{
 		Timestamp: start,
 		Interval:  5 * time.Second,
 	}
-	testBatchJSON(t, batch, `[{"common":{"timestamp":1417136460000,"interval.ms":5000},"metrics":[]}]`)
+	testBatchJSON(t, []PayloadEntry{commonBlock, emptyBatch}, `[{"common":{"timestamp":1417136460000,"interval.ms":5000},"metrics":[]}]`)
 }
 
 func TestCommonAttributes(t *testing.T) {
@@ -350,12 +367,13 @@ func TestCommonAttributes(t *testing.T) {
 			expect: `[{"common":{"attributes":{"zip":"zap"}},"metrics":[]}]`},
 	}
 
+	emptyBatch := &metricBatch{}
 	for _, test := range testcases {
-		batch := &metricBatch{
+		commonBlock := &metricCommonBlock{
 			Timestamp:      test.start,
 			Interval:       test.interval,
-			AttributesJSON: test.attributesJSON,
+			Attributes: &commonAttributes{RawJSON: test.attributesJSON},
 		}
-		testBatchJSON(t, batch, test.expect)
+		testBatchJSON(t, []PayloadEntry{commonBlock, emptyBatch}, test.expect)
 	}
 }

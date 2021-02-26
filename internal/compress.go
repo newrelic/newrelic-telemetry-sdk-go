@@ -9,18 +9,33 @@ import (
 	"io/ioutil"
 )
 
-// Compress gzips the given input.
+// Compress gzips the given input. For better performance use CompressWithWriter
+// with a pooled gzip.Writer.
 func Compress(b []byte) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	w := gzip.NewWriter(&buf)
-	_, err := w.Write(b)
-	w.Close()
+	err := CompressWithWriter(b, w)
 
 	if nil != err {
 		return nil, err
 	}
 
 	return &buf, nil
+}
+
+// CompressWithWriter gzips the given input using a specific writer.
+func CompressWithWriter(b []byte, w *gzip.Writer) error {
+	_, err := w.Write(b)
+	if nil != err {
+		return err
+	}
+
+	w.Close()
+	if nil != err {
+		return err
+	}
+
+	return nil
 }
 
 // Uncompress un-gzips the given input.

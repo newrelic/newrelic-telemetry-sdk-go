@@ -5,11 +5,12 @@ package telemetry
 
 import (
 	"bytes"
-	"encoding/json"
 	"time"
 
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
+
+const spanTypeName string = "spans"
 
 // Span is a distributed tracing span.
 type Span struct {
@@ -42,9 +43,6 @@ type Span struct {
 	// Attributes is a map of user specified tags on this span.  The map
 	// values can be any of bool, number, or string.
 	Attributes map[string]interface{}
-	// AttributesJSON is a json.RawMessage of attributes for this metric. It
-	// will only be sent if Attributes is nil.
-	AttributesJSON json.RawMessage
 	// Events is a slice of events that occurred during the execution of a span.
 	// This feature is a work in progress.
 	Events []Event
@@ -102,49 +100,38 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('}')
 }
 
-// spanBatch represents a single batch of spans to report to New Relic.
-type spanBatch struct {
-	// AttributesJSON is a json.RawMessage of attributes to apply to all
-	// spans in this spanBatch. It will only be sent if the Attributes field
-	// on this spanBatch is nil. These attributes are included in addition
-	// to any attributes on any particular span.
-	AttributesJSON json.RawMessage
-	Spans          []Span
+type spanCommonBlock struct {
+	Attributes *commonAttributes
 }
 
-// split will split the spanBatch into 2 equally sized batches.
-// If the number of spans in the original is 0 or 1 then nil is returned.
-func (batch *spanBatch) split() []requestsBuilder {
-	if len(batch.Spans) < 2 {
-		return nil
-	}
-
-	half := len(batch.Spans) / 2
-	b1 := *batch
-	b1.Spans = batch.Spans[:half]
-	b2 := *batch
-	b2.Spans = batch.Spans[half:]
-
-	return []requestsBuilder{
-		requestsBuilder(&b1),
-		requestsBuilder(&b2),
-	}
+// Type returns the type of data contained in this PayloadEntry.
+func (c *spanCommonBlock) Type() string {
+	return "common"
 }
 
-func (batch *spanBatch) writeJSON(buf *bytes.Buffer) {
-	buf.WriteByte('[')
+// Bytes returns the json serialized bytes of the PayloadEntry.
+func (c *spanCommonBlock) Bytes() []byte {
+	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
-
-	w.AddKey("common")
-	buf.WriteByte('{')
-	ww := internal.JSONFieldsWriter{Buf: buf}
-	if nil != batch.AttributesJSON {
-		ww.RawField("attributes", batch.AttributesJSON)
-	}
+	w.RawField(c.Attributes.Type(), c.Attributes.Bytes())
 	buf.WriteByte('}')
+	return buf.Bytes()
+}
 
-	w.AddKey("spans")
+// SpanBatch represents a single batch of spans to report to New Relic.
+type SpanBatch struct {
+	Spans []Span
+}
+
+// Type returns the type of data contained in this PayloadEntry.
+func (batch *SpanBatch) Type() string {
+	return spanTypeName
+}
+
+// Bytes returns the json serialized bytes of the PayloadEntry.
+func (batch *SpanBatch) Bytes() []byte {
+	buf := &bytes.Buffer{}
 	buf.WriteByte('[')
 	for idx, s := range batch.Spans {
 		if idx > 0 {
@@ -153,12 +140,13 @@ func (batch *spanBatch) writeJSON(buf *bytes.Buffer) {
 		s.writeJSON(buf)
 	}
 	buf.WriteByte(']')
-	buf.WriteByte('}')
-	buf.WriteByte(']')
+	return buf.Bytes()
 }
 
-func (batch *spanBatch) makeBody() json.RawMessage {
-	buf := &bytes.Buffer{}
-	batch.writeJSON(buf)
-	return buf.Bytes()
+func (batch *SpanBatch) split() []*SpanBatch {
+	if len(batch.Spans) < 2 {
+		return nil
+	}
+	middle := len(batch.Spans) / 2
+	return []*SpanBatch{{Spans: batch.Spans[0:middle]}, {Spans: batch.Spans[middle:]}}
 }

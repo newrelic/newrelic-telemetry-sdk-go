@@ -12,6 +12,8 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
+const metricTypeName string = "metrics"
+
 // Count is the metric type that counts the number of times an event occurred.
 // This counter should be reset every time the data is reported, meaning the
 // value reported represents the difference in count over the reporting time
@@ -232,6 +234,39 @@ func (m Gauge) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('}')
 }
 
+type metricCommonBlock struct {
+	// Timestamp is the start time of all metrics in the metricBatch.  This value
+	// can be overridden by setting Timestamp on any particular metric.
+	// Timestamp must be set here or on all metrics.
+	Timestamp time.Time
+	// Interval is the length of time for all metrics in the metricBatch.  This
+	// value can be overriden by setting Interval on any particular Count or
+	// Summary metric.  Interval must be set to a non-zero value here or on
+	// all Count and Summary metrics.
+	Interval time.Duration
+	// Attributes is the reference to the common attributes that apply to
+	// all metrics in the batch.
+	Attributes *commonAttributes
+}
+
+// Type returns the type of data contained in this PayloadEntry.
+func (mcb *metricCommonBlock) Type() string {
+	return "common"
+}
+
+// Bytes returns the json serialized bytes of the PayloadEntry.
+func (mcb *metricCommonBlock) Bytes() []byte {
+	buf := &bytes.Buffer{}
+	buf.WriteByte('{')
+	w := internal.JSONFieldsWriter{Buf: buf}
+	writeTimestampInterval(&w, mcb.Timestamp, mcb.Interval)
+	if nil != mcb.Attributes && nil != mcb.Attributes.RawJSON {
+		w.RawField(mcb.Attributes.Type(), mcb.Attributes.Bytes())
+	}
+	buf.WriteByte('}')
+	return buf.Bytes()
+}
+
 // metricBatch represents a single batch of metrics to report to New Relic.
 //
 // Timestamp/Interval are optional and can be used to represent the start and
@@ -243,62 +278,13 @@ func (m Gauge) writeJSON(buf *bytes.Buffer) {
 // Attributes are any attributes that should be applied to all metrics in this
 // batch. Each metric type also accepts an Attributes field.
 type metricBatch struct {
-	// Timestamp is the start time of all metrics in this metricBatch.  This value
-	// can be overridden by setting Timestamp on any particular metric.
-	// Timestamp must be set here or on all metrics.
-	Timestamp time.Time
-	// Interval is the length of time for all metrics in this metricBatch.  This
-	// value can be overriden by setting Interval on any particular Count or
-	// Summary metric.  Interval must be set to a non-zero value here or on
-	// all Count and Summary metrics.
-	Interval time.Duration
-	// AttributesJSON is a json.RawMessage of attributes to apply to all
-	// metrics in this metricBatch. It will only be sent if the Attributes field on
-	// this metricBatch is nil. These attributes are included in addition to any
-	// attributes on any particular metric.
-	AttributesJSON json.RawMessage
 	// Metrics is the slice of metrics to send with this metricBatch.
 	Metrics []Metric
 }
 
-type metricsArray []Metric
-
-func (ma metricsArray) WriteJSON(buf *bytes.Buffer) {
-	buf.WriteByte('[')
-	for idx, m := range ma {
-		if idx > 0 {
-			buf.WriteByte(',')
-		}
-		m.writeJSON(buf)
-	}
-	buf.WriteByte(']')
-}
-
-type commonAttributes metricBatch
-
-func (c commonAttributes) WriteJSON(buf *bytes.Buffer) {
-	buf.WriteByte('{')
-	w := internal.JSONFieldsWriter{Buf: buf}
-	writeTimestampInterval(&w, c.Timestamp, c.Interval)
-	if nil != c.AttributesJSON {
-		w.RawField("attributes", c.AttributesJSON)
-	}
-	buf.WriteByte('}')
-}
-
-func (batch *metricBatch) writeJSON(buf *bytes.Buffer) {
-	buf.WriteByte('[')
-	buf.WriteByte('{')
-	w := internal.JSONFieldsWriter{Buf: buf}
-	w.WriterField("common", commonAttributes(*batch))
-	w.WriterField("metrics", metricsArray(batch.Metrics))
-	buf.WriteByte('}')
-	buf.WriteByte(']')
-}
-
 // split will split the metricBatch into 2 equal parts, returning a slice of metricBatches.
 // If the number of metrics in the original is 0 or 1 then nil is returned.
-func (batch *metricBatch) split() []requestsBuilder {
+func (batch *metricBatch) split() []*metricBatch {
 	if len(batch.Metrics) < 2 {
 		return nil
 	}
@@ -309,14 +295,24 @@ func (batch *metricBatch) split() []requestsBuilder {
 	mb2 := *batch
 	mb2.Metrics = batch.Metrics[half:]
 
-	return []requestsBuilder{
-		requestsBuilder(&mb1),
-		requestsBuilder(&mb2),
-	}
+	return []*metricBatch{&mb1, &mb2}
 }
 
-func (batch *metricBatch) makeBody() json.RawMessage {
+// Type returns the type of data contained in this PayloadEntry.
+func (batch *metricBatch) Type() string {
+	return metricTypeName
+}
+
+// Bytes returns the json serialized bytes of the PayloadEntry.
+func (batch *metricBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
-	batch.writeJSON(buf)
+	buf.WriteByte('[')
+	for idx, m := range batch.Metrics {
+		if idx > 0 {
+			buf.WriteByte(',')
+		}
+		m.writeJSON(buf)
+	}
+	buf.WriteByte(']')
 	return buf.Bytes()
 }

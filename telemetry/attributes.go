@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -43,4 +44,30 @@ func vetAttributes(attributes map[string]interface{}, errorLogger func(map[strin
 		}
 	}
 	return validAttributes
+}
+
+type commonAttributes struct {
+	RawJSON json.RawMessage
+}
+
+func (ca *commonAttributes) Type() string {
+	return "attributes"
+}
+
+func (ca *commonAttributes) Bytes() []byte {
+	return ca.RawJSON
+}
+
+func newCommonAttributes(attributes map[string]interface{}, errorLogger func(map[string]interface{})) (*commonAttributes) {
+	attrs := vetAttributes(attributes, errorLogger)
+	attributesJSON, err := json.Marshal(attrs)
+
+	if (err != nil) {
+		errorLogger(map[string]interface{}{
+			"err":     err.Error(),
+			"message": "error marshaling common attributes",
+		})
+		return nil
+	}
+	return &commonAttributes{RawJSON: attributesJSON}
 }
