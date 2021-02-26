@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"errors"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal/uuid"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -141,6 +142,7 @@ func (f *requestFactory) getHeaders() http.Header {
 		"Content-Encoding": []string{"gzip"},
 		"Api-Key":          []string{f.insertKey},
 		"User-Agent":       []string{f.userAgent},
+		"x-request-id":     []string{uuid.NewString()},
 	}
 }
 
