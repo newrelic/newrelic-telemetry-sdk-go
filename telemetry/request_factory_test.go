@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"compress/gzip"
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 	"io/ioutil"
 	"testing"
@@ -37,14 +38,35 @@ func TestNewRequestFactoryNoKeyFail(t *testing.T) {
 	}
 }
 
-type MockPayloadEntry struct { }
+func TestClientOptions(t *testing.T) {
+	tests := []struct {
+		name   string
+		option ClientOption
+	}{
+		{name: "WithInsertKey", option: WithInsertKey("blahblah")},
+		{name: "WithNoDefaultKey", option: WithNoDefaultKey()},
+		{name: "WithEndpoint", option: WithEndpoint("localhost")},
+		{name: "WithUserAgent", option: WithUserAgent("secret-agent")},
+		{name: "WithInsecure", option: WithInsecure()},
+		{name: "WithGzipCompressionLevel-bad", option: WithGzipCompressionLevel(9000)},
+		{name: "WithGzipCompressionLevel-good", option: WithGzipCompressionLevel(gzip.BestCompression)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			NewSpanRequestFactory(test.option)
+		})
+	}
+}
+
+type MockPayloadEntry struct{}
 
 func (m *MockPayloadEntry) Type() string {
 	return "spans"
 }
 
 func (m *MockPayloadEntry) Bytes() []byte {
-	return []byte{'[',']'}
+	return []byte{'[', ']'}
 }
 
 func TestSpanFactoryRequest(t *testing.T) {

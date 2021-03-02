@@ -179,7 +179,7 @@ func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
 		path:      "/trace/v1",
 		userAgent: defaultUserAgent,
 		scheme:    defaultScheme,
-		zippers:   newGzipPool(),
+		zippers:   newGzipPool(gzip.DefaultCompression),
 	}
 	err := configure(f, options)
 	if err != nil {
@@ -196,7 +196,7 @@ func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
 		path:      "/metric/v1",
 		userAgent: defaultUserAgent,
 		scheme:    defaultScheme,
-		zippers:   newGzipPool(),
+		zippers:   newGzipPool(gzip.DefaultCompression),
 	}
 	err := configure(f, options)
 	if err != nil {
@@ -213,7 +213,7 @@ func NewEventRequestFactory(options ...ClientOption) (RequestFactory, error) {
 		path:      "/v1/accounts/events",
 		userAgent: defaultUserAgent,
 		scheme:    defaultScheme,
-		zippers:   newGzipPool(),
+		zippers:   newGzipPool(gzip.DefaultCompression),
 	}
 	err := configure(f, options)
 	if err != nil {
@@ -230,7 +230,7 @@ func NewLogRequestFactory(options ...ClientOption) (RequestFactory, error) {
 		path:      "/log/v1",
 		userAgent: defaultUserAgent,
 		scheme:    defaultScheme,
-		zippers:   newGzipPool(),
+		zippers:   newGzipPool(gzip.DefaultCompression),
 	}
 	err := configure(f, options)
 	if err != nil {
@@ -240,9 +240,10 @@ func NewLogRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	return &hashRequestFactory{requestFactory: f}, nil
 }
 
-func newGzipPool() *sync.Pool {
+func newGzipPool(gzipLevel int) *sync.Pool {
 	pool := sync.Pool{New: func() interface{} {
-		return gzip.NewWriter(nil)
+		z, _ := gzip.NewWriterLevel(nil, gzipLevel)
+		return z
 	}}
 	return &pool
 }
@@ -276,10 +277,19 @@ func WithUserAgent(userAgent string) ClientOption {
 	}
 }
 
-// WithInsecure creates a ClientOption to speficy that requests should be sent over http instead of https.
+// WithInsecure creates a ClientOption to specify that requests should be sent over http instead of https.
 func WithInsecure() ClientOption {
 	return func(o *requestFactory) {
 		o.scheme = "http"
+	}
+}
+
+func WithGzipCompressionLevel(level int) ClientOption {
+	return func(o *requestFactory) {
+		// If the gzip compression level is invalid, the gzip pool is not overridden
+		if _, err := gzip.NewWriterLevel(nil, level); err != nil {
+			o.zippers = newGzipPool(level)
+		}
 	}
 }
 
