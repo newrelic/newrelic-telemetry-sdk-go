@@ -4,11 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+
 ## [Unreleased]
+
+## [0.5.2] - 2021-03-02
 ### Added
 - Adds a RequestFactory API that can be used for managing the telemetry data
 requests if you need more fine-grained control than the Harvester API supports.
 Only Span data is currently supported by this API.
+### Fixed
+- Fix performance issue caused by the gzip writer being reallocated for each
+request - it's now reused between requests. 
 
 ## [0.5.1] - 2020-12-16
 - Fixed bug that resulted in payload size remaining slightly too large after
