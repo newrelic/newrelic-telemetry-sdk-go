@@ -223,6 +223,23 @@ func NewEventRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	return &eventRequestFactory{requestFactory: f}, nil
 }
 
+// NewLogRequestFactory creates a new instance of a RequestFactory that can be used to send Log data to New Relic.
+func NewLogRequestFactory(options ...ClientOption) (RequestFactory, error) {
+	f := &requestFactory{
+		endpoint:  "log-api.newrelic.com",
+		path:      "/log/v1",
+		userAgent: defaultUserAgent,
+		scheme:    defaultScheme,
+		zippers:   newGzipPool(),
+	}
+	err := configure(f, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return &hashRequestFactory{requestFactory: f}, nil
+}
+
 func newGzipPool() *sync.Pool {
 	pool := sync.Pool{New: func() interface{} {
 		return gzip.NewWriter(nil)
