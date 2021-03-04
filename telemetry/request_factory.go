@@ -284,6 +284,7 @@ func WithInsecure() ClientOption {
 	}
 }
 
+// WithGzipCompressionLevel creates a ClientOption to specify the level of gzip compression that should be used for the request.
 func WithGzipCompressionLevel(level int) ClientOption {
 	return func(o *requestFactory) {
 		// If the gzip compression level is invalid, the gzip pool is not overridden
