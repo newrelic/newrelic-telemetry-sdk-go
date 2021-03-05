@@ -5,14 +5,18 @@ name: Go Telemetry SDK CI
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
+    tags-ignore:
+      - '**'
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
 
 jobs:
 
   test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     
     strategy:
       fail-fast: false
@@ -43,7 +47,9 @@ jobs:
         CGO_ENABLED: 0
 
     - name: Lint
-      run: go get -u golang.org/x/lint/golint; /github/home/go/bin/golint -set_exit_status ./...
+      run: |
+        go get -u golang.org/x/lint/golint
+        golint -set_exit_status ./...
 
     - name: Test
       run: go test -benchtime=1ms -bench=. ./...
