@@ -47,6 +47,8 @@ type Config struct {
 	SpansURLOverride string
 	// EventsURLOverride overrides the events endpoint if not empty
 	EventsURLOverride string
+	// LogsURLOverride overrides the logs endpoint if not empty.
+	LogsURLOverride string
 	// Product is added to the User-Agent header. eg. "NewRelic-Go-OpenCensus"
 	Product string
 	// ProductVersion is added to the User-Agent header. eg. "0.1.0".
@@ -138,6 +140,14 @@ func ConfigEventsURLOverride(url string) func(*Config) {
 	}
 }
 
+// ConfigLogsURLOverride sets the Config's LogsURLOverride field which
+// overrides the logs endpoint if not empty.
+func ConfigLogsURLOverride(url string) func(*Config) {
+	return func(cfg *Config) {
+		cfg.LogsURLOverride = url
+	}
+}
+
 // configTesting is the config function to be used when testing. It sets the
 // APIKey but disables the harvest goroutine.
 func configTesting(cfg *Config) {
@@ -174,6 +184,7 @@ const (
 	defaultSpanURL   = "https://trace-api.newrelic.com/trace/v1"
 	defaultMetricURL = "https://metric-api.newrelic.com/metric/v1"
 	defaultEventURL  = "https://insights-collector.newrelic.com/v1/accounts/events"
+	defaultLogURL    = "https://log-api.newrelic.com/log/v1"
 )
 
 func (cfg *Config) spanURL() string {
@@ -195,6 +206,13 @@ func (cfg *Config) eventURL() string {
 		return cfg.EventsURLOverride
 	}
 	return defaultEventURL
+}
+
+func (cfg *Config) logURL() string {
+	if cfg.LogsURLOverride != "" {
+		return cfg.LogsURLOverride
+	}
+	return defaultLogURL
 }
 
 // userAgent creates the extended portion of the User-Agent header version according to the spec here:

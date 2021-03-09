@@ -31,9 +31,11 @@ type Harvester struct {
 	aggregatedMetrics    map[metricIdentity]*metric
 	spans                []Span
 	events               []Event
+	logs                 []Log
 	spanRequestFactory   RequestFactory
 	metricRequestFactory RequestFactory
 	eventRequestFactory  RequestFactory
+	logRequestFactory    RequestFactory
 }
 
 const (
@@ -112,6 +114,18 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		WithUserAgent(h.config.userAgent()),
 	)
 
+	logURL, err := url.Parse(h.config.logURL())
+	if nil != err {
+		return nil, err
+	}
+
+	h.logRequestFactory, err = NewLogRequestFactory(
+		WithInsertKey(h.config.APIKey),
+		withScheme(logURL.Scheme),
+		WithEndpoint(logURL.Host),
+		WithUserAgent(h.config.userAgent()),
+	)
+
 	h.config.logDebug(map[string]interface{}{
 		"event":                  "harvester created",
 		"api-key":                h.config.APIKey,
@@ -119,6 +133,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		"metrics-url-override":   h.config.MetricsURLOverride,
 		"spans-url-override":     h.config.SpansURLOverride,
 		"events-url-override":    h.config.EventsURLOverride,
+		"logs-url-override":      h.config.LogsURLOverride,
 		"version":                version,
 	})
 
@@ -130,9 +145,10 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 }
 
 var (
-	errSpanIDUnset    = errors.New("span id must be set")
-	errTraceIDUnset   = errors.New("trace id must be set")
-	errEventTypeUnset = errors.New("eventType must be set")
+	errSpanIDUnset     = errors.New("span id must be set")
+	errTraceIDUnset    = errors.New("trace id must be set")
+	errEventTypeUnset  = errors.New("eventType must be set")
+	errLogMessageUnset = errors.New("log message must be set")
 )
 
 // RecordSpan records the given span.
@@ -193,6 +209,25 @@ func (h *Harvester) RecordEvent(e Event) error {
 	defer h.lock.Unlock()
 
 	h.events = append(h.events, e)
+	return nil
+}
+
+// RecordLog records the given log message.
+func (h *Harvester) RecordLog(l Log) error {
+	if nil == h {
+		return nil
+	}
+	if "" == l.Message {
+		return errLogMessageUnset
+	}
+	if l.Timestamp.IsZero() {
+		l.Timestamp = time.Now()
+	}
+
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
+	h.logs = append(h.logs, l)
 	return nil
 }
 
@@ -315,7 +350,7 @@ func (h *Harvester) swapOutSpans() []*http.Request {
 	}
 
 	entries := []PayloadEntry{}
-	if (nil != h.commonAttributes) {
+	if nil != h.commonAttributes {
 		entries = append(entries, &spanCommonBlock{Attributes: h.commonAttributes})
 	}
 	entries = append(entries, &SpanBatch{Spans: sps})
@@ -348,6 +383,32 @@ func (h *Harvester) swapOutEvents() []*http.Request {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
 			"message": "error creating requests for events",
+		})
+		return nil
+	}
+	return reqs
+}
+
+func (h *Harvester) swapOutLogs() []*http.Request {
+	h.lock.Lock()
+	logs := h.logs
+	h.logs = nil
+	h.lock.Unlock()
+
+	if nil == logs {
+		return nil
+	}
+
+	entries := []PayloadEntry{}
+	if nil != h.commonAttributes {
+		entries = append(entries, &logCommonBlock{Attributes: h.commonAttributes})
+	}
+	entries = append(entries, &LogBatch{Logs: logs})
+	reqs, err := newRequests(entries, h.logRequestFactory)
+	if nil != err {
+		h.config.logError(map[string]interface{}{
+			"err":     err.Error(),
+			"message": "error creating requests for logs",
 		})
 		return nil
 	}
@@ -426,6 +487,7 @@ func (h *Harvester) HarvestNow(ct context.Context) {
 	reqs = append(reqs, h.swapOutMetrics(time.Now())...)
 	reqs = append(reqs, h.swapOutSpans()...)
 	reqs = append(reqs, h.swapOutEvents()...)
+	reqs = append(reqs, h.swapOutLogs()...)
 
 	for _, req := range reqs {
 		httpRequest := req.WithContext(ctx)
