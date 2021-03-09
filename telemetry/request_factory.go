@@ -44,6 +44,7 @@ type requestFactory struct {
 	endpoint     string
 	path         string
 	userAgent    string
+	extraHeaders map[string]string
 	zippers      *sync.Pool
 }
 
@@ -87,6 +88,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 			endpoint:     f.endpoint,
 			path:         f.path,
 			userAgent:    f.userAgent,
+			extraHeaders: f.extraHeaders,
 			zippers:      f.zippers,
 		}
 
@@ -136,12 +138,18 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 }
 
 func (f *requestFactory) getHeaders() http.Header {
-	return http.Header{
+	header := http.Header{
 		"Content-Type":     []string{"application/json"},
 		"Content-Encoding": []string{"gzip"},
 		"Api-Key":          []string{f.insertKey},
 		"User-Agent":       []string{f.userAgent},
 	}
+
+	for key, value := range f.extraHeaders {
+		header.Add(key, value)
+	}
+
+	return header
 }
 
 func getHashedPayloadBytes(buf *bytes.Buffer, entries []PayloadEntry) {
@@ -291,6 +299,13 @@ func WithGzipCompressionLevel(level int) ClientOption {
 		if _, err := gzip.NewWriterLevel(nil, level); err != nil {
 			o.zippers = newGzipPool(level)
 		}
+	}
+}
+
+// WithExtraHeaders creates a ClientOption to specify additional headers that should be added to the generated requests.
+func WithExtraHeaders(extraHeaders map[string]string) ClientOption {
+	return func(o *requestFactory) {
+		o.extraHeaders = extraHeaders
 	}
 }
 

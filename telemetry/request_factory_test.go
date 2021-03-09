@@ -50,6 +50,7 @@ func TestClientOptions(t *testing.T) {
 		{name: "WithInsecure", option: WithInsecure()},
 		{name: "WithGzipCompressionLevel-bad", option: WithGzipCompressionLevel(9000)},
 		{name: "WithGzipCompressionLevel-good", option: WithGzipCompressionLevel(gzip.BestCompression)},
+		{name: "WithExtraHeaders", option: WithExtraHeaders(map[string]string{"foo": "bar", "baz": "qux"})},
 	}
 
 	for _, test := range tests {
@@ -70,7 +71,7 @@ func (m *MockPayloadEntry) Bytes() []byte {
 }
 
 func TestSpanFactoryRequest(t *testing.T) {
-	f, _ := NewSpanRequestFactory(WithInsertKey("key!"))
+	f, _ := NewSpanRequestFactory(WithInsertKey("key!"), WithExtraHeaders(map[string]string{"foo": "bar"}))
 	request, _ := f.BuildRequest([]PayloadEntry{&MockPayloadEntry{}})
 	if request.Method != "POST" {
 		t.Error("Method was not POST")
@@ -98,6 +99,10 @@ func TestSpanFactoryRequest(t *testing.T) {
 
 	if request.Header.Get("Api-Key") != "key!" {
 		t.Error("Incorrect api key header")
+	}
+
+	if request.Header.Get("foo") != "bar" {
+		t.Error("Incorrect foo key header")
 	}
 
 	if request.Header.Get("User-Agent") != defaultUserAgent {
