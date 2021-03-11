@@ -65,39 +65,53 @@ func TestSpansPayloadSplit(t *testing.T) {
 	}
 
 	// test len 2
-	sp = &SpanBatch{Spans: []Span{{Name: "a"}, {Name: "b"}}}
+	attrs, err := NewCommonAttributes(map[string]interface{}{"foo": "bar"})
+	if err != nil {
+		t.Fail()
+	}
+	common := SpanCommonBlock{Attributes: attrs}
+	sp = &SpanBatch{Common: &common, Spans: []Span{{Name: "a"}, {Name: "b"}}}
 	split = sp.split()
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testSpanBatchJSON(t, []PayloadEntry { split[0] }, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
-	testSpanBatchJSON(t, []PayloadEntry { split[1] }, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}}]}]`)
+	testSpanBatchJSON(t, []PayloadEntry{split[0]}, `[{"common":{"attributes":{"foo":"bar"}},"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
+	testSpanBatchJSON(t, []PayloadEntry{split[1]}, `[{"common":{"attributes":{"foo":"bar"}},"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}}]}]`)
 
 	// test len 3
-	sp = &SpanBatch{Spans: []Span{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
+	sp = &SpanBatch{Common: &common, Spans: []Span{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
 	split = sp.split()
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testSpanBatchJSON(t, []PayloadEntry { split[0] }, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
-	testSpanBatchJSON(t, []PayloadEntry { split[1] }, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}},{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"c"}}]}]`)
+	testSpanBatchJSON(t, []PayloadEntry{split[0]}, `[{"common":{"attributes":{"foo":"bar"}},"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
+	testSpanBatchJSON(t, []PayloadEntry{split[1]}, `[{"common":{"attributes":{"foo":"bar"}},"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}},{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"c"}}]}]`)
 }
 
 func TestSpansJSON(t *testing.T) {
-	batch := &SpanBatch{Spans: []Span{
-		{}, // Empty span
-		{ // Span with everything
-			ID:          "myid",
-			TraceID:     "mytraceid",
-			Name:        "myname",
-			ParentID:    "myparentid",
-			Timestamp:   time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
-			Duration:    2 * time.Second,
-			ServiceName: "myentity",
-			Attributes:  map[string]interface{}{"zip": "zap"},
+	attrs, err := NewCommonAttributes(map[string]interface{}{"foo": "bar"})
+	if err != nil {
+		t.Fail()
+	}
+	batch := &SpanBatch{
+		Common: &SpanCommonBlock{
+			Attributes: attrs,
 		},
-	}}
-	testSpanBatchJSON(t, []PayloadEntry { batch }, `[{"spans":[
+		Spans: []Span{
+			{}, // Empty span
+			{ // Span with everything
+				ID:          "myid",
+				TraceID:     "mytraceid",
+				Name:        "myname",
+				ParentID:    "myparentid",
+				Timestamp:   time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
+				Duration:    2 * time.Second,
+				ServiceName: "myentity",
+				Attributes:  map[string]interface{}{"zip": "zap"},
+			},
+		},
+	}
+	testSpanBatchJSON(t, []PayloadEntry{batch}, `[{"common":{"attributes":{"foo":"bar"}},"spans":[
 		{
 			"id":"",
 			"trace.id":"",
@@ -121,11 +135,10 @@ func TestSpansJSON(t *testing.T) {
 }
 
 func TestSpansJSONWithCommonAttributesJSON(t *testing.T) {
-	commonBlock := &spanCommonBlock {
-		Attributes: &commonAttributes { RawJSON: json.RawMessage(`{"zup":"wup"}`) },
-	}
-
 	batch := &SpanBatch{
+		Common: &SpanCommonBlock{
+			Attributes: &commonAttributes{RawJSON: json.RawMessage(`{"zup":"wup"}`)},
+		},
 		Spans: []Span{
 			{
 				ID:          "myid",
@@ -138,7 +151,7 @@ func TestSpansJSONWithCommonAttributesJSON(t *testing.T) {
 				Attributes:  map[string]interface{}{"zip": "zap"},
 			},
 		}}
-	testSpanBatchJSON(t, []PayloadEntry {commonBlock, batch}, `[{"common":{"attributes":{"zup":"wup"}},"spans":[
+	testSpanBatchJSON(t, []PayloadEntry{batch}, `[{"common":{"attributes":{"zup":"wup"}},"spans":[
 		{
 			"id":"myid",
 			"trace.id":"mytraceid",

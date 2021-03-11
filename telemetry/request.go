@@ -31,7 +31,7 @@ func newRequests(entries []PayloadEntry, factory RequestFactory) ([]*http.Reques
 
 func newRequestsInternal(entries []PayloadEntry, factory RequestFactory, needsSplit func(*http.Request) bool) ([]*http.Request, error) {
 	r, err := factory.BuildRequest(entries)
-	if (nil != err) {
+	if nil != err {
 		return nil, err
 	}
 

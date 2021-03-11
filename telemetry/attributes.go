@@ -5,7 +5,9 @@ package telemetry
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 )
 
 func attributeValueValid(val interface{}) bool {
@@ -20,7 +22,7 @@ func attributeValueValid(val interface{}) bool {
 
 // vetAttributes returns the attributes that are valid.  vetAttributes does not
 // modify remove any elements from its parameter.
-func vetAttributes(attributes map[string]interface{}, errorLogger func(map[string]interface{})) map[string]interface{} {
+func vetAttributes(attributes map[string]interface{}) (map[string]interface{}, error) {
 	valid := true
 	for _, val := range attributes {
 		if !attributeValueValid(val) {
@@ -29,21 +31,20 @@ func vetAttributes(attributes map[string]interface{}, errorLogger func(map[strin
 		}
 	}
 	if valid {
-		return attributes
+		return attributes, nil
 	}
 	// Note that the map is only copied if elements are to be removed to
 	// improve performance.
 	validAttributes := make(map[string]interface{}, len(attributes))
+	var errStrs []string
 	for key, val := range attributes {
 		if attributeValueValid(val) {
 			validAttributes[key] = val
-		} else if nil != errorLogger {
-			errorLogger(map[string]interface{}{
-				"err": fmt.Sprintf(`attribute "%s" has invalid type %T`, key, val),
-			})
+		} else {
+			errStrs = append(errStrs, fmt.Sprintf(`attribute "%s" has invalid type %T`, key, val))
 		}
 	}
-	return validAttributes
+	return validAttributes, errors.New(strings.Join(errStrs, ","))
 }
 
 type commonAttributes struct {
@@ -58,16 +59,15 @@ func (ca *commonAttributes) Bytes() []byte {
 	return ca.RawJSON
 }
 
-func newCommonAttributes(attributes map[string]interface{}, errorLogger func(map[string]interface{})) (*commonAttributes) {
-	attrs := vetAttributes(attributes, errorLogger)
-	attributesJSON, err := json.Marshal(attrs)
-
-	if (err != nil) {
-		errorLogger(map[string]interface{}{
-			"err":     err.Error(),
-			"message": "error marshaling common attributes",
-		})
-		return nil
+// NewCommonAttributes vets the attributes map and converts it to a commonAttributes.
+func NewCommonAttributes(attributes map[string]interface{}) (*commonAttributes, error) {
+	attrs, err := vetAttributes(attributes)
+	if err != nil {
+		return nil, err
 	}
-	return &commonAttributes{RawJSON: attributesJSON}
+	attributesJSON, err := json.Marshal(attrs)
+	if err != nil {
+		return nil, err
+	}
+	return &commonAttributes{RawJSON: attributesJSON}, nil
 }

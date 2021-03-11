@@ -18,7 +18,7 @@ const defaultScheme = "https"
 
 // PayloadEntry represents a piece of the telemetry data that is included in a single
 // request that should be sent to New Relic. Example PayloadEntry types include SpanBatch
-// and the internal spanCommonBlock.
+// and SpanCommonBlock.
 type PayloadEntry interface {
 	// Type returns the type of data contained in this PayloadEntry.
 	Type() string
@@ -186,7 +186,7 @@ func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
 		return nil, err
 	}
 
-	return &hashRequestFactory{requestFactory: f}, nil
+	return &eventRequestFactory{requestFactory: f}, nil
 }
 
 // NewMetricRequestFactory creates a new instance of a RequestFactory that can be used to send Metric data to New Relic.

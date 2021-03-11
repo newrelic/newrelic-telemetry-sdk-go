@@ -100,17 +100,18 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('}')
 }
 
-type spanCommonBlock struct {
+// SpanCommonBlock represents the shared elements of a SpanBatch.
+type SpanCommonBlock struct {
 	Attributes *commonAttributes
 }
 
 // Type returns the type of data contained in this PayloadEntry.
-func (c *spanCommonBlock) Type() string {
+func (c *SpanCommonBlock) Type() string {
 	return "common"
 }
 
 // Bytes returns the json serialized bytes of the PayloadEntry.
-func (c *spanCommonBlock) Bytes() []byte {
+func (c *SpanCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
@@ -121,7 +122,8 @@ func (c *spanCommonBlock) Bytes() []byte {
 
 // SpanBatch represents a single batch of spans to report to New Relic.
 type SpanBatch struct {
-	Spans []Span
+	Common *SpanCommonBlock
+	Spans  []Span
 }
 
 // Type returns the type of data contained in this PayloadEntry.
@@ -132,6 +134,13 @@ func (batch *SpanBatch) Type() string {
 // Bytes returns the json serialized bytes of the PayloadEntry.
 func (batch *SpanBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
+	w := internal.JSONFieldsWriter{Buf: buf}
+
+	buf.WriteByte('{')
+	if batch.Common != nil {
+		w.RawField(batch.Common.Type(), batch.Common.Bytes())
+	}
+	w.AddKey(batch.Type())
 	buf.WriteByte('[')
 	for idx, s := range batch.Spans {
 		if idx > 0 {
@@ -140,6 +149,7 @@ func (batch *SpanBatch) Bytes() []byte {
 		s.writeJSON(buf)
 	}
 	buf.WriteByte(']')
+	buf.WriteByte('}')
 	return buf.Bytes()
 }
 
@@ -148,5 +158,8 @@ func (batch *SpanBatch) split() []*SpanBatch {
 		return nil
 	}
 	middle := len(batch.Spans) / 2
-	return []*SpanBatch{{Spans: batch.Spans[0:middle]}, {Spans: batch.Spans[middle:]}}
+	return []*SpanBatch{
+		{Spans: batch.Spans[0:middle], Common: batch.Common},
+		{Spans: batch.Spans[middle:], Common: batch.Common},
+	}
 }

@@ -59,19 +59,9 @@ func TestClientOptions(t *testing.T) {
 	}
 }
 
-type MockPayloadEntry struct{}
-
-func (m *MockPayloadEntry) Type() string {
-	return "spans"
-}
-
-func (m *MockPayloadEntry) Bytes() []byte {
-	return []byte{'[', ']'}
-}
-
 func TestSpanFactoryRequest(t *testing.T) {
 	f, _ := NewSpanRequestFactory(WithInsertKey("key!"))
-	request, _ := f.BuildRequest([]PayloadEntry{&MockPayloadEntry{}})
+	request, _ := f.BuildRequest([]PayloadEntry{&SpanBatch{}})
 	if request.Method != "POST" {
 		t.Error("Method was not POST")
 	}

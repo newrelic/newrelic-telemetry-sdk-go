@@ -370,8 +370,8 @@ func TestCommonAttributes(t *testing.T) {
 	emptyBatch := &metricBatch{}
 	for _, test := range testcases {
 		commonBlock := &metricCommonBlock{
-			Timestamp:      test.start,
-			Interval:       test.interval,
+			Timestamp:  test.start,
+			Interval:   test.interval,
 			Attributes: &commonAttributes{RawJSON: test.attributesJSON},
 		}
 		testBatchJSON(t, []PayloadEntry{commonBlock, emptyBatch}, test.expect)
