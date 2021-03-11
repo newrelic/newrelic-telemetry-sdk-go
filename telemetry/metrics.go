@@ -246,7 +246,7 @@ type metricCommonBlock struct {
 	Interval time.Duration
 	// Attributes is the reference to the common attributes that apply to
 	// all metrics in the batch.
-	Attributes *commonAttributes
+	Attributes *CommonAttributes
 }
 
 // Type returns the type of data contained in this PayloadEntry.

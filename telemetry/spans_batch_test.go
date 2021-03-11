@@ -137,7 +137,7 @@ func TestSpansJSON(t *testing.T) {
 func TestSpansJSONWithCommonAttributesJSON(t *testing.T) {
 	batch := &SpanBatch{
 		Common: &SpanCommonBlock{
-			Attributes: &commonAttributes{RawJSON: json.RawMessage(`{"zup":"wup"}`)},
+			Attributes: &CommonAttributes{RawJSON: json.RawMessage(`{"zup":"wup"}`)},
 		},
 		Spans: []Span{
 			{

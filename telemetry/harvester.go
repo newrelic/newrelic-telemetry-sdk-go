@@ -22,7 +22,7 @@ type Harvester struct {
 	// These fields are not modified after Harvester creation.  They may be
 	// safely accessed without locking.
 	config           Config
-	commonAttributes *commonAttributes
+	commonAttributes *CommonAttributes
 
 	// lock protects the mutable fields below.
 	lock                 sync.Mutex

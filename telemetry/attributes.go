@@ -47,20 +47,23 @@ func vetAttributes(attributes map[string]interface{}) (map[string]interface{}, e
 	return validAttributes, errors.New(strings.Join(errStrs, ","))
 }
 
-type commonAttributes struct {
+// CommonAttributes defines a shared set of attributes.
+type CommonAttributes struct {
 	RawJSON json.RawMessage
 }
 
-func (ca *commonAttributes) Type() string {
+// Type returns the type of data contained in this PayloadEntry.
+func (ca *CommonAttributes) Type() string {
 	return "attributes"
 }
 
-func (ca *commonAttributes) Bytes() []byte {
+// Bytes returns the json serialized bytes of the PayloadEntry.
+func (ca *CommonAttributes) Bytes() []byte {
 	return ca.RawJSON
 }
 
-// NewCommonAttributes vets the attributes map and converts it to a commonAttributes.
-func NewCommonAttributes(attributes map[string]interface{}) (*commonAttributes, error) {
+// NewCommonAttributes vets the attributes map and converts it to a CommonAttributes.
+func NewCommonAttributes(attributes map[string]interface{}) (*CommonAttributes, error) {
 	attrs, err := vetAttributes(attributes)
 	if err != nil {
 		return nil, err
@@ -69,5 +72,5 @@ func NewCommonAttributes(attributes map[string]interface{}) (*commonAttributes, 
 	if err != nil {
 		return nil, err
 	}
-	return &commonAttributes{RawJSON: attributesJSON}, nil
+	return &CommonAttributes{RawJSON: attributesJSON}, nil
 }

@@ -102,7 +102,7 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 
 // SpanCommonBlock represents the shared elements of a SpanBatch.
 type SpanCommonBlock struct {
-	Attributes *commonAttributes
+	Attributes *CommonAttributes
 }
 
 // Type returns the type of data contained in this PayloadEntry.

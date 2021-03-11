@@ -47,7 +47,7 @@ func TestMetrics(t *testing.T) {
 			Interval:  5 * time.Second,
 		},
 	}
-	commonAttributes := &commonAttributes{RawJSON: json.RawMessage(`{"zip":"zap"}`)}
+	commonAttributes := &CommonAttributes{RawJSON: json.RawMessage(`{"zip":"zap"}`)}
 	commonBlock := &metricCommonBlock{Attributes: commonAttributes}
 
 	expect := compactJSONString(`[{
@@ -171,7 +171,7 @@ func TestSplit(t *testing.T) {
 
 func BenchmarkMetricsJSON(b *testing.B) {
 	// This benchmark tests the overhead of turning metrics into JSON.
-	commonAttributes := commonAttributes{RawJSON: json.RawMessage(`{"zip": "zap"}`)}
+	commonAttributes := CommonAttributes{RawJSON: json.RawMessage(`{"zip": "zap"}`)}
 	commonBlock := &metricCommonBlock{Attributes: &commonAttributes}
 	batch := &metricBatch{}
 	numMetrics := 10 * 1000
@@ -317,7 +317,7 @@ func TestSummaryAttributesJSON(t *testing.T) {
 }
 
 func TestBatchAttributesJSON(t *testing.T) {
-	commonAttributes := &commonAttributes{RawJSON: json.RawMessage(`{"zing":"zang"}`)}
+	commonAttributes := &CommonAttributes{RawJSON: json.RawMessage(`{"zing":"zang"}`)}
 	commonBlock := &metricCommonBlock{Attributes: commonAttributes}
 	batch := &metricBatch{}
 	testBatchJSON(t, []PayloadEntry{commonBlock, batch}, `[{"common":{"attributes":{"zing":"zang"}},"metrics":[]}]`)
@@ -372,7 +372,7 @@ func TestCommonAttributes(t *testing.T) {
 		commonBlock := &metricCommonBlock{
 			Timestamp:  test.start,
 			Interval:   test.interval,
-			Attributes: &commonAttributes{RawJSON: test.attributesJSON},
+			Attributes: &CommonAttributes{RawJSON: test.attributesJSON},
 		}
 		testBatchJSON(t, []PayloadEntry{commonBlock, emptyBatch}, test.expect)
 	}

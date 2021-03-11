@@ -50,7 +50,7 @@ func (l *Log) writeJSON(buf *bytes.Buffer) {
 }
 
 type logCommonBlock struct {
-	Attributes *commonAttributes
+	Attributes *CommonAttributes
 }
 
 // Type returns the type of data contained in this PayloadEntry.

@@ -111,7 +111,7 @@ func TestLogsJSON(t *testing.T) {
 
 func TestLogsJSONWithCommonAttributesJSON(t *testing.T) {
 	commonBlock := &logCommonBlock{
-		Attributes: &commonAttributes{RawJSON: json.RawMessage(`{"zup":"wup"}`)},
+		Attributes: &CommonAttributes{RawJSON: json.RawMessage(`{"zup":"wup"}`)},
 	}
 
 	batch := &LogBatch{
