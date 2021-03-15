@@ -58,11 +58,11 @@ func (ca *commonAttributes) Bytes() []byte {
 	return ca.RawJSON
 }
 
-func newCommonAttributes(attributes map[string]interface{}, errorLogger func(map[string]interface{})) (*commonAttributes) {
+func newCommonAttributes(attributes map[string]interface{}, errorLogger func(map[string]interface{})) *commonAttributes {
 	attrs := vetAttributes(attributes, errorLogger)
 	attributesJSON, err := json.Marshal(attrs)
 
-	if (err != nil) {
+	if err != nil {
 		errorLogger(map[string]interface{}{
 			"err":     err.Error(),
 			"message": "error marshaling common attributes",

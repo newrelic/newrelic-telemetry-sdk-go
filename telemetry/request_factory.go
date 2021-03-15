@@ -34,7 +34,7 @@ type RequestFactory interface {
 	// BuildRequest converts the telemetry payload entries into an http.Request.
 	// Do not mix telemetry data types in a single call to build request. Each
 	// telemetry data type has its own RequestFactory.
-	BuildRequest([]PayloadEntry, ...ClientOption) (*http.Request, error)
+	BuildRequest([][]PayloadEntry, ...ClientOption) (*http.Request, error)
 }
 
 type requestFactory struct {
@@ -67,17 +67,17 @@ func configure(f *requestFactory, options []ClientOption) error {
 
 }
 
-func (f *hashRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (*http.Request, error) {
-	return f.buildRequest(entries, getHashedPayloadBytes, options)
+func (f *hashRequestFactory) BuildRequest(batches [][]PayloadEntry, options ...ClientOption) (*http.Request, error) {
+	return f.buildRequest(batches, getBatchesPayloadBytes, options)
 }
 
-func (f *eventRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (*http.Request, error) {
-	return f.buildRequest(entries, getEventPayloadBytes, options)
+func (f *eventRequestFactory) BuildRequest(batches [][]PayloadEntry, options ...ClientOption) (*http.Request, error) {
+	return f.buildRequest(batches, getEventPayloadBytes, options)
 }
 
-type payloadWriter func(buf *bytes.Buffer, entries []PayloadEntry)
+type payloadWriter func(buf *bytes.Buffer, batches [][]PayloadEntry)
 
-func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes payloadWriter, options []ClientOption) (*http.Request, error) {
+func (f *requestFactory) buildRequest(batches [][]PayloadEntry, getPayloadBytes payloadWriter, options []ClientOption) (*http.Request, error) {
 	configuredFactory := f
 	if len(options) > 0 {
 		configuredFactory = &requestFactory{
@@ -98,7 +98,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 	}
 
 	buf := &bytes.Buffer{}
-	getPayloadBytes(buf, entries)
+	getPayloadBytes(buf, batches)
 
 	var compressedBuffer bytes.Buffer
 	zipper := configuredFactory.zippers.Get().(*gzip.Writer)
@@ -144,27 +144,34 @@ func (f *requestFactory) getHeaders() http.Header {
 	}
 }
 
-func getHashedPayloadBytes(buf *bytes.Buffer, entries []PayloadEntry) {
-	buf.Write([]byte{'[', '{'})
-	w := internal.JSONFieldsWriter{Buf: buf}
-
-	for _, entry := range entries {
-		w.RawField(entry.Type(), entry.Bytes())
-	}
-
-	buf.Write([]byte{'}', ']'})
-}
-
-func getEventPayloadBytes(buf *bytes.Buffer, entries []PayloadEntry) {
+func getBatchesPayloadBytes(buf *bytes.Buffer, batches [][]PayloadEntry) {
 	buf.WriteByte('[')
-
-	for idx, entry := range entries {
-		if idx > 0 {
+	for i, batch := range batches {
+		if i > 0 {
 			buf.WriteByte(',')
 		}
-		buf.Write(entry.Bytes())
+		buf.WriteByte('{')
+		w := internal.JSONFieldsWriter{Buf: buf}
+		for _, entry := range batch {
+			w.RawField(entry.Type(), entry.Bytes())
+		}
+		buf.WriteByte('}')
 	}
+	buf.WriteByte(']')
+}
 
+func getEventPayloadBytes(buf *bytes.Buffer, batches [][]PayloadEntry) {
+	buf.WriteByte('[')
+	count := 0
+	for _, batch := range batches {
+		for _, entry := range batch {
+			if count > 0 {
+				buf.WriteByte(',')
+			}
+			buf.Write(entry.Bytes())
+			count++
+		}
+	}
 	buf.WriteByte(']')
 }
 

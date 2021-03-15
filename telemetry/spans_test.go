@@ -19,13 +19,13 @@ func BenchmarkSpansJSON(b *testing.B) {
 
 	for i := 0; i < numSpans; i++ {
 		batch.Spans = append(batch.Spans, Span{
-			ID:             "myid",
-			TraceID:        "mytraceid",
-			Name:           "myname",
-			ParentID:       "myparent",
-			Timestamp:      tm,
-			Duration:       2 * time.Second,
-			ServiceName:    "myentity",
+			ID:          "myid",
+			TraceID:     "mytraceid",
+			Name:        "myname",
+			ParentID:    "myparent",
+			Timestamp:   tm,
+			Duration:    2 * time.Second,
+			ServiceName: "myentity",
 		})
 	}
 
