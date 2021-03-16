@@ -203,7 +203,15 @@ func TestVetCommonAttributes(t *testing.T) {
 			}
 		},
 	)
-	if len(savedErrors) != 3 {
+	if len(savedErrors) != 1 {
+		t.Fatalf("Expected one error but there was %v", len(savedErrors))
+	}
+	errVal, ok := savedErrors[0]["err"]
+	if !ok {
+		t.Fatalf("Missing expected err key.")
+	}
+	errors := strings.Split(errVal.(string), ",")
+	if len(errors) != 3 {
 		t.Fatal(savedErrors)
 	}
 }

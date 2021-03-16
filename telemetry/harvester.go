@@ -74,7 +74,11 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	// the consumer modifies the CommonAttributes map after calling
 	// NewHarvester.
 	if nil != h.config.CommonAttributes {
-		h.commonAttributes = newCommonAttributes(h.config.CommonAttributes, h.config.logError)
+		commonAttributes, err := newCommonAttributes(h.config.CommonAttributes)
+		if err != nil {
+			h.config.logError(map[string]interface{}{"err": err.Error()})
+		}
+		h.commonAttributes = commonAttributes
 		h.config.CommonAttributes = nil
 	}
 
@@ -351,7 +355,7 @@ func (h *Harvester) swapOutSpans() []*http.Request {
 
 	entries := []PayloadEntry{}
 	if nil != h.commonAttributes {
-		entries = append(entries, &spanCommonBlock{Attributes: h.commonAttributes})
+		entries = append(entries, &SpanCommonBlock{Attributes: h.commonAttributes})
 	}
 	entries = append(entries, &SpanBatch{Spans: sps})
 	reqs, err := newRequests([][]PayloadEntry{entries}, h.spanRequestFactory)

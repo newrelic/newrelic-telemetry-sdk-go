@@ -103,10 +103,7 @@ func TestVetAttributes(t *testing.T) {
 		input := map[string]interface{}{
 			key: tc.Input,
 		}
-		var errorLogged map[string]interface{}
-		output := vetAttributes(input, func(e map[string]interface{}) {
-			errorLogged = e
-		})
+		output, err := vetAttributes(input)
 		// Test the the input map has not been modified.
 		if len(input) != 1 {
 			t.Error("input map modified", input)
@@ -118,11 +115,11 @@ func TestVetAttributes(t *testing.T) {
 			if _, ok := output[key]; !ok {
 				t.Error(idx, tc.Input, output)
 			}
-			if errorLogged != nil {
+			if err != nil {
 				t.Error(idx, "unexpected error present")
 			}
 		} else {
-			if errorLogged == nil {
+			if err == nil {
 				t.Error(idx, "expected error missing")
 			}
 			if len(output) != 0 {

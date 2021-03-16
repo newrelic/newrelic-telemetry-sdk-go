@@ -4,7 +4,6 @@
 package telemetry
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -120,8 +119,9 @@ func TestSpansJSON(t *testing.T) {
 }
 
 func TestSpansJSONWithCommonAttributesJSON(t *testing.T) {
-	commonBlock := &spanCommonBlock{
-		Attributes: &commonAttributes{RawJSON: json.RawMessage(`{"zup":"wup"}`)},
+	commonBlock, err := (&SpanCommonBlockBuilder{}).WithAttributes(map[string]interface{}{"zup": "wup"}).Build()
+	if err != nil {
+		t.Fail()
 	}
 
 	batch1 := &SpanBatch{

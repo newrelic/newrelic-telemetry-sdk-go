@@ -100,23 +100,48 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('}')
 }
 
-type spanCommonBlock struct {
+// SpanCommonBlock represents the shared elements of a SpanBatch.
+type SpanCommonBlock struct {
 	Attributes *commonAttributes
 }
 
 // Type returns the type of data contained in this PayloadEntry.
-func (c *spanCommonBlock) Type() string {
+func (c *SpanCommonBlock) Type() string {
 	return "common"
 }
 
 // Bytes returns the json serialized bytes of the PayloadEntry.
-func (c *spanCommonBlock) Bytes() []byte {
+func (c *SpanCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
 	w.RawField(c.Attributes.Type(), c.Attributes.Bytes())
 	buf.WriteByte('}')
 	return buf.Bytes()
+}
+
+// SpanCommonBlockBuilder is a builder for SpanCommonBlock.
+type SpanCommonBlockBuilder struct {
+	commonAttributes map[string]interface{}
+}
+
+// WithAttributes sets the common attributes for the builder.
+func (b *SpanCommonBlockBuilder) WithAttributes(commonAttributes map[string]interface{}) *SpanCommonBlockBuilder {
+	b.commonAttributes = commonAttributes
+	return b
+}
+
+// Build creates a SpanCommonBlock from the builder.
+func (b *SpanCommonBlockBuilder) Build() (*SpanCommonBlock, error) {
+	scb := SpanCommonBlock{}
+	if b.commonAttributes != nil {
+		attrs, err := newCommonAttributes(b.commonAttributes)
+		if err != nil {
+			return nil, err
+		}
+		scb.Attributes = attrs
+	}
+	return &scb, nil
 }
 
 // SpanBatch represents a single batch of spans to report to New Relic.
