@@ -21,7 +21,7 @@ func attributeValueValid(val interface{}) bool {
 }
 
 // vetAttributes returns the attributes that are valid.  vetAttributes does not
-// modify remove any elements from its parameter.
+// modify or remove any elements from its parameter.
 func vetAttributes(attributes map[string]interface{}) (map[string]interface{}, error) {
 	valid := true
 	for _, val := range attributes {
@@ -59,14 +59,17 @@ func (ca *commonAttributes) Bytes() []byte {
 	return ca.RawJSON
 }
 
+// newCommonAttributes vets and marshals the attributes map. If invalid attributes are
+// detected, the response will contain the valid attributes and an error describing which
+// keys were invalid. If a marshalling error occurs, nil  commonAttributes and an error
+// will be returned.
 func newCommonAttributes(attributes map[string]interface{}) (*commonAttributes, error) {
-	attrs, err := vetAttributes(attributes)
-	if err != nil {
-		return nil, err
+	response := commonAttributes{}
+	validAttrs, err := vetAttributes(attributes)
+	validAttrsJSON, marshalErr := json.Marshal(validAttrs)
+	if marshalErr != nil {
+		return nil, marshalErr
 	}
-	attributesJSON, err := json.Marshal(attrs)
-	if err != nil {
-		return nil, err
-	}
-	return &commonAttributes{RawJSON: attributesJSON}, nil
+	response.RawJSON = validAttrsJSON
+	return &response, err
 }

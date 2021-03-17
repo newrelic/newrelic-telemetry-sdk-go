@@ -100,18 +100,18 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('}')
 }
 
-// SpanCommonBlock represents the shared elements of a SpanBatch.
-type SpanCommonBlock struct {
+// spanCommonBlock represents the shared elements of a SpanBatch.
+type spanCommonBlock struct {
 	Attributes *commonAttributes
 }
 
 // Type returns the type of data contained in this PayloadEntry.
-func (c *SpanCommonBlock) Type() string {
+func (c *spanCommonBlock) Type() string {
 	return "common"
 }
 
 // Bytes returns the json serialized bytes of the PayloadEntry.
-func (c *SpanCommonBlock) Bytes() []byte {
+func (c *spanCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
@@ -120,7 +120,7 @@ func (c *SpanCommonBlock) Bytes() []byte {
 	return buf.Bytes()
 }
 
-// SpanCommonBlockBuilder is a builder for SpanCommonBlock.
+// SpanCommonBlockBuilder is a builder for the span common block PayloadEntry.
 type SpanCommonBlockBuilder struct {
 	commonAttributes map[string]interface{}
 }
@@ -131,15 +131,15 @@ func (b *SpanCommonBlockBuilder) WithAttributes(commonAttributes map[string]inte
 	return b
 }
 
-// Build creates a SpanCommonBlock from the builder.
-func (b *SpanCommonBlockBuilder) Build() (*SpanCommonBlock, error) {
-	scb := SpanCommonBlock{}
+// Build creates a span common block PayloadEntry from the builder. If invalid
+// attributes are detected, the response will contain the valid attributes and an
+// error describing which keys were invalid.
+func (b *SpanCommonBlockBuilder) Build() (PayloadEntry, error) {
+	scb := spanCommonBlock{}
 	if b.commonAttributes != nil {
-		attrs, err := newCommonAttributes(b.commonAttributes)
-		if err != nil {
-			return nil, err
-		}
-		scb.Attributes = attrs
+		validCommonAttrs, err := newCommonAttributes(b.commonAttributes)
+		scb.Attributes = validCommonAttrs
+		return &scb, err
 	}
 	return &scb, nil
 }
