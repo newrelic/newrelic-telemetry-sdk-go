@@ -9,7 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.6.0] - 2021-03-17
 ### Added
-- Adds support for sending log data to New Relic
+- Adds support for sending log data to New Relic.
+- Add `ClientOption` for specifying gzip compression level. Use:
+  `WithGzipCompressionLevel`.
 
 ## [0.5.2] - 2021-03-02
 ### Added
