@@ -71,7 +71,7 @@ func (m *MockPayloadEntry) Bytes() []byte {
 
 func TestSpanFactoryRequest(t *testing.T) {
 	f, _ := NewSpanRequestFactory(WithInsertKey("key!"))
-	request, _ := f.BuildRequest([][]PayloadEntry{{&MockPayloadEntry{}}})
+	request, _ := f.BuildRequest([]PayloadBatch{{&MockPayloadEntry{}}})
 	if request.Method != "POST" {
 		t.Error("Method was not POST")
 	}

@@ -26,6 +26,10 @@ type PayloadEntry interface {
 	Bytes() []byte
 }
 
+// A PayloadBatch is an array of PayloadEntry. A single HTTP request body is composed of
+// an array of PayloadBatch.
+type PayloadBatch = []PayloadEntry
+
 // RequestFactory is used for sending telemetry data to New Relic when you want to have
 // direct access to the http.Request and you want to manually send the request using a
 // http.Client. Consider using the Harvester if you do not want to manage the requests
@@ -34,7 +38,7 @@ type RequestFactory interface {
 	// BuildRequest converts the telemetry payload entries into an http.Request.
 	// Do not mix telemetry data types in a single call to build request. Each
 	// telemetry data type has its own RequestFactory.
-	BuildRequest([][]PayloadEntry, ...ClientOption) (*http.Request, error)
+	BuildRequest([]PayloadBatch, ...ClientOption) (*http.Request, error)
 }
 
 type requestFactory struct {
@@ -67,17 +71,17 @@ func configure(f *requestFactory, options []ClientOption) error {
 
 }
 
-func (f *hashRequestFactory) BuildRequest(batches [][]PayloadEntry, options ...ClientOption) (*http.Request, error) {
+func (f *hashRequestFactory) BuildRequest(batches []PayloadBatch, options ...ClientOption) (*http.Request, error) {
 	return f.buildRequest(batches, getBatchesPayloadBytes, options)
 }
 
-func (f *eventRequestFactory) BuildRequest(batches [][]PayloadEntry, options ...ClientOption) (*http.Request, error) {
+func (f *eventRequestFactory) BuildRequest(batches []PayloadBatch, options ...ClientOption) (*http.Request, error) {
 	return f.buildRequest(batches, getEventPayloadBytes, options)
 }
 
-type payloadWriter func(buf *bytes.Buffer, batches [][]PayloadEntry)
+type payloadWriter func(buf *bytes.Buffer, batches []PayloadBatch)
 
-func (f *requestFactory) buildRequest(batches [][]PayloadEntry, getPayloadBytes payloadWriter, options []ClientOption) (*http.Request, error) {
+func (f *requestFactory) buildRequest(batches []PayloadBatch, getPayloadBytes payloadWriter, options []ClientOption) (*http.Request, error) {
 	configuredFactory := f
 	if len(options) > 0 {
 		configuredFactory = &requestFactory{
@@ -144,7 +148,7 @@ func (f *requestFactory) getHeaders() http.Header {
 	}
 }
 
-func getBatchesPayloadBytes(buf *bytes.Buffer, batches [][]PayloadEntry) {
+func getBatchesPayloadBytes(buf *bytes.Buffer, batches []PayloadBatch) {
 	buf.WriteByte('[')
 	for i, batch := range batches {
 		if i > 0 {
@@ -160,7 +164,7 @@ func getBatchesPayloadBytes(buf *bytes.Buffer, batches [][]PayloadEntry) {
 	buf.WriteByte(']')
 }
 
-func getEventPayloadBytes(buf *bytes.Buffer, batches [][]PayloadEntry) {
+func getEventPayloadBytes(buf *bytes.Buffer, batches []PayloadBatch) {
 	buf.WriteByte('[')
 	count := 0
 	for _, batch := range batches {

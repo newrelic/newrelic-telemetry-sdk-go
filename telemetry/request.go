@@ -25,11 +25,11 @@ func requestNeedsSplit(r *http.Request) bool {
 	return r.ContentLength >= maxCompressedSizeBytes
 }
 
-func newRequests(batches [][]PayloadEntry, factory RequestFactory) ([]*http.Request, error) {
+func newRequests(batches []PayloadBatch, factory RequestFactory) ([]*http.Request, error) {
 	return newRequestsInternal(batches, factory, requestNeedsSplit)
 }
 
-func newRequestsInternal(batches [][]PayloadEntry, factory RequestFactory, needsSplit func(*http.Request) bool) ([]*http.Request, error) {
+func newRequestsInternal(batches []PayloadBatch, factory RequestFactory, needsSplit func(*http.Request) bool) ([]*http.Request, error) {
 	r, err := factory.BuildRequest(batches)
 	if nil != err {
 		return nil, err
@@ -40,14 +40,14 @@ func newRequestsInternal(batches [][]PayloadEntry, factory RequestFactory, needs
 	}
 
 	var reqs []*http.Request
-	var splitPayload1 [][]PayloadEntry
-	var splitPayload2 [][]PayloadEntry
+	var splitBatches1 []PayloadBatch
+	var splitBatches2 []PayloadBatch
 	payloadWasSplit := false
 
 	if len(batches) > 1 {
 		middle := len(batches) / 2
-		splitPayload1 = batches[0:middle]
-		splitPayload2 = batches[middle:]
+		splitBatches1 = batches[0:middle]
+		splitBatches2 = batches[middle:]
 		payloadWasSplit = true
 	} else if len(batches) == 1 {
 		var payload1Entries []PayloadEntry
@@ -67,15 +67,15 @@ func newRequestsInternal(batches [][]PayloadEntry, factory RequestFactory, needs
 			payload1Entries = append(payload1Entries, e)
 			payload2Entries = append(payload2Entries, e)
 		}
-		splitPayload1 = [][]PayloadEntry{payload1Entries}
-		splitPayload2 = [][]PayloadEntry{payload2Entries}
+		splitBatches1 = []PayloadBatch{payload1Entries}
+		splitBatches2 = []PayloadBatch{payload2Entries}
 	}
 
 	if !payloadWasSplit {
 		return nil, errUnableToSplit
 	}
 
-	for _, b := range [][][]PayloadEntry{splitPayload1, splitPayload2} {
+	for _, b := range [][]PayloadBatch{splitBatches1, splitBatches2} {
 		rs, err := newRequestsInternal(b, factory, needsSplit)
 		if nil != err {
 			return nil, err
