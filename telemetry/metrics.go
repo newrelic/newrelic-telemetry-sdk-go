@@ -235,11 +235,11 @@ func (m Gauge) writeJSON(buf *bytes.Buffer) {
 }
 
 type metricCommonBlock struct {
-	// Timestamp is the start time of all metrics in the metricBatch.  This value
+	// Timestamp is the start time of all metrics in the MetricBatch.  This value
 	// can be overridden by setting Timestamp on any particular metric.
 	// Timestamp must be set here or on all metrics.
 	Timestamp time.Time
-	// Interval is the length of time for all metrics in the metricBatch.  This
+	// Interval is the length of time for all metrics in the MetricBatch.  This
 	// value can be overriden by setting Interval on any particular Count or
 	// Summary metric.  Interval must be set to a non-zero value here or on
 	// all Count and Summary metrics.
@@ -267,7 +267,7 @@ func (mcb *metricCommonBlock) Bytes() []byte {
 	return buf.Bytes()
 }
 
-// metricBatch represents a single batch of metrics to report to New Relic.
+// MetricBatch represents a single batch of metrics to report to New Relic.
 //
 // Timestamp/Interval are optional and can be used to represent the start and
 // duration of the batch as a whole. Individual Count and Summary metrics may
@@ -277,14 +277,14 @@ func (mcb *metricCommonBlock) Bytes() []byte {
 //
 // Attributes are any attributes that should be applied to all metrics in this
 // batch. Each metric type also accepts an Attributes field.
-type metricBatch struct {
-	// Metrics is the slice of metrics to send with this metricBatch.
+type MetricBatch struct {
+	// Metrics is the slice of metrics to send with this MetricBatch.
 	Metrics []Metric
 }
 
-// split will split the metricBatch into 2 equal parts, returning a slice of metricBatches.
+// split will split the MetricBatch into 2 equal parts, returning a slice of MetricBatches.
 // If the number of metrics in the original is 0 or 1 then nil is returned.
-func (batch *metricBatch) split() []*metricBatch {
+func (batch *MetricBatch) split() []*MetricBatch {
 	if len(batch.Metrics) < 2 {
 		return nil
 	}
@@ -295,16 +295,16 @@ func (batch *metricBatch) split() []*metricBatch {
 	mb2 := *batch
 	mb2.Metrics = batch.Metrics[half:]
 
-	return []*metricBatch{&mb1, &mb2}
+	return []*MetricBatch{&mb1, &mb2}
 }
 
 // Type returns the type of data contained in this PayloadEntry.
-func (batch *metricBatch) Type() string {
+func (batch *MetricBatch) Type() string {
 	return metricTypeName
 }
 
 // Bytes returns the json serialized bytes of the PayloadEntry.
-func (batch *metricBatch) Bytes() []byte {
+func (batch *MetricBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('[')
 	for idx, m := range batch.Metrics {
