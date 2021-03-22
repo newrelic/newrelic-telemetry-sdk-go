@@ -235,11 +235,11 @@ func (m Gauge) writeJSON(buf *bytes.Buffer) {
 }
 
 type metricCommonBlock struct {
-	// Timestamp is the start time of all metrics in the metricBatch.  This value
+	// Timestamp is the start time of all metrics in the MetricBatch.  This value
 	// can be overridden by setting Timestamp on any particular metric.
 	// Timestamp must be set here or on all metrics.
 	Timestamp time.Time
-	// Interval is the length of time for all metrics in the metricBatch.  This
+	// Interval is the length of time for all metrics in the MetricBatch.  This
 	// value can be overriden by setting Interval on any particular Count or
 	// Summary metric.  Interval must be set to a non-zero value here or on
 	// all Count and Summary metrics.
@@ -278,11 +278,11 @@ func (mcb *metricCommonBlock) Bytes() []byte {
 // Attributes are any attributes that should be applied to all metrics in this
 // batch. Each metric type also accepts an Attributes field.
 type MetricBatch struct {
-	// Metrics is the slice of metrics to send with this metricBatch.
+	// Metrics is the slice of metrics to send with this MetricBatch.
 	Metrics []Metric
 }
 
-// split will split the metricBatch into 2 equal parts, returning a slice of metricBatches.
+// split will split the MetricBatch into 2 equal parts, returning a slice of MetricBatches.
 // If the number of metrics in the original is 0 or 1 then nil is returned.
 func (batch *MetricBatch) split() []*MetricBatch {
 	if len(batch.Metrics) < 2 {
