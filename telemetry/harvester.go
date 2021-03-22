@@ -326,7 +326,7 @@ func (h *Harvester) swapOutMetrics(now time.Time) []*http.Request {
 		Interval:   now.Sub(lastHarvest),
 		Attributes: h.commonAttributes,
 	}
-	batch := &metricBatch{Metrics: rawMetrics}
+	batch := &MetricBatch{Metrics: rawMetrics}
 	entries := []PayloadEntry{commonBlock, batch}
 	reqs, err := newRequests(entries, h.metricRequestFactory)
 	if nil != err {
