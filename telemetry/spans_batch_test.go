@@ -11,7 +11,7 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
-func testSpanBatchJSON(t testing.TB, batches []PayloadBatch, expect string) {
+func testSpanBatchJSON(t testing.TB, batches []Batch, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
@@ -68,8 +68,8 @@ func TestSpansPayloadSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testSpanBatchJSON(t, []PayloadBatch{{split[0]}}, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
-	testSpanBatchJSON(t, []PayloadBatch{{split[1]}}, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}}]}]`)
+	testSpanBatchJSON(t, []Batch{{split[0]}}, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
+	testSpanBatchJSON(t, []Batch{{split[1]}}, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}}]}]`)
 
 	// test len 3
 	sp = &SpanBatch{Spans: []Span{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
@@ -77,8 +77,8 @@ func TestSpansPayloadSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testSpanBatchJSON(t, []PayloadBatch{{split[0]}}, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
-	testSpanBatchJSON(t, []PayloadBatch{{split[1]}}, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}},{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"c"}}]}]`)
+	testSpanBatchJSON(t, []Batch{{split[0]}}, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
+	testSpanBatchJSON(t, []Batch{{split[1]}}, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}},{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"c"}}]}]`)
 }
 
 func TestSpansJSON(t *testing.T) {
@@ -95,7 +95,7 @@ func TestSpansJSON(t *testing.T) {
 			Attributes:  map[string]interface{}{"zip": "zap"},
 		},
 	}}
-	testSpanBatchJSON(t, []PayloadBatch{{batch}}, `[{"spans":[
+	testSpanBatchJSON(t, []Batch{{batch}}, `[{"spans":[
 		{
 			"id":"",
 			"trace.id":"",
@@ -146,7 +146,7 @@ func TestSpansJSONWithCommonAttributesJSON(t *testing.T) {
 			},
 		},
 	}
-	testSpanBatchJSON(t, []PayloadBatch{{commonBlock, batch1}, {batch2}}, `[
+	testSpanBatchJSON(t, []Batch{{commonBlock, batch1}, {batch2}}, `[
 		{
 			"common": {
 				"attributes": {

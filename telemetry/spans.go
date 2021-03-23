@@ -105,12 +105,12 @@ type spanCommonBlock struct {
 	Attributes *commonAttributes
 }
 
-// Type returns the type of data contained in this PayloadEntry.
+// Type returns the type of data contained in this MapEntry.
 func (c *spanCommonBlock) Type() string {
 	return "common"
 }
 
-// Bytes returns the json serialized bytes of the PayloadEntry.
+// Bytes returns the json serialized bytes of the MapEntry.
 func (c *spanCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
@@ -120,7 +120,7 @@ func (c *spanCommonBlock) Bytes() []byte {
 	return buf.Bytes()
 }
 
-// SpanCommonBlockBuilder is a builder for the span common block PayloadEntry.
+// SpanCommonBlockBuilder is a builder for the span common block MapEntry.
 type SpanCommonBlockBuilder struct {
 	commonAttributes map[string]interface{}
 }
@@ -131,10 +131,10 @@ func (b *SpanCommonBlockBuilder) WithAttributes(commonAttributes map[string]inte
 	return b
 }
 
-// Build creates a span common block PayloadEntry from the builder. If invalid
+// Build creates a span common block MapEntry from the builder. If invalid
 // attributes are detected, the response will contain the valid attributes and an
 // error describing which keys were invalid.
-func (b *SpanCommonBlockBuilder) Build() (PayloadEntry, error) {
+func (b *SpanCommonBlockBuilder) Build() (MapEntry, error) {
 	scb := spanCommonBlock{}
 	if b.commonAttributes != nil {
 		validCommonAttrs, err := newCommonAttributes(b.commonAttributes)
@@ -149,12 +149,12 @@ type SpanBatch struct {
 	Spans []Span
 }
 
-// Type returns the type of data contained in this PayloadEntry.
+// Type returns the type of data contained in this MapEntry.
 func (batch *SpanBatch) Type() string {
 	return spanTypeName
 }
 
-// Bytes returns the json serialized bytes of the PayloadEntry.
+// Bytes returns the json serialized bytes of the MapEntry.
 func (batch *SpanBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('[')

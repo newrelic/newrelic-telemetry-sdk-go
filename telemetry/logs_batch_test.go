@@ -12,7 +12,7 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
-func testLogBatchJSON(t testing.TB, batches []PayloadBatch, expect string) {
+func testLogBatchJSON(t testing.TB, batches []Batch, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
@@ -70,8 +70,8 @@ func TestLogsPayloadSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testLogBatchJSON(t, []PayloadBatch{{split[0]}}, `[{"logs":[{"message":"a","timestamp":-6795364578871,"attributes":{}}]}]`)
-	testLogBatchJSON(t, []PayloadBatch{{split[1]}}, `[{"logs":[{"message":"b","timestamp":-6795364578871,"attributes":{}}]}]`)
+	testLogBatchJSON(t, []Batch{{split[0]}}, `[{"logs":[{"message":"a","timestamp":-6795364578871,"attributes":{}}]}]`)
+	testLogBatchJSON(t, []Batch{{split[1]}}, `[{"logs":[{"message":"b","timestamp":-6795364578871,"attributes":{}}]}]`)
 
 	// test len 3
 	sp = &LogBatch{Logs: []Log{{Message: "a"}, {Message: "b"}, {Message: "c"}}}
@@ -79,8 +79,8 @@ func TestLogsPayloadSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testLogBatchJSON(t, []PayloadBatch{{split[0]}}, `[{"logs":[{"message":"a","timestamp":-6795364578871,"attributes":{}}]}]`)
-	testLogBatchJSON(t, []PayloadBatch{{split[1]}}, `[{"logs":[{"message":"b","timestamp":-6795364578871,"attributes":{}},{"message":"c","timestamp":-6795364578871,"attributes":{}}]}]`)
+	testLogBatchJSON(t, []Batch{{split[0]}}, `[{"logs":[{"message":"a","timestamp":-6795364578871,"attributes":{}}]}]`)
+	testLogBatchJSON(t, []Batch{{split[1]}}, `[{"logs":[{"message":"b","timestamp":-6795364578871,"attributes":{}},{"message":"c","timestamp":-6795364578871,"attributes":{}}]}]`)
 }
 
 func TestLogsJSON(t *testing.T) {
@@ -92,7 +92,7 @@ func TestLogsJSON(t *testing.T) {
 			Attributes: map[string]interface{}{"zip": "zap"},
 		},
 	}}
-	testLogBatchJSON(t, []PayloadBatch{{batch}}, `[{"logs":[
+	testLogBatchJSON(t, []Batch{{batch}}, `[{"logs":[
 		{
 			"message":"",
 			"timestamp":-6795364578871,
@@ -130,7 +130,7 @@ func TestLogsJSONWithCommonAttributesJSON(t *testing.T) {
 			},
 		},
 	}
-	testLogBatchJSON(t, []PayloadBatch{{commonBlock, batch1}, {batch2}}, `[
+	testLogBatchJSON(t, []Batch{{commonBlock, batch1}, {batch2}}, `[
 		{
 			"common": {
 				"attributes": {

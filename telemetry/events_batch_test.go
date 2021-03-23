@@ -11,7 +11,7 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
-func testEventBatchJSON(t testing.TB, batches []PayloadBatch, expect string) {
+func testEventBatchJSON(t testing.TB, batches []Batch, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
@@ -68,8 +68,8 @@ func TestEventsPayloadSplit(t *testing.T) {
 		t.Error("split into incorrect number of slices", len(split))
 	}
 
-	testEventBatchJSON(t, []PayloadBatch{{split[0]}}, `[{"eventType":"a","timestamp":-6795364578871}]`)
-	testEventBatchJSON(t, []PayloadBatch{{split[1]}}, `[{"eventType":"b","timestamp":-6795364578871}]`)
+	testEventBatchJSON(t, []Batch{{split[0]}}, `[{"eventType":"a","timestamp":-6795364578871}]`)
+	testEventBatchJSON(t, []Batch{{split[1]}}, `[{"eventType":"b","timestamp":-6795364578871}]`)
 
 	// test len 3
 	ev = &eventBatch{Events: []Event{{EventType: "a"}, {EventType: "b"}, {EventType: "c"}}}
@@ -77,8 +77,8 @@ func TestEventsPayloadSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testEventBatchJSON(t, []PayloadBatch{{split[0]}}, `[{"eventType":"a","timestamp":-6795364578871}]`)
-	testEventBatchJSON(t, []PayloadBatch{{split[1]}}, `[{"eventType":"b","timestamp":-6795364578871},{"eventType":"c","timestamp":-6795364578871}]`)
+	testEventBatchJSON(t, []Batch{{split[0]}}, `[{"eventType":"a","timestamp":-6795364578871}]`)
+	testEventBatchJSON(t, []Batch{{split[1]}}, `[{"eventType":"b","timestamp":-6795364578871},{"eventType":"c","timestamp":-6795364578871}]`)
 }
 
 func TestEventsJSON(t *testing.T) {
@@ -95,7 +95,7 @@ func TestEventsJSON(t *testing.T) {
 	batch2 := &eventBatch{Events: []Event{{EventType: "a"}}}
 	batch3 := &eventBatch{Events: []Event{{EventType: "b"}}}
 
-	testEventBatchJSON(t, []PayloadBatch{{batch1, batch2}, {batch3}}, `[
+	testEventBatchJSON(t, []Batch{{batch1, batch2}, {batch3}}, `[
 		{
 		  "eventType":"",
 		  "timestamp":-6795364578871

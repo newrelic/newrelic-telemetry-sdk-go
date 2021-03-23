@@ -53,12 +53,12 @@ type logCommonBlock struct {
 	Attributes *commonAttributes
 }
 
-// Type returns the type of data contained in this PayloadEntry.
+// Type returns the type of data contained in this MapEntry.
 func (c *logCommonBlock) Type() string {
 	return "common"
 }
 
-// Bytes returns the json serialized bytes of the PayloadEntry.
+// Bytes returns the json serialized bytes of the MapEntry.
 func (c *logCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
@@ -73,12 +73,12 @@ type LogBatch struct {
 	Logs []Log
 }
 
-// Type returns the type of data contained in this PayloadEntry.
+// Type returns the type of data contained in this MapEntry.
 func (batch *LogBatch) Type() string {
 	return logTypeName
 }
 
-// Bytes returns the json serialized bytes of the PayloadEntry.
+// Bytes returns the json serialized bytes of the MapEntry.
 func (batch *LogBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('[')

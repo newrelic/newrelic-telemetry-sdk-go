@@ -331,8 +331,8 @@ func (h *Harvester) swapOutMetrics(now time.Time) []*http.Request {
 		Attributes: h.commonAttributes,
 	}
 	batch := &MetricBatch{Metrics: rawMetrics}
-	entries := []PayloadEntry{commonBlock, batch}
-	reqs, err := newRequests([]PayloadBatch{entries}, h.metricRequestFactory)
+	entries := []MapEntry{commonBlock, batch}
+	reqs, err := newRequests([]Batch{entries}, h.metricRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -353,12 +353,12 @@ func (h *Harvester) swapOutSpans() []*http.Request {
 		return nil
 	}
 
-	entries := []PayloadEntry{}
+	entries := []MapEntry{}
 	if nil != h.commonAttributes {
 		entries = append(entries, &spanCommonBlock{Attributes: h.commonAttributes})
 	}
 	entries = append(entries, &SpanBatch{Spans: sps})
-	reqs, err := newRequests([]PayloadBatch{entries}, h.spanRequestFactory)
+	reqs, err := newRequests([]Batch{entries}, h.spanRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -381,7 +381,7 @@ func (h *Harvester) swapOutEvents() []*http.Request {
 	batch := &eventBatch{
 		Events: events,
 	}
-	reqs, err := newRequests([]PayloadBatch{{batch}}, h.eventRequestFactory)
+	reqs, err := newRequests([]Batch{{batch}}, h.eventRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -402,12 +402,12 @@ func (h *Harvester) swapOutLogs() []*http.Request {
 		return nil
 	}
 
-	entries := []PayloadEntry{}
+	entries := []MapEntry{}
 	if nil != h.commonAttributes {
 		entries = append(entries, &logCommonBlock{Attributes: h.commonAttributes})
 	}
 	entries = append(entries, &LogBatch{Logs: logs})
-	reqs, err := newRequests([]PayloadBatch{entries}, h.logRequestFactory)
+	reqs, err := newRequests([]Batch{entries}, h.logRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),

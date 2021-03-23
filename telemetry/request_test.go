@@ -51,8 +51,8 @@ func (p *testSplittablePayloadEntry) split() []splittablePayloadEntry {
 
 func TestNewRequestNoSplitNeeded(t *testing.T) {
 	testPayload := testUnsplittablePayloadEntry{rawData: json.RawMessage(`123456789`)}
-	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal([]PayloadBatch{entries}, testFactory(), func(r *http.Request) bool {
+	entries := []MapEntry{&testPayload}
+	reqs, err := newRequestsInternal([]Batch{entries}, testFactory(), func(r *http.Request) bool {
 		return false
 	})
 	if err != nil {
@@ -71,8 +71,8 @@ func TestNewRequestSplitNeeded(t *testing.T) {
 			{rawData: json.RawMessage(`"56789"`)},
 		},
 	}
-	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal([]PayloadBatch{entries}, testFactory(), func(r *http.Request) bool {
+	entries := []MapEntry{&testPayload}
+	reqs, err := newRequestsInternal([]Batch{entries}, testFactory(), func(r *http.Request) bool {
 		shouldSplit, err := payloadContains(r, "testSplittable", "123456789")
 
 		if nil != err {
@@ -100,8 +100,8 @@ func TestNewRequestSplittingMultiplePayloadsNeeded(t *testing.T) {
 			{rawData: json.RawMessage(`"56789"`)},
 		},
 	}
-	entries := []PayloadEntry{&testUnsplittablePayloadEntry, &testSplittablePayload}
-	reqs, err := newRequestsInternal([]PayloadBatch{entries}, testFactory(), func(r *http.Request) bool {
+	entries := []MapEntry{&testUnsplittablePayloadEntry, &testSplittablePayload}
+	reqs, err := newRequestsInternal([]Batch{entries}, testFactory(), func(r *http.Request) bool {
 		shouldSplit, err := payloadContains(r, "testSplittable", "123456789")
 
 		if nil != err {
@@ -141,8 +141,8 @@ func TestNewRequestCantSplitPayload(t *testing.T) {
 	testPayload := testSplittablePayloadEntry{
 		rawData: json.RawMessage(`"123456789"`),
 	}
-	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal([]PayloadBatch{entries}, testFactory(), func(r *http.Request) bool {
+	entries := []MapEntry{&testPayload}
+	reqs, err := newRequestsInternal([]Batch{entries}, testFactory(), func(r *http.Request) bool {
 		shouldSplit, err := payloadContains(r, "testSplittable", "123456789")
 
 		if nil != err {
@@ -168,8 +168,8 @@ func TestNewRequestCantSplitPayloadsEnough(t *testing.T) {
 			{rawData: json.RawMessage(`"56789"`)},
 		},
 	}
-	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal([]PayloadBatch{entries}, testFactory(), func(r *http.Request) bool {
+	entries := []MapEntry{&testPayload}
+	reqs, err := newRequestsInternal([]Batch{entries}, testFactory(), func(r *http.Request) bool {
 		isOriginalPayload, err := payloadContains(r, "testSplittable", "123456789")
 
 		if nil != err {
@@ -197,7 +197,7 @@ func TestNeedsToSplitBatchesAndEntries(t *testing.T) {
 	// Create a set of batches that must be first be split into two requests.
 	// The batch1 request must be further subdivided into two requests, creating
 	// a total of 3 requests.
-	batch1 := []PayloadEntry{
+	batch1 := []MapEntry{
 		&testSplittablePayloadEntry{
 			rawData: randomJSON(maxCompressedSizeBytes * 4),
 			splitPayloads: []*testSplittablePayloadEntry{
@@ -206,12 +206,12 @@ func TestNeedsToSplitBatchesAndEntries(t *testing.T) {
 			},
 		},
 	}
-	batch2 := []PayloadEntry{
+	batch2 := []MapEntry{
 		&testSplittablePayloadEntry{
 			rawData: randomJSON(maxCompressedSizeBytes),
 		},
 	}
-	reqs, err := newRequests([]PayloadBatch{batch1, batch2}, testFactory())
+	reqs, err := newRequests([]Batch{batch1, batch2}, testFactory())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +223,7 @@ func TestNeedsToSplitBatchesAndEntries(t *testing.T) {
 func TestLargeRequestNeedsSplit(t *testing.T) {
 	js := randomJSON(4 * maxCompressedSizeBytes)
 	payloadEntry := testUnsplittablePayloadEntry{rawData: js}
-	reqs, err := newRequests([]PayloadBatch{{&payloadEntry}}, testFactory())
+	reqs, err := newRequests([]Batch{{&payloadEntry}}, testFactory())
 	if reqs != nil {
 		t.Error(reqs)
 	}
@@ -235,7 +235,7 @@ func TestLargeRequestNeedsSplit(t *testing.T) {
 func TestLargeRequestNoSplit(t *testing.T) {
 	js := randomJSON(maxCompressedSizeBytes / 2)
 	payloadEntry := testUnsplittablePayloadEntry{rawData: js}
-	reqs, err := newRequests([]PayloadBatch{{&payloadEntry}}, testFactory())
+	reqs, err := newRequests([]Batch{{&payloadEntry}}, testFactory())
 	if err != nil {
 		t.Fatal(err)
 	}
