@@ -21,25 +21,25 @@ var (
 	errUnableToSplit = fmt.Errorf("unable to split large payload further")
 )
 
-func requestNeedsSplit(r *http.Request) bool {
+func requestNeedsSplit(r http.Request) bool {
 	return r.ContentLength >= maxCompressedSizeBytes
 }
 
-func newRequests(entries []PayloadEntry, factory RequestFactory) ([]*http.Request, error) {
+func newRequests(entries []PayloadEntry, factory RequestFactory) ([]http.Request, error) {
 	return newRequestsInternal(entries, factory, requestNeedsSplit)
 }
 
-func newRequestsInternal(entries []PayloadEntry, factory RequestFactory, needsSplit func(*http.Request) bool) ([]*http.Request, error) {
+func newRequestsInternal(entries []PayloadEntry, factory RequestFactory, needsSplit func(http.Request) bool) ([]http.Request, error) {
 	r, err := factory.BuildRequest(entries)
-	if (nil != err) {
+	if nil != err {
 		return nil, err
 	}
 
 	if !needsSplit(r) {
-		return []*http.Request{r}, nil
+		return []http.Request{r}, nil
 	}
 
-	var reqs []*http.Request
+	var reqs []http.Request
 	var splitPayload1 []PayloadEntry
 	var splitPayload2 []PayloadEntry
 	payloadWasSplit := false

@@ -5,11 +5,11 @@ package telemetry
 
 import (
 	"encoding/json"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"testing"
-	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 type testUnsplittablePayloadEntry struct {
@@ -25,7 +25,7 @@ func (p *testUnsplittablePayloadEntry) Bytes() []byte {
 }
 
 type testSplittablePayloadEntry struct {
-	rawData json.RawMessage
+	rawData       json.RawMessage
 	splitPayloads []*testSplittablePayloadEntry
 }
 
@@ -38,7 +38,7 @@ func (p *testSplittablePayloadEntry) Bytes() []byte {
 }
 
 func (p *testSplittablePayloadEntry) split() []splittablePayloadEntry {
-	if (nil == p.splitPayloads) {
+	if nil == p.splitPayloads {
 		return nil
 	}
 
@@ -52,7 +52,7 @@ func (p *testSplittablePayloadEntry) split() []splittablePayloadEntry {
 func TestNewRequestNoSplitNeeded(t *testing.T) {
 	testPayload := testUnsplittablePayloadEntry{rawData: json.RawMessage(`123456789`)}
 	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
+	reqs, err := newRequestsInternal(entries, testFactory(), func(r http.Request) bool {
 		return false
 	})
 	if err != nil {
@@ -72,10 +72,10 @@ func TestNewRequestSplitNeeded(t *testing.T) {
 		},
 	}
 	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
+	reqs, err := newRequestsInternal(entries, testFactory(), func(r http.Request) bool {
 		shouldSplit, err := payloadContains(r, "testSplittable", "123456789")
 
-		if (nil != err) {
+		if nil != err {
 			t.Error(err)
 		}
 
@@ -101,10 +101,10 @@ func TestNewRequestSplittingMultiplePayloadsNeeded(t *testing.T) {
 		},
 	}
 	entries := []PayloadEntry{&testUnsplittablePayloadEntry, &testSplittablePayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
+	reqs, err := newRequestsInternal(entries, testFactory(), func(r http.Request) bool {
 		shouldSplit, err := payloadContains(r, "testSplittable", "123456789")
 
-		if (nil != err) {
+		if nil != err {
 			t.Error(err)
 		}
 
@@ -120,18 +120,18 @@ func TestNewRequestSplittingMultiplePayloadsNeeded(t *testing.T) {
 	expectedSplitPayloads := []string{"1234", "56789"}
 	for i := 0; i < 2; i++ {
 		hasUnsplittablePayload, err := payloadContains(reqs[i], "testUnsplittable", "abc")
-		if (err != nil) {
+		if err != nil {
 			t.Error(err)
 		}
-		if (!hasUnsplittablePayload) {
+		if !hasUnsplittablePayload {
 			t.Error("Each request should contain the unsplittable payload")
 		}
 
 		hasSplittablePayload, err := payloadContains(reqs[i], "testSplittable", expectedSplitPayloads[i])
-		if (err != nil) {
+		if err != nil {
 			t.Error(err)
 		}
-		if (!hasSplittablePayload) {
+		if !hasSplittablePayload {
 			t.Errorf("testSplittable did not contain %q", expectedSplitPayloads[i])
 		}
 	}
@@ -142,10 +142,10 @@ func TestNewRequestCantSplitPayload(t *testing.T) {
 		rawData: json.RawMessage(`"123456789"`),
 	}
 	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
+	reqs, err := newRequestsInternal(entries, testFactory(), func(r http.Request) bool {
 		shouldSplit, err := payloadContains(r, "testSplittable", "123456789")
 
-		if (nil != err) {
+		if nil != err {
 			t.Error(err)
 		}
 
@@ -169,16 +169,16 @@ func TestNewRequestCantSplitPayloadsEnough(t *testing.T) {
 		},
 	}
 	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
+	reqs, err := newRequestsInternal(entries, testFactory(), func(r http.Request) bool {
 		isOriginalPayload, err := payloadContains(r, "testSplittable", "123456789")
 
-		if (nil != err) {
+		if nil != err {
 			t.Error(err)
 		}
 
 		isPayloadThatCantBeSplitAgain, err := payloadContains(r, "testSplittable", "56789")
 
-		if (nil != err) {
+		if nil != err {
 			t.Error(err)
 		}
 
@@ -221,7 +221,7 @@ func TestLargeRequestNoSplit(t *testing.T) {
 	}
 }
 
-func payloadContains(r *http.Request, fieldName string, value string) (bool, error) {
+func payloadContains(r http.Request, fieldName string, value string) (bool, error) {
 	bodyReader, _ := r.GetBody()
 	compressedBytes, _ := ioutil.ReadAll(bodyReader)
 	uncompressedBytes, _ := internal.Uncompress(compressedBytes)
@@ -240,7 +240,7 @@ func randomJSON(numBytes int) json.RawMessage {
 	return js
 }
 
-func testFactory() (RequestFactory) {
+func testFactory() RequestFactory {
 	factory, _ := NewMetricRequestFactory(WithNoDefaultKey())
 	return factory
 }

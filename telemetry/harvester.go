@@ -295,7 +295,7 @@ func postData(req *http.Request, client *http.Client) response {
 	return r
 }
 
-func (h *Harvester) swapOutMetrics(now time.Time) []*http.Request {
+func (h *Harvester) swapOutMetrics(now time.Time) []http.Request {
 	h.lock.Lock()
 	lastHarvest := h.lastHarvest
 	h.lastHarvest = now
@@ -339,7 +339,7 @@ func (h *Harvester) swapOutMetrics(now time.Time) []*http.Request {
 	return reqs
 }
 
-func (h *Harvester) swapOutSpans() []*http.Request {
+func (h *Harvester) swapOutSpans() []http.Request {
 	h.lock.Lock()
 	sps := h.spans
 	h.spans = nil
@@ -365,7 +365,7 @@ func (h *Harvester) swapOutSpans() []*http.Request {
 	return reqs
 }
 
-func (h *Harvester) swapOutEvents() []*http.Request {
+func (h *Harvester) swapOutEvents() []http.Request {
 	h.lock.Lock()
 	events := h.events
 	h.events = nil
@@ -389,7 +389,7 @@ func (h *Harvester) swapOutEvents() []*http.Request {
 	return reqs
 }
 
-func (h *Harvester) swapOutLogs() []*http.Request {
+func (h *Harvester) swapOutLogs() []http.Request {
 	h.lock.Lock()
 	logs := h.logs
 	h.logs = nil
@@ -483,7 +483,7 @@ func (h *Harvester) HarvestNow(ct context.Context) {
 	ctx, cancel := context.WithTimeout(ct, h.config.HarvestTimeout)
 	defer cancel()
 
-	var reqs []*http.Request
+	var reqs []http.Request
 	reqs = append(reqs, h.swapOutMetrics(time.Now())...)
 	reqs = append(reqs, h.swapOutSpans()...)
 	reqs = append(reqs, h.swapOutEvents()...)

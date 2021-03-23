@@ -114,16 +114,16 @@ func TestPathNotUsedFromUrls(t *testing.T) {
 	validateReqUsedCorrectEndpointValues(eventReqs, "http://test.events.newrelic.com:8003/v1/accounts/events", "test.events.newrelic.com:8003", t)
 }
 
-func validateReqUsedCorrectEndpointValues(reqs []*http.Request, expectedURL string, expectedEndpoint string, t *testing.T) {
-	if (len(reqs) < 1) {
+func validateReqUsedCorrectEndpointValues(reqs []http.Request, expectedURL string, expectedEndpoint string, t *testing.T) {
+	if len(reqs) < 1 {
 		t.Error("Expected at least 1 requst to validate")
 	}
 
 	for _, req := range reqs {
-		if (req.Host != expectedEndpoint) {
+		if req.Host != expectedEndpoint {
 			t.Errorf("Got req.Host %v but expected %v", req.Host, expectedEndpoint)
 		}
-		if (req.URL.String() != expectedURL) {
+		if req.URL.String() != expectedURL {
 			t.Errorf("Got req.URL %v but expected %v", req.URL.String(), expectedURL)
 		}
 	}

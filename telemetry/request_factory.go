@@ -34,7 +34,7 @@ type RequestFactory interface {
 	// BuildRequest converts the telemetry payload entries into an http.Request.
 	// Do not mix telemetry data types in a single call to build request. Each
 	// telemetry data type has its own RequestFactory.
-	BuildRequest([]PayloadEntry, ...ClientOption) (*http.Request, error)
+	BuildRequest([]PayloadEntry, ...ClientOption) (http.Request, error)
 }
 
 type requestFactory struct {
@@ -67,17 +67,17 @@ func configure(f *requestFactory, options []ClientOption) error {
 
 }
 
-func (f *hashRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (*http.Request, error) {
+func (f *hashRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (http.Request, error) {
 	return f.buildRequest(entries, getHashedPayloadBytes, options)
 }
 
-func (f *eventRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (*http.Request, error) {
+func (f *eventRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (http.Request, error) {
 	return f.buildRequest(entries, getEventPayloadBytes, options)
 }
 
 type payloadWriter func(buf *bytes.Buffer, entries []PayloadEntry)
 
-func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes payloadWriter, options []ClientOption) (*http.Request, error) {
+func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes payloadWriter, options []ClientOption) (http.Request, error) {
 	configuredFactory := f
 	if len(options) > 0 {
 		configuredFactory = &requestFactory{
@@ -93,7 +93,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 		err := configure(configuredFactory, options)
 
 		if err != nil {
-			return &http.Request{}, errors.New("unable to configure this request based on options passed in")
+			return http.Request{}, errors.New("unable to configure this request based on options passed in")
 		}
 	}
 
@@ -106,7 +106,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 	zipper.Reset(&compressedBuffer)
 	err := internal.CompressWithWriter(buf.Bytes(), zipper)
 	if err != nil {
-		return &http.Request{}, err
+		return http.Request{}, err
 	}
 	buf = &compressedBuffer
 
@@ -119,7 +119,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 	endpoint := configuredFactory.endpoint
 	headers := configuredFactory.getHeaders()
 
-	return &http.Request{
+	return http.Request{
 		Method: "POST",
 		URL: &url.URL{
 			Scheme: configuredFactory.scheme,
