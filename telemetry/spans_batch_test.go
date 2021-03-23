@@ -119,7 +119,7 @@ func TestSpansJSON(t *testing.T) {
 }
 
 func TestSpansJSONWithCommonAttributesJSON(t *testing.T) {
-	commonBlock, err := (&SpanCommonBlockBuilder{}).WithAttributes(map[string]interface{}{"zup": "wup"}).Build()
+	commonBlock, err := NewSpanCommonBlock(WithSpanAttributes(map[string]interface{}{"zup": "wup"}))
 	if err != nil {
 		t.Fail()
 	}

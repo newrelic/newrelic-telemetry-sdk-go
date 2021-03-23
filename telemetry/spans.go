@@ -120,28 +120,35 @@ func (c *spanCommonBlock) Bytes() []byte {
 	return buf.Bytes()
 }
 
+// SpanCommonBlockOption is a function that can be used to configure a spanCommonBlock
+type SpanCommonBlockOption func(scb *spanCommonBlock) error
+
+// NewSpanCommonBlock creates a new MapEntry representing data common to all spans in a batch.
+func NewSpanCommonBlock(options ...SpanCommonBlockOption) (MapEntry, error) {
+	scb := &spanCommonBlock{}
+	for _, option := range options {
+		err := option(scb)
+		if err != nil {
+			return scb, err
+		}
+	}
+	return scb, nil
+}
+
 // SpanCommonBlockBuilder is a builder for the span common block MapEntry.
 type SpanCommonBlockBuilder struct {
 	commonAttributes map[string]interface{}
 }
 
-// WithAttributes sets the common attributes for the builder.
-func (b *SpanCommonBlockBuilder) WithAttributes(commonAttributes map[string]interface{}) *SpanCommonBlockBuilder {
-	b.commonAttributes = commonAttributes
-	return b
-}
-
-// Build creates a span common block MapEntry from the builder. If invalid
-// attributes are detected, the response will contain the valid attributes and an
-// error describing which keys were invalid.
-func (b *SpanCommonBlockBuilder) Build() (MapEntry, error) {
-	scb := spanCommonBlock{}
-	if b.commonAttributes != nil {
-		validCommonAttrs, err := newCommonAttributes(b.commonAttributes)
-		scb.Attributes = validCommonAttrs
-		return &scb, err
+// WithSpanAttributes creates a SpanCommonBlockOption to specify the common attributes of the common block.
+// If invalid attributes are detected an error will be returned describing which keys were invalid, but
+// the valid attributes will still be added to the span common block.
+func WithSpanAttributes(commonAttributes map[string]interface{}) SpanCommonBlockOption {
+	return func(scb *spanCommonBlock) error {
+		validCommonAttr, err := newCommonAttributes(commonAttributes)
+		scb.Attributes = validCommonAttr
+		return err
 	}
-	return &scb, nil
 }
 
 // SpanBatch represents a single batch of spans to report to New Relic.
