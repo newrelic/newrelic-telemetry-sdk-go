@@ -385,7 +385,7 @@ func TestMetricsJSONWithCommonAttributesJSON(t *testing.T) {
 		Attributes: &commonAttributes{RawJSON: json.RawMessage(`{"zup":"wup"}`)},
 	}
 
-	batch1 := &metricBatch{
+	batch1 := &MetricBatch{
 		Metrics: []Metric{
 			&Summary{
 				Name:       "foo",
