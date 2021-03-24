@@ -94,10 +94,10 @@ func (batch *LogBatch) Bytes() []byte {
 	return buf.Bytes()
 }
 
-func (batch *LogBatch) split() []*LogBatch {
+func (batch *LogBatch) split() []splittablePayloadEntry {
 	if len(batch.Logs) < 2 {
 		return nil
 	}
 	middle := len(batch.Logs) / 2
-	return []*LogBatch{{Logs: batch.Logs[0:middle]}, {Logs: batch.Logs[middle:]}}
+	return []splittablePayloadEntry{&LogBatch{Logs: batch.Logs[0:middle]}, &LogBatch{Logs: batch.Logs[middle:]}}
 }

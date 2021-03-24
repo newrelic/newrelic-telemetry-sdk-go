@@ -172,10 +172,10 @@ func (batch *SpanBatch) Bytes() []byte {
 	return buf.Bytes()
 }
 
-func (batch *SpanBatch) split() []*SpanBatch {
+func (batch *SpanBatch) split() []splittablePayloadEntry {
 	if len(batch.Spans) < 2 {
 		return nil
 	}
 	middle := len(batch.Spans) / 2
-	return []*SpanBatch{{Spans: batch.Spans[0:middle]}, {Spans: batch.Spans[middle:]}}
+	return []splittablePayloadEntry{&SpanBatch{Spans: batch.Spans[0:middle]}, &SpanBatch{Spans: batch.Spans[middle:]}}
 }

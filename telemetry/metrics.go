@@ -284,7 +284,7 @@ type MetricBatch struct {
 
 // split will split the MetricBatch into 2 equal parts, returning a slice of MetricBatches.
 // If the number of metrics in the original is 0 or 1 then nil is returned.
-func (batch *MetricBatch) split() []*MetricBatch {
+func (batch *MetricBatch) split() []splittablePayloadEntry {
 	if len(batch.Metrics) < 2 {
 		return nil
 	}
@@ -295,7 +295,7 @@ func (batch *MetricBatch) split() []*MetricBatch {
 	mb2 := *batch
 	mb2.Metrics = batch.Metrics[half:]
 
-	return []*MetricBatch{&mb1, &mb2}
+	return []splittablePayloadEntry{&mb1, &mb2}
 }
 
 // Type returns the type of data contained in this MapEntry.
