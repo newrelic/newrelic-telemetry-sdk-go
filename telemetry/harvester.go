@@ -355,7 +355,7 @@ func (h *Harvester) swapOutSpans() []*http.Request {
 
 	entries := []MapEntry{}
 	if nil != h.commonAttributes {
-		entries = append(entries, &spanCommonBlock{Attributes: h.commonAttributes})
+		entries = append(entries, &spanCommonBlock{attributes: h.commonAttributes})
 	}
 	entries = append(entries, &SpanBatch{Spans: sps})
 	reqs, err := newRequests([]Batch{entries}, h.spanRequestFactory)

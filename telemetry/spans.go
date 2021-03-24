@@ -102,7 +102,7 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 
 // spanCommonBlock represents the shared elements of a SpanBatch.
 type spanCommonBlock struct {
-	Attributes *commonAttributes
+	attributes *commonAttributes
 }
 
 // Type returns the type of data contained in this MapEntry.
@@ -115,7 +115,9 @@ func (c *spanCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
-	w.RawField(c.Attributes.Type(), c.Attributes.Bytes())
+	if c.attributes != nil {
+		w.RawField(c.attributes.Type(), c.attributes.Bytes())
+	}
 	buf.WriteByte('}')
 	return buf.Bytes()
 }
@@ -135,18 +137,13 @@ func NewSpanCommonBlock(options ...SpanCommonBlockOption) (MapEntry, error) {
 	return scb, nil
 }
 
-// SpanCommonBlockBuilder is a builder for the span common block MapEntry.
-type SpanCommonBlockBuilder struct {
-	commonAttributes map[string]interface{}
-}
-
 // WithSpanAttributes creates a SpanCommonBlockOption to specify the common attributes of the common block.
 // If invalid attributes are detected an error will be returned describing which keys were invalid, but
 // the valid attributes will still be added to the span common block.
 func WithSpanAttributes(commonAttributes map[string]interface{}) SpanCommonBlockOption {
 	return func(scb *spanCommonBlock) error {
 		validCommonAttr, err := newCommonAttributes(commonAttributes)
-		scb.Attributes = validCommonAttr
+		scb.attributes = validCommonAttr
 		return err
 	}
 }
