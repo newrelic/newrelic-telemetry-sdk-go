@@ -114,8 +114,8 @@ func (c *spanCommonBlock) Type() string {
 func (c *spanCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
-	w := internal.JSONFieldsWriter{Buf: buf}
 	if c.attributes != nil {
+		w := internal.JSONFieldsWriter{Buf: buf}
 		w.RawField(c.attributes.Type(), c.attributes.Bytes())
 	}
 	buf.WriteByte('}')

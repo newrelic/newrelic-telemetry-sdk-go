@@ -62,8 +62,10 @@ func (c *logCommonBlock) Type() string {
 func (c *logCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
-	w := internal.JSONFieldsWriter{Buf: buf}
-	w.RawField(c.Attributes.Type(), c.Attributes.Bytes())
+	if c.Attributes != nil {
+		w := internal.JSONFieldsWriter{Buf: buf}
+		w.RawField(c.Attributes.Type(), c.Attributes.Bytes())
+	}
 	buf.WriteByte('}')
 	return buf.Bytes()
 }
