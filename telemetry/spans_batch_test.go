@@ -180,3 +180,16 @@ func TestSpansJSONWithCommonAttributesJSON(t *testing.T) {
 		}
 	]`)
 }
+
+func TestSpanBatchSplittable(t *testing.T) {
+	batch := &SpanBatch{
+		Spans: []Span{
+			{
+				ID:        "myid2",
+				TraceID:   "mytraceid2",
+				Timestamp: time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
+			},
+		},
+	}
+	_ = splittablePayloadEntry(batch)
+}

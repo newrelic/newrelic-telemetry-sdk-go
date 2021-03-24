@@ -427,3 +427,14 @@ func TestMetricsJSONWithCommonAttributesJSON(t *testing.T) {
 		}
 	]`)
 }
+func TestMetricBatchSplittable(t *testing.T) {
+	batch := &MetricBatch{
+		Metrics: []Metric{
+			&Summary{
+				Name:       "foo",
+				Attributes: map[string]interface{}{"zip": "zap"},
+			},
+		},
+	}
+	_ = splittablePayloadEntry(batch)
+}

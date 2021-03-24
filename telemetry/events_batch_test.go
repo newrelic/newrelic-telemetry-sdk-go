@@ -115,3 +115,8 @@ func TestEventsJSON(t *testing.T) {
 		}
 	]`)
 }
+
+func TestEventBatchSplittable(t *testing.T) {
+	batch := &eventBatch{Events: []Event{{EventType: "a"}}}
+	_ = splittablePayloadEntry(batch)
+}

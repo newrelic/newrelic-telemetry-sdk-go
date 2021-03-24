@@ -158,3 +158,15 @@ func TestLogsJSONWithCommonAttributesJSON(t *testing.T) {
 		}
 	]`)
 }
+
+func TestLogBatchSplittable(t *testing.T) {
+	batch := &LogBatch{
+		Logs: []Log{
+			{
+				Message:    "This is a log message.",
+				Timestamp:  time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
+				Attributes: map[string]interface{}{"zip": "zap"},
+			},
+		}}
+	_ = splittablePayloadEntry(batch)
+}
