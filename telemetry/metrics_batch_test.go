@@ -400,7 +400,7 @@ func TestMetricsJSONWithCommonAttributesJSON(t *testing.T) {
 			},
 		},
 	}
-	testSpanBatchJSON(t, []Batch{{commonBlock, batch1}, {batch2}}, `[
+	testBatchJSON(t, []Batch{{commonBlock, batch1}, {batch2}}, `[
 		{
 			"common": {
 				"timestamp":1417136460000,
