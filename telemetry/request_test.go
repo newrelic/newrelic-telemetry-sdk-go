@@ -5,11 +5,11 @@ package telemetry
 
 import (
 	"encoding/json"
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"testing"
-	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 type testUnsplittablePayloadEntry struct {
@@ -25,7 +25,7 @@ func (p *testUnsplittablePayloadEntry) Bytes() []byte {
 }
 
 type testSplittablePayloadEntry struct {
-	rawData json.RawMessage
+	rawData       json.RawMessage
 	splitPayloads []*testSplittablePayloadEntry
 }
 
@@ -38,7 +38,7 @@ func (p *testSplittablePayloadEntry) Bytes() []byte {
 }
 
 func (p *testSplittablePayloadEntry) split() []splittablePayloadEntry {
-	if (nil == p.splitPayloads) {
+	if nil == p.splitPayloads {
 		return nil
 	}
 
@@ -51,8 +51,8 @@ func (p *testSplittablePayloadEntry) split() []splittablePayloadEntry {
 
 func TestNewRequestNoSplitNeeded(t *testing.T) {
 	testPayload := testUnsplittablePayloadEntry{rawData: json.RawMessage(`123456789`)}
-	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
+	entries := []MapEntry{&testPayload}
+	reqs, err := newRequestsInternal([]Batch{entries}, testFactory(), func(r *http.Request) bool {
 		return false
 	})
 	if err != nil {
@@ -71,11 +71,11 @@ func TestNewRequestSplitNeeded(t *testing.T) {
 			{rawData: json.RawMessage(`"56789"`)},
 		},
 	}
-	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
+	entries := []MapEntry{&testPayload}
+	reqs, err := newRequestsInternal([]Batch{entries}, testFactory(), func(r *http.Request) bool {
 		shouldSplit, err := payloadContains(r, "testSplittable", "123456789")
 
-		if (nil != err) {
+		if nil != err {
 			t.Error(err)
 		}
 
@@ -100,11 +100,11 @@ func TestNewRequestSplittingMultiplePayloadsNeeded(t *testing.T) {
 			{rawData: json.RawMessage(`"56789"`)},
 		},
 	}
-	entries := []PayloadEntry{&testUnsplittablePayloadEntry, &testSplittablePayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
+	entries := []MapEntry{&testUnsplittablePayloadEntry, &testSplittablePayload}
+	reqs, err := newRequestsInternal([]Batch{entries}, testFactory(), func(r *http.Request) bool {
 		shouldSplit, err := payloadContains(r, "testSplittable", "123456789")
 
-		if (nil != err) {
+		if nil != err {
 			t.Error(err)
 		}
 
@@ -120,18 +120,18 @@ func TestNewRequestSplittingMultiplePayloadsNeeded(t *testing.T) {
 	expectedSplitPayloads := []string{"1234", "56789"}
 	for i := 0; i < 2; i++ {
 		hasUnsplittablePayload, err := payloadContains(reqs[i], "testUnsplittable", "abc")
-		if (err != nil) {
+		if err != nil {
 			t.Error(err)
 		}
-		if (!hasUnsplittablePayload) {
+		if !hasUnsplittablePayload {
 			t.Error("Each request should contain the unsplittable payload")
 		}
 
 		hasSplittablePayload, err := payloadContains(reqs[i], "testSplittable", expectedSplitPayloads[i])
-		if (err != nil) {
+		if err != nil {
 			t.Error(err)
 		}
-		if (!hasSplittablePayload) {
+		if !hasSplittablePayload {
 			t.Errorf("testSplittable did not contain %q", expectedSplitPayloads[i])
 		}
 	}
@@ -141,11 +141,11 @@ func TestNewRequestCantSplitPayload(t *testing.T) {
 	testPayload := testSplittablePayloadEntry{
 		rawData: json.RawMessage(`"123456789"`),
 	}
-	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
+	entries := []MapEntry{&testPayload}
+	reqs, err := newRequestsInternal([]Batch{entries}, testFactory(), func(r *http.Request) bool {
 		shouldSplit, err := payloadContains(r, "testSplittable", "123456789")
 
-		if (nil != err) {
+		if nil != err {
 			t.Error(err)
 		}
 
@@ -168,17 +168,17 @@ func TestNewRequestCantSplitPayloadsEnough(t *testing.T) {
 			{rawData: json.RawMessage(`"56789"`)},
 		},
 	}
-	entries := []PayloadEntry{&testPayload}
-	reqs, err := newRequestsInternal(entries, testFactory(), func(r *http.Request) bool {
+	entries := []MapEntry{&testPayload}
+	reqs, err := newRequestsInternal([]Batch{entries}, testFactory(), func(r *http.Request) bool {
 		isOriginalPayload, err := payloadContains(r, "testSplittable", "123456789")
 
-		if (nil != err) {
+		if nil != err {
 			t.Error(err)
 		}
 
 		isPayloadThatCantBeSplitAgain, err := payloadContains(r, "testSplittable", "56789")
 
-		if (nil != err) {
+		if nil != err {
 			t.Error(err)
 		}
 
@@ -193,10 +193,37 @@ func TestNewRequestCantSplitPayloadsEnough(t *testing.T) {
 	}
 }
 
+func TestNeedsToSplitBatchesAndEntries(t *testing.T) {
+	// Create a set of batches that must be first be split into two requests.
+	// The batch1 request must be further subdivided into two requests, creating
+	// a total of 3 requests.
+	batch1 := []MapEntry{
+		&testSplittablePayloadEntry{
+			rawData: randomJSON(maxCompressedSizeBytes * 4),
+			splitPayloads: []*testSplittablePayloadEntry{
+				{rawData: randomJSON(maxCompressedSizeBytes * 2)},
+				{rawData: randomJSON(maxCompressedSizeBytes * 2)},
+			},
+		},
+	}
+	batch2 := []MapEntry{
+		&testSplittablePayloadEntry{
+			rawData: randomJSON(maxCompressedSizeBytes),
+		},
+	}
+	reqs, err := newRequests([]Batch{batch1, batch2}, testFactory())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reqs) != 3 {
+		t.Fatal(len(reqs))
+	}
+}
+
 func TestLargeRequestNeedsSplit(t *testing.T) {
 	js := randomJSON(4 * maxCompressedSizeBytes)
 	payloadEntry := testUnsplittablePayloadEntry{rawData: js}
-	reqs, err := newRequests([]PayloadEntry{&payloadEntry}, testFactory())
+	reqs, err := newRequests([]Batch{{&payloadEntry}}, testFactory())
 	if reqs != nil {
 		t.Error(reqs)
 	}
@@ -208,7 +235,7 @@ func TestLargeRequestNeedsSplit(t *testing.T) {
 func TestLargeRequestNoSplit(t *testing.T) {
 	js := randomJSON(maxCompressedSizeBytes / 2)
 	payloadEntry := testUnsplittablePayloadEntry{rawData: js}
-	reqs, err := newRequests([]PayloadEntry{&payloadEntry}, testFactory())
+	reqs, err := newRequests([]Batch{{&payloadEntry}}, testFactory())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +267,7 @@ func randomJSON(numBytes int) json.RawMessage {
 	return js
 }
 
-func testFactory() (RequestFactory) {
+func testFactory() RequestFactory {
 	factory, _ := NewMetricRequestFactory(WithNoDefaultKey())
 	return factory
 }

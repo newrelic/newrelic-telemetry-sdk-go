@@ -53,17 +53,19 @@ type logCommonBlock struct {
 	Attributes *commonAttributes
 }
 
-// Type returns the type of data contained in this PayloadEntry.
+// Type returns the type of data contained in this MapEntry.
 func (c *logCommonBlock) Type() string {
 	return "common"
 }
 
-// Bytes returns the json serialized bytes of the PayloadEntry.
+// Bytes returns the json serialized bytes of the MapEntry.
 func (c *logCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
-	w := internal.JSONFieldsWriter{Buf: buf}
-	w.RawField(c.Attributes.Type(), c.Attributes.Bytes())
+	if c.Attributes != nil {
+		w := internal.JSONFieldsWriter{Buf: buf}
+		w.RawField(c.Attributes.Type(), c.Attributes.Bytes())
+	}
 	buf.WriteByte('}')
 	return buf.Bytes()
 }
@@ -73,12 +75,12 @@ type LogBatch struct {
 	Logs []Log
 }
 
-// Type returns the type of data contained in this PayloadEntry.
+// Type returns the type of data contained in this MapEntry.
 func (batch *LogBatch) Type() string {
 	return logTypeName
 }
 
-// Bytes returns the json serialized bytes of the PayloadEntry.
+// Bytes returns the json serialized bytes of the MapEntry.
 func (batch *LogBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('[')
@@ -92,10 +94,10 @@ func (batch *LogBatch) Bytes() []byte {
 	return buf.Bytes()
 }
 
-func (batch *LogBatch) split() []*LogBatch {
+func (batch *LogBatch) split() []splittablePayloadEntry {
 	if len(batch.Logs) < 2 {
 		return nil
 	}
 	middle := len(batch.Logs) / 2
-	return []*LogBatch{{Logs: batch.Logs[0:middle]}, {Logs: batch.Logs[middle:]}}
+	return []splittablePayloadEntry{&LogBatch{Logs: batch.Logs[0:middle]}, &LogBatch{Logs: batch.Logs[middle:]}}
 }

@@ -5,7 +5,9 @@ package telemetry
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 )
 
 func attributeValueValid(val interface{}) bool {
@@ -19,8 +21,8 @@ func attributeValueValid(val interface{}) bool {
 }
 
 // vetAttributes returns the attributes that are valid.  vetAttributes does not
-// modify remove any elements from its parameter.
-func vetAttributes(attributes map[string]interface{}, errorLogger func(map[string]interface{})) map[string]interface{} {
+// modify or remove any elements from its parameter.
+func vetAttributes(attributes map[string]interface{}) (map[string]interface{}, error) {
 	valid := true
 	for _, val := range attributes {
 		if !attributeValueValid(val) {
@@ -29,21 +31,20 @@ func vetAttributes(attributes map[string]interface{}, errorLogger func(map[strin
 		}
 	}
 	if valid {
-		return attributes
+		return attributes, nil
 	}
 	// Note that the map is only copied if elements are to be removed to
 	// improve performance.
 	validAttributes := make(map[string]interface{}, len(attributes))
+	var errStrs []string
 	for key, val := range attributes {
 		if attributeValueValid(val) {
 			validAttributes[key] = val
-		} else if nil != errorLogger {
-			errorLogger(map[string]interface{}{
-				"err": fmt.Sprintf(`attribute "%s" has invalid type %T`, key, val),
-			})
+		} else {
+			errStrs = append(errStrs, fmt.Sprintf(`attribute "%s" has invalid type %T`, key, val))
 		}
 	}
-	return validAttributes
+	return validAttributes, errors.New(strings.Join(errStrs, ","))
 }
 
 type commonAttributes struct {
@@ -58,16 +59,17 @@ func (ca *commonAttributes) Bytes() []byte {
 	return ca.RawJSON
 }
 
-func newCommonAttributes(attributes map[string]interface{}, errorLogger func(map[string]interface{})) (*commonAttributes) {
-	attrs := vetAttributes(attributes, errorLogger)
-	attributesJSON, err := json.Marshal(attrs)
-
-	if (err != nil) {
-		errorLogger(map[string]interface{}{
-			"err":     err.Error(),
-			"message": "error marshaling common attributes",
-		})
-		return nil
+// newCommonAttributes vets and marshals the attributes map. If invalid attributes are
+// detected, the response will contain the valid attributes and an error describing which
+// keys were invalid. If a marshalling error occurs, nil  commonAttributes and an error
+// will be returned.
+func newCommonAttributes(attributes map[string]interface{}) (*commonAttributes, error) {
+	response := commonAttributes{}
+	validAttrs, err := vetAttributes(attributes)
+	validAttrsJSON, marshalErr := json.Marshal(validAttrs)
+	if marshalErr != nil {
+		return nil, marshalErr
 	}
-	return &commonAttributes{RawJSON: attributesJSON}
+	response.RawJSON = validAttrsJSON
+	return &response, err
 }

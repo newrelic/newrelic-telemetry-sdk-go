@@ -19,13 +19,13 @@ func BenchmarkSpansJSON(b *testing.B) {
 
 	for i := 0; i < numSpans; i++ {
 		batch.Spans = append(batch.Spans, Span{
-			ID:             "myid",
-			TraceID:        "mytraceid",
-			Name:           "myname",
-			ParentID:       "myparent",
-			Timestamp:      tm,
-			Duration:       2 * time.Second,
-			ServiceName:    "myentity",
+			ID:          "myid",
+			TraceID:     "mytraceid",
+			Name:        "myname",
+			ParentID:    "myparent",
+			Timestamp:   tm,
+			Duration:    2 * time.Second,
+			ServiceName: "myentity",
 		})
 	}
 
@@ -146,6 +146,37 @@ func TestRecordSpanNilHarvester(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestSpanCommonBlock(t *testing.T) {
+	type testCase struct {
+		expected string
+		options []SpanCommonBlockOption
+	}
+	tests := []testCase{
+		{
+			expected: `{}`,
+			options: nil,
+		},
+		{
+			expected: `{"attributes":null}`,
+			options: []SpanCommonBlockOption{WithSpanAttributes(nil)},
+		},
+		{
+			expected: `{"attributes":{"zup":"wup"}}`,
+			options: []SpanCommonBlockOption{WithSpanAttributes(map[string]interface{}{"zup": "wup"})},
+		},
+	}
+	for _, test := range tests {
+		mapEntry, err := NewSpanCommonBlock(test.options...)
+		if err != nil {
+			t.Fail()
+		}
+		json := string(mapEntry.Bytes())
+		if test.expected != json {
+			t.Errorf("Expected spanCommonBlock to serialize to %s but was %s", test.expected, json)
+		}
 	}
 }
 

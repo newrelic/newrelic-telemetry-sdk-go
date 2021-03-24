@@ -115,15 +115,15 @@ func TestPathNotUsedFromUrls(t *testing.T) {
 }
 
 func validateReqUsedCorrectEndpointValues(reqs []*http.Request, expectedURL string, expectedEndpoint string, t *testing.T) {
-	if (len(reqs) < 1) {
+	if len(reqs) < 1 {
 		t.Error("Expected at least 1 requst to validate")
 	}
 
 	for _, req := range reqs {
-		if (req.Host != expectedEndpoint) {
+		if req.Host != expectedEndpoint {
 			t.Errorf("Got req.Host %v but expected %v", req.Host, expectedEndpoint)
 		}
-		if (req.URL.String() != expectedURL) {
+		if req.URL.String() != expectedURL {
 			t.Errorf("Got req.URL %v but expected %v", req.URL.String(), expectedURL)
 		}
 	}
@@ -203,7 +203,15 @@ func TestVetCommonAttributes(t *testing.T) {
 			}
 		},
 	)
-	if len(savedErrors) != 3 {
+	if len(savedErrors) != 1 {
+		t.Fatalf("Expected one error but there was %v", len(savedErrors))
+	}
+	errVal, ok := savedErrors[0]["err"]
+	if !ok {
+		t.Fatalf("Missing expected err key.")
+	}
+	errors := strings.Split(errVal.(string), ",")
+	if len(errors) != 3 {
 		t.Fatal(savedErrors)
 	}
 }

@@ -49,7 +49,7 @@ type eventBatch struct {
 
 // split will split the eventBatch into 2 equally sized batches.
 // If the number of events in the original is 0 or 1 then nil is returned.
-func (batch *eventBatch) split() []*eventBatch {
+func (batch *eventBatch) split() []splittablePayloadEntry {
 	if len(batch.Events) < 2 {
 		return nil
 	}
@@ -60,7 +60,7 @@ func (batch *eventBatch) split() []*eventBatch {
 	b2 := *batch
 	b2.Events = batch.Events[half:]
 
-	return []*eventBatch{&b1, &b2}
+	return []splittablePayloadEntry{&b1, &b2}
 }
 
 func (batch *eventBatch) writeJSON(buf *bytes.Buffer) {
@@ -78,12 +78,12 @@ func (batch *eventBatch) makeBody() json.RawMessage {
 	return buf.Bytes()
 }
 
-// Type returns the type of data contained in this PayloadEntry.
+// Type returns the type of data contained in this MapEntry.
 func (batch *eventBatch) Type() string {
 	return eventTypeName
 }
 
-// Bytes returns the json serialized bytes of the PayloadEntry.
+// Bytes returns the json serialized bytes of the MapEntry.
 func (batch *eventBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	batch.writeJSON(buf)

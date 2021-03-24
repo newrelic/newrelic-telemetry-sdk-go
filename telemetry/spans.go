@@ -100,23 +100,52 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('}')
 }
 
+// spanCommonBlock represents the shared elements of a SpanBatch.
 type spanCommonBlock struct {
-	Attributes *commonAttributes
+	attributes *commonAttributes
 }
 
-// Type returns the type of data contained in this PayloadEntry.
+// Type returns the type of data contained in this MapEntry.
 func (c *spanCommonBlock) Type() string {
 	return "common"
 }
 
-// Bytes returns the json serialized bytes of the PayloadEntry.
+// Bytes returns the json serialized bytes of the MapEntry.
 func (c *spanCommonBlock) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('{')
-	w := internal.JSONFieldsWriter{Buf: buf}
-	w.RawField(c.Attributes.Type(), c.Attributes.Bytes())
+	if c.attributes != nil {
+		w := internal.JSONFieldsWriter{Buf: buf}
+		w.RawField(c.attributes.Type(), c.attributes.Bytes())
+	}
 	buf.WriteByte('}')
 	return buf.Bytes()
+}
+
+// SpanCommonBlockOption is a function that can be used to configure a spanCommonBlock
+type SpanCommonBlockOption func(scb *spanCommonBlock) error
+
+// NewSpanCommonBlock creates a new MapEntry representing data common to all spans in a batch.
+func NewSpanCommonBlock(options ...SpanCommonBlockOption) (MapEntry, error) {
+	scb := &spanCommonBlock{}
+	for _, option := range options {
+		err := option(scb)
+		if err != nil {
+			return scb, err
+		}
+	}
+	return scb, nil
+}
+
+// WithSpanAttributes creates a SpanCommonBlockOption to specify the common attributes of the common block.
+// If invalid attributes are detected an error will be returned describing which keys were invalid, but
+// the valid attributes will still be added to the span common block.
+func WithSpanAttributes(commonAttributes map[string]interface{}) SpanCommonBlockOption {
+	return func(scb *spanCommonBlock) error {
+		validCommonAttr, err := newCommonAttributes(commonAttributes)
+		scb.attributes = validCommonAttr
+		return err
+	}
 }
 
 // SpanBatch represents a single batch of spans to report to New Relic.
@@ -124,12 +153,12 @@ type SpanBatch struct {
 	Spans []Span
 }
 
-// Type returns the type of data contained in this PayloadEntry.
+// Type returns the type of data contained in this MapEntry.
 func (batch *SpanBatch) Type() string {
 	return spanTypeName
 }
 
-// Bytes returns the json serialized bytes of the PayloadEntry.
+// Bytes returns the json serialized bytes of the MapEntry.
 func (batch *SpanBatch) Bytes() []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('[')
@@ -143,10 +172,10 @@ func (batch *SpanBatch) Bytes() []byte {
 	return buf.Bytes()
 }
 
-func (batch *SpanBatch) split() []*SpanBatch {
+func (batch *SpanBatch) split() []splittablePayloadEntry {
 	if len(batch.Spans) < 2 {
 		return nil
 	}
 	middle := len(batch.Spans) / 2
-	return []*SpanBatch{{Spans: batch.Spans[0:middle]}, {Spans: batch.Spans[middle:]}}
+	return []splittablePayloadEntry{&SpanBatch{Spans: batch.Spans[0:middle]}, &SpanBatch{Spans: batch.Spans[middle:]}}
 }

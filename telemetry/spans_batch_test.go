@@ -4,7 +4,6 @@
 package telemetry
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -12,12 +11,12 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
-func testSpanBatchJSON(t testing.TB, entries []PayloadEntry, expect string) {
+func testSpanBatchJSON(t testing.TB, batches []Batch, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
 	factory, _ := NewSpanRequestFactory(WithNoDefaultKey())
-	reqs, err := newRequests(entries, factory)
+	reqs, err := newRequests(batches, factory)
 	if nil != err {
 		t.Fatal(err)
 	}
@@ -31,8 +30,7 @@ func testSpanBatchJSON(t testing.TB, entries []PayloadEntry, expect string) {
 	if err != nil {
 		t.Fatal("unable to uncompress body", err)
 	}
-	js := string(uncompressedBytes)
-	actual := string(js)
+	actual := string(uncompressedBytes)
 	compact := compactJSONString(expect)
 	if actual != compact {
 		t.Errorf("\nexpect=%s\nactual=%s\n", compact, actual)
@@ -70,8 +68,8 @@ func TestSpansPayloadSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testSpanBatchJSON(t, []PayloadEntry { split[0] }, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
-	testSpanBatchJSON(t, []PayloadEntry { split[1] }, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}}]}]`)
+	testSpanBatchJSON(t, []Batch{{split[0]}}, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
+	testSpanBatchJSON(t, []Batch{{split[1]}}, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}}]}]`)
 
 	// test len 3
 	sp = &SpanBatch{Spans: []Span{{Name: "a"}, {Name: "b"}, {Name: "c"}}}
@@ -79,8 +77,8 @@ func TestSpansPayloadSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testSpanBatchJSON(t, []PayloadEntry { split[0] }, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
-	testSpanBatchJSON(t, []PayloadEntry { split[1] }, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}},{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"c"}}]}]`)
+	testSpanBatchJSON(t, []Batch{{split[0]}}, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"a"}}]}]`)
+	testSpanBatchJSON(t, []Batch{{split[1]}}, `[{"spans":[{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"b"}},{"id":"","trace.id":"","timestamp":-6795364578871,"attributes":{"name":"c"}}]}]`)
 }
 
 func TestSpansJSON(t *testing.T) {
@@ -97,7 +95,7 @@ func TestSpansJSON(t *testing.T) {
 			Attributes:  map[string]interface{}{"zip": "zap"},
 		},
 	}}
-	testSpanBatchJSON(t, []PayloadEntry { batch }, `[{"spans":[
+	testSpanBatchJSON(t, []Batch{{batch}}, `[{"spans":[
 		{
 			"id":"",
 			"trace.id":"",
@@ -121,15 +119,16 @@ func TestSpansJSON(t *testing.T) {
 }
 
 func TestSpansJSONWithCommonAttributesJSON(t *testing.T) {
-	commonBlock := &spanCommonBlock {
-		Attributes: &commonAttributes { RawJSON: json.RawMessage(`{"zup":"wup"}`) },
+	commonBlock, err := NewSpanCommonBlock(WithSpanAttributes(map[string]interface{}{"zup": "wup"}))
+	if err != nil {
+		t.Fail()
 	}
 
-	batch := &SpanBatch{
+	batch1 := &SpanBatch{
 		Spans: []Span{
 			{
-				ID:          "myid",
-				TraceID:     "mytraceid",
+				ID:          "myid1",
+				TraceID:     "mytraceid1",
 				Name:        "myname",
 				ParentID:    "myparentid",
 				Timestamp:   time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
@@ -138,18 +137,59 @@ func TestSpansJSONWithCommonAttributesJSON(t *testing.T) {
 				Attributes:  map[string]interface{}{"zip": "zap"},
 			},
 		}}
-	testSpanBatchJSON(t, []PayloadEntry {commonBlock, batch}, `[{"common":{"attributes":{"zup":"wup"}},"spans":[
+	batch2 := &SpanBatch{
+		Spans: []Span{
+			{
+				ID:        "myid2",
+				TraceID:   "mytraceid2",
+				Timestamp: time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
+			},
+		},
+	}
+	testSpanBatchJSON(t, []Batch{{commonBlock, batch1}, {batch2}}, `[
 		{
-			"id":"myid",
-			"trace.id":"mytraceid",
-			"timestamp":1417136460000,
-			"attributes": {
-				"name":"myname",
-				"parent.id":"myparentid",
-				"duration.ms":2000,
-				"service.name":"myentity",
-				"zip":"zap"
-			}
+			"common": {
+				"attributes": {
+					"zup":"wup"
+				}
+			},
+			"spans":[
+				{
+					"id":"myid1",
+					"trace.id":"mytraceid1",
+					"timestamp":1417136460000,
+					"attributes": {
+						"name":"myname",
+						"parent.id":"myparentid",
+						"duration.ms":2000,
+						"service.name":"myentity",
+						"zip":"zap"
+					}
+				}
+			]
+		},
+		{
+			"spans":[
+				{
+					"id":"myid2",
+					"trace.id":"mytraceid2",
+					"timestamp":1417136460000,
+					"attributes": {}
+				}
+			]
 		}
-	]}]`)
+	]`)
+}
+
+func TestSpanBatchSplittable(t *testing.T) {
+	batch := &SpanBatch{
+		Spans: []Span{
+			{
+				ID:        "myid2",
+				TraceID:   "mytraceid2",
+				Timestamp: time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
+			},
+		},
+	}
+	_ = splittablePayloadEntry(batch)
 }

@@ -13,7 +13,7 @@ const (
 )
 
 type splittablePayloadEntry interface {
-	PayloadEntry
+	MapEntry
 	split() []splittablePayloadEntry
 }
 
@@ -25,13 +25,13 @@ func requestNeedsSplit(r *http.Request) bool {
 	return r.ContentLength >= maxCompressedSizeBytes
 }
 
-func newRequests(entries []PayloadEntry, factory RequestFactory) ([]*http.Request, error) {
-	return newRequestsInternal(entries, factory, requestNeedsSplit)
+func newRequests(batches []Batch, factory RequestFactory) ([]*http.Request, error) {
+	return newRequestsInternal(batches, factory, requestNeedsSplit)
 }
 
-func newRequestsInternal(entries []PayloadEntry, factory RequestFactory, needsSplit func(*http.Request) bool) ([]*http.Request, error) {
-	r, err := factory.BuildRequest(entries)
-	if (nil != err) {
+func newRequestsInternal(batches []Batch, factory RequestFactory, needsSplit func(*http.Request) bool) ([]*http.Request, error) {
+	r, err := factory.BuildRequest(batches)
+	if nil != err {
 		return nil, err
 	}
 
@@ -40,30 +40,42 @@ func newRequestsInternal(entries []PayloadEntry, factory RequestFactory, needsSp
 	}
 
 	var reqs []*http.Request
-	var splitPayload1 []PayloadEntry
-	var splitPayload2 []PayloadEntry
+	var splitBatches1 []Batch
+	var splitBatches2 []Batch
 	payloadWasSplit := false
-	for _, e := range entries {
-		splittable, isPayloadSplittable := e.(splittablePayloadEntry)
-		if isPayloadSplittable {
-			splitEntry := splittable.split()
-			if splitEntry != nil {
-				splitPayload1 = append(splitPayload1, splitEntry[0].(PayloadEntry))
-				splitPayload2 = append(splitPayload2, splitEntry[1].(PayloadEntry))
-				payloadWasSplit = true
-				continue
-			}
-		}
 
-		splitPayload1 = append(splitPayload1, e)
-		splitPayload2 = append(splitPayload2, e)
+	if len(batches) > 1 {
+		middle := len(batches) / 2
+		splitBatches1 = batches[0:middle]
+		splitBatches2 = batches[middle:]
+		payloadWasSplit = true
+	} else if len(batches) == 1 {
+		var payload1Entries []MapEntry
+		var payload2Entries []MapEntry
+		for _, e := range batches[0] {
+			splittable, isPayloadSplittable := e.(splittablePayloadEntry)
+			if isPayloadSplittable {
+				splitEntry := splittable.split()
+				if splitEntry != nil {
+					payload1Entries = append(payload1Entries, splitEntry[0].(MapEntry))
+					payload2Entries = append(payload2Entries, splitEntry[1].(MapEntry))
+					payloadWasSplit = true
+					continue
+				}
+			}
+
+			payload1Entries = append(payload1Entries, e)
+			payload2Entries = append(payload2Entries, e)
+		}
+		splitBatches1 = []Batch{payload1Entries}
+		splitBatches2 = []Batch{payload2Entries}
 	}
 
 	if !payloadWasSplit {
 		return nil, errUnableToSplit
 	}
 
-	for _, b := range [][]PayloadEntry{splitPayload1, splitPayload2} {
+	for _, b := range [][]Batch{splitBatches1, splitBatches2} {
 		rs, err := newRequestsInternal(b, factory, needsSplit)
 		if nil != err {
 			return nil, err

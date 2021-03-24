@@ -16,25 +16,30 @@ import (
 const defaultUserAgent = "NewRelic-Go-TelemetrySDK/" + version
 const defaultScheme = "https"
 
-// PayloadEntry represents a piece of the telemetry data that is included in a single
-// request that should be sent to New Relic. Example PayloadEntry types include SpanBatch
+// MapEntry represents a piece of the telemetry data that is included in a single
+// request that should be sent to New Relic. Example MapEntry types include SpanBatch
 // and the internal spanCommonBlock.
-type PayloadEntry interface {
-	// Type returns the type of data contained in this PayloadEntry.
+type MapEntry interface {
+	// Type returns the type of data contained in this MapEntry.
 	Type() string
-	// Bytes returns the json serialized bytes of the PayloadEntry.
+
+	// Bytes returns the json serialized bytes of the MapEntry.
 	Bytes() []byte
 }
+
+// A Batch is an array of MapEntry. A single HTTP request body is composed of
+// an array of Batch.
+type Batch = []MapEntry
 
 // RequestFactory is used for sending telemetry data to New Relic when you want to have
 // direct access to the http.Request and you want to manually send the request using a
 // http.Client. Consider using the Harvester if you do not want to manage the requests
 // and corresponding responses manually.
 type RequestFactory interface {
-	// BuildRequest converts the telemetry payload entries into an http.Request.
+	// BuildRequest converts the telemetry payload slice into an http.Request.
 	// Do not mix telemetry data types in a single call to build request. Each
 	// telemetry data type has its own RequestFactory.
-	BuildRequest([]PayloadEntry, ...ClientOption) (*http.Request, error)
+	BuildRequest([]Batch, ...ClientOption) (*http.Request, error)
 }
 
 type requestFactory struct {
@@ -67,17 +72,17 @@ func configure(f *requestFactory, options []ClientOption) error {
 
 }
 
-func (f *hashRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (*http.Request, error) {
-	return f.buildRequest(entries, getHashedPayloadBytes, options)
+func (f *hashRequestFactory) BuildRequest(batches []Batch, options ...ClientOption) (*http.Request, error) {
+	return f.buildRequest(batches, bufferRequestBytes, options)
 }
 
-func (f *eventRequestFactory) BuildRequest(entries []PayloadEntry, options ...ClientOption) (*http.Request, error) {
-	return f.buildRequest(entries, getEventPayloadBytes, options)
+func (f *eventRequestFactory) BuildRequest(batches []Batch, options ...ClientOption) (*http.Request, error) {
+	return f.buildRequest(batches, bufferEventRequestBytes, options)
 }
 
-type payloadWriter func(buf *bytes.Buffer, entries []PayloadEntry)
+type writer func(buf *bytes.Buffer, batches []Batch)
 
-func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes payloadWriter, options []ClientOption) (*http.Request, error) {
+func (f *requestFactory) buildRequest(batches []Batch, bufferRequestBytes writer, options []ClientOption) (*http.Request, error) {
 	configuredFactory := f
 	if len(options) > 0 {
 		configuredFactory = &requestFactory{
@@ -98,7 +103,7 @@ func (f *requestFactory) buildRequest(entries []PayloadEntry, getPayloadBytes pa
 	}
 
 	buf := &bytes.Buffer{}
-	getPayloadBytes(buf, entries)
+	bufferRequestBytes(buf, batches)
 
 	var compressedBuffer bytes.Buffer
 	zipper := configuredFactory.zippers.Get().(*gzip.Writer)
@@ -144,27 +149,34 @@ func (f *requestFactory) getHeaders() http.Header {
 	}
 }
 
-func getHashedPayloadBytes(buf *bytes.Buffer, entries []PayloadEntry) {
-	buf.Write([]byte{'[', '{'})
-	w := internal.JSONFieldsWriter{Buf: buf}
-
-	for _, entry := range entries {
-		w.RawField(entry.Type(), entry.Bytes())
-	}
-
-	buf.Write([]byte{'}', ']'})
-}
-
-func getEventPayloadBytes(buf *bytes.Buffer, entries []PayloadEntry) {
+func bufferRequestBytes(buf *bytes.Buffer, batches []Batch) {
 	buf.WriteByte('[')
-
-	for idx, entry := range entries {
-		if idx > 0 {
+	for i, batch := range batches {
+		if i > 0 {
 			buf.WriteByte(',')
 		}
-		buf.Write(entry.Bytes())
+		buf.WriteByte('{')
+		w := internal.JSONFieldsWriter{Buf: buf}
+		for _, mapEntry := range batch {
+			w.RawField(mapEntry.Type(), mapEntry.Bytes())
+		}
+		buf.WriteByte('}')
 	}
+	buf.WriteByte(']')
+}
 
+func bufferEventRequestBytes(buf *bytes.Buffer, batches []Batch) {
+	buf.WriteByte('[')
+	count := 0
+	for _, batch := range batches {
+		for _, mapEntry := range batch {
+			if count > 0 {
+				buf.WriteByte(',')
+			}
+			buf.Write(mapEntry.Bytes())
+			count++
+		}
+	}
 	buf.WriteByte(']')
 }
 
