@@ -149,6 +149,37 @@ func TestRecordSpanNilHarvester(t *testing.T) {
 	}
 }
 
+func TestSpanCommonBlock(t *testing.T) {
+	type testCase struct {
+		expected string
+		options []SpanCommonBlockOption
+	}
+	tests := []testCase{
+		{
+			expected: `{}`,
+			options: nil,
+		},
+		{
+			expected: `{"attributes":null}`,
+			options: []SpanCommonBlockOption{WithSpanAttributes(nil)},
+		},
+		{
+			expected: `{"attributes":{"zup":"wup"}}`,
+			options: []SpanCommonBlockOption{WithSpanAttributes(map[string]interface{}{"zup": "wup"})},
+		},
+	}
+	for _, test := range tests {
+		mapEntry, err := NewSpanCommonBlock(test.options...)
+		if err != nil {
+			t.Fail()
+		}
+		json := string(mapEntry.Bytes())
+		if test.expected != json {
+			t.Errorf("Expected spanCommonBlock to serialize to %s but was %s", test.expected, json)
+		}
+	}
+}
+
 func TestSpanWithEvents(t *testing.T) {
 	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	h, _ := NewHarvester(configTesting)
