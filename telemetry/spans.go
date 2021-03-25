@@ -110,7 +110,7 @@ func (c *spanCommonBlock) Type() string {
 	return "common"
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
+// WriteBytes writes the json serialized bytes of the MapEntry to the buffer.
 func (c *spanCommonBlock) WriteBytes(buf *bytes.Buffer) {
 	buf.WriteByte('{')
 	if c.attributes != nil {
@@ -157,7 +157,7 @@ func (batch *SpanBatch) Type() string {
 	return spanTypeName
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
+// WriteBytes writes the json serialized bytes of the MapEntry to the buffer.
 func (batch *SpanBatch) WriteBytes(buf *bytes.Buffer) {
 	buf.WriteByte('[')
 	for idx, s := range batch.Spans {

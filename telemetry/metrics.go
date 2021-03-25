@@ -254,7 +254,7 @@ func (mcb *metricCommonBlock) Type() string {
 	return "common"
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
+// WriteBytes writes the json serialized bytes of the MapEntry to the buffer.
 func (mcb *metricCommonBlock) WriteBytes(buf *bytes.Buffer) {
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
@@ -302,7 +302,7 @@ func (batch *MetricBatch) Type() string {
 	return metricTypeName
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
+// WriteBytes writes the json serialized bytes of the MapEntry to the buffer.
 func (batch *MetricBatch) WriteBytes(buf *bytes.Buffer) {
 	buf.WriteByte('[')
 	for idx, m := range batch.Metrics {

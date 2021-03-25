@@ -58,7 +58,7 @@ func (c *logCommonBlock) Type() string {
 	return "common"
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
+// WriteBytes writes the json serialized bytes of the MapEntry to the buffer.
 func (c *logCommonBlock) WriteBytes(buf *bytes.Buffer) {
 	buf.WriteByte('{')
 	if c.Attributes != nil {
@@ -79,7 +79,7 @@ func (batch *LogBatch) Type() string {
 	return logTypeName
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
+// WriteBytes writes the json serialized bytes of the MapEntry to the buffer.
 func (batch *LogBatch) WriteBytes(buf *bytes.Buffer) {
 	buf.WriteByte('[')
 	for idx, s := range batch.Logs {
