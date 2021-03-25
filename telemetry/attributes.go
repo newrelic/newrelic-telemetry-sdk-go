@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -55,8 +56,8 @@ func (ca *commonAttributes) Type() string {
 	return "attributes"
 }
 
-func (ca *commonAttributes) Bytes() []byte {
-	return ca.RawJSON
+func (ca *commonAttributes) WriteBytes(buf *bytes.Buffer) {
+	buf.Write(ca.RawJSON)
 }
 
 // newCommonAttributes vets and marshals the attributes map. If invalid attributes are

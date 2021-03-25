@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -31,10 +32,10 @@ func BenchmarkSpansJSON(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
-
+	buf := &bytes.Buffer{}
 	for i := 0; i < b.N; i++ {
-		if bts := batch.Bytes(); nil == bts || len(bts) == 0 {
-			b.Fatal(string(bts))
+		if batch.WriteBytes(buf); nil == buf.Bytes() || len(buf.Bytes()) == 0 {
+			b.Fatal(string(buf.Bytes()))
 		}
 	}
 }
@@ -57,7 +58,7 @@ func testHarvesterSpans(t testing.TB, h *Harvester, expect string) {
 	compressedBytes, _ := ioutil.ReadAll(bodyReader)
 	uncompressedBytes, _ := internal.Uncompress(compressedBytes)
 	js := string(uncompressedBytes)
-	actual := string(js)
+	actual := js
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
@@ -152,20 +153,20 @@ func TestRecordSpanNilHarvester(t *testing.T) {
 func TestSpanCommonBlock(t *testing.T) {
 	type testCase struct {
 		expected string
-		options []SpanCommonBlockOption
+		options  []SpanCommonBlockOption
 	}
 	tests := []testCase{
 		{
 			expected: `{}`,
-			options: nil,
+			options:  nil,
 		},
 		{
 			expected: `{"attributes":null}`,
-			options: []SpanCommonBlockOption{WithSpanAttributes(nil)},
+			options:  []SpanCommonBlockOption{WithSpanAttributes(nil)},
 		},
 		{
 			expected: `{"attributes":{"zup":"wup"}}`,
-			options: []SpanCommonBlockOption{WithSpanAttributes(map[string]interface{}{"zup": "wup"})},
+			options:  []SpanCommonBlockOption{WithSpanAttributes(map[string]interface{}{"zup": "wup"})},
 		},
 	}
 	for _, test := range tests {
@@ -173,7 +174,9 @@ func TestSpanCommonBlock(t *testing.T) {
 		if err != nil {
 			t.Fail()
 		}
-		json := string(mapEntry.Bytes())
+		buf := &bytes.Buffer{}
+		mapEntry.WriteBytes(buf)
+		json := string(buf.Bytes())
 		if test.expected != json {
 			t.Errorf("Expected spanCommonBlock to serialize to %s but was %s", test.expected, json)
 		}

@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -27,9 +28,11 @@ func BenchmarkLogsJSON(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
+	buf := &bytes.Buffer{}
 	for i := 0; i < b.N; i++ {
-		if bts := batch.Bytes(); nil == bts || len(bts) == 0 {
-			b.Fatal(string(bts))
+		buf.Reset()
+		if batch.WriteBytes(buf); nil == buf.Bytes() || len(buf.Bytes()) == 0 {
+			b.Fatal(string(buf.Bytes()))
 		}
 	}
 }

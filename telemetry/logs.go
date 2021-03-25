@@ -59,15 +59,14 @@ func (c *logCommonBlock) Type() string {
 }
 
 // Bytes returns the json serialized bytes of the MapEntry.
-func (c *logCommonBlock) Bytes() []byte {
-	buf := &bytes.Buffer{}
+func (c *logCommonBlock) WriteBytes(buf *bytes.Buffer) {
 	buf.WriteByte('{')
 	if c.Attributes != nil {
 		w := internal.JSONFieldsWriter{Buf: buf}
-		w.RawField(c.Attributes.Type(), c.Attributes.Bytes())
+		w.AddKey(c.Attributes.Type())
+		c.Attributes.WriteBytes(buf)
 	}
 	buf.WriteByte('}')
-	return buf.Bytes()
 }
 
 // LogBatch represents a single batch of log messages to report to New Relic.
@@ -81,8 +80,7 @@ func (batch *LogBatch) Type() string {
 }
 
 // Bytes returns the json serialized bytes of the MapEntry.
-func (batch *LogBatch) Bytes() []byte {
-	buf := &bytes.Buffer{}
+func (batch *LogBatch) WriteBytes(buf *bytes.Buffer) {
 	buf.WriteByte('[')
 	for idx, s := range batch.Logs {
 		if idx > 0 {
@@ -91,7 +89,6 @@ func (batch *LogBatch) Bytes() []byte {
 		s.writeJSON(buf)
 	}
 	buf.WriteByte(']')
-	return buf.Bytes()
 }
 
 func (batch *LogBatch) split() []splittablePayloadEntry {

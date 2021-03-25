@@ -84,8 +84,6 @@ func (batch *eventBatch) Type() string {
 }
 
 // Bytes returns the json serialized bytes of the MapEntry.
-func (batch *eventBatch) Bytes() []byte {
-	buf := &bytes.Buffer{}
+func (batch *eventBatch) WriteBytes(buf *bytes.Buffer) {
 	batch.writeJSON(buf)
-	return buf.Bytes()
 }

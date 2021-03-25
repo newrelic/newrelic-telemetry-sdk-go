@@ -24,7 +24,7 @@ type MapEntry interface {
 	Type() string
 
 	// Bytes returns the json serialized bytes of the MapEntry.
-	Bytes() []byte
+	WriteBytes(*bytes.Buffer)
 }
 
 // A Batch is an array of MapEntry. A single HTTP request body is composed of
@@ -158,7 +158,8 @@ func bufferRequestBytes(buf *bytes.Buffer, batches []Batch) {
 		buf.WriteByte('{')
 		w := internal.JSONFieldsWriter{Buf: buf}
 		for _, mapEntry := range batch {
-			w.RawField(mapEntry.Type(), mapEntry.Bytes())
+			w.AddKey(mapEntry.Type())
+			mapEntry.WriteBytes(buf)
 		}
 		buf.WriteByte('}')
 	}
@@ -173,7 +174,7 @@ func bufferEventRequestBytes(buf *bytes.Buffer, batches []Batch) {
 			if count > 0 {
 				buf.WriteByte(',')
 			}
-			buf.Write(mapEntry.Bytes())
+			mapEntry.WriteBytes(buf)
 			count++
 		}
 	}

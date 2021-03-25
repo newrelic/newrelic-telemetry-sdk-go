@@ -207,14 +207,15 @@ func BenchmarkMetricsJSON(b *testing.B) {
 	b.ReportAllocs()
 
 	entries := []MapEntry{commonBlock, batch}
-	estimate := len(batch.Metrics) * 256
+	buf := &bytes.Buffer{}
 	for i := 0; i < b.N; i++ {
-		buf := bytes.NewBuffer(make([]byte, 0, estimate))
+		buf.Reset()
 
 		buf.Write([]byte{'[', '{'})
 		w := internal.JSONFieldsWriter{Buf: buf}
 		for _, entry := range entries {
-			w.RawField(entry.Type(), entry.Bytes())
+			w.AddKey(entry.Type())
+			entry.WriteBytes(buf)
 		}
 		buf.Write([]byte{'}', ']'})
 

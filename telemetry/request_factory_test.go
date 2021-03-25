@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"compress/gzip"
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 	"io/ioutil"
@@ -65,8 +66,9 @@ func (m *MockPayloadEntry) Type() string {
 	return "spans"
 }
 
-func (m *MockPayloadEntry) Bytes() []byte {
-	return []byte{'[', ']'}
+func (m *MockPayloadEntry) WriteBytes(buf *bytes.Buffer) {
+	buf.WriteByte('[')
+	buf.WriteByte(']')
 }
 
 func TestSpanFactoryRequest(t *testing.T) {

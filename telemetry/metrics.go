@@ -255,16 +255,15 @@ func (mcb *metricCommonBlock) Type() string {
 }
 
 // Bytes returns the json serialized bytes of the MapEntry.
-func (mcb *metricCommonBlock) Bytes() []byte {
-	buf := &bytes.Buffer{}
+func (mcb *metricCommonBlock) WriteBytes(buf *bytes.Buffer) {
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
 	writeTimestampInterval(&w, mcb.Timestamp, mcb.Interval)
 	if nil != mcb.Attributes && nil != mcb.Attributes.RawJSON {
-		w.RawField(mcb.Attributes.Type(), mcb.Attributes.Bytes())
+		w.AddKey(mcb.Attributes.Type())
+		mcb.Attributes.WriteBytes(buf)
 	}
 	buf.WriteByte('}')
-	return buf.Bytes()
 }
 
 // MetricBatch represents a single batch of metrics to report to New Relic.
@@ -304,8 +303,7 @@ func (batch *MetricBatch) Type() string {
 }
 
 // Bytes returns the json serialized bytes of the MapEntry.
-func (batch *MetricBatch) Bytes() []byte {
-	buf := &bytes.Buffer{}
+func (batch *MetricBatch) WriteBytes(buf *bytes.Buffer) {
 	buf.WriteByte('[')
 	for idx, m := range batch.Metrics {
 		if idx > 0 {
@@ -314,5 +312,4 @@ func (batch *MetricBatch) Bytes() []byte {
 		m.writeJSON(buf)
 	}
 	buf.WriteByte(']')
-	return buf.Bytes()
 }

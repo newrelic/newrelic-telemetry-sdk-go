@@ -111,15 +111,14 @@ func (c *spanCommonBlock) Type() string {
 }
 
 // Bytes returns the json serialized bytes of the MapEntry.
-func (c *spanCommonBlock) Bytes() []byte {
-	buf := &bytes.Buffer{}
+func (c *spanCommonBlock) WriteBytes(buf *bytes.Buffer) {
 	buf.WriteByte('{')
 	if c.attributes != nil {
 		w := internal.JSONFieldsWriter{Buf: buf}
-		w.RawField(c.attributes.Type(), c.attributes.Bytes())
+		w.AddKey(c.attributes.Type())
+		c.attributes.WriteBytes(buf)
 	}
 	buf.WriteByte('}')
-	return buf.Bytes()
 }
 
 // SpanCommonBlockOption is a function that can be used to configure a spanCommonBlock
@@ -159,8 +158,7 @@ func (batch *SpanBatch) Type() string {
 }
 
 // Bytes returns the json serialized bytes of the MapEntry.
-func (batch *SpanBatch) Bytes() []byte {
-	buf := &bytes.Buffer{}
+func (batch *SpanBatch) WriteBytes(buf *bytes.Buffer) {
 	buf.WriteByte('[')
 	for idx, s := range batch.Spans {
 		if idx > 0 {
@@ -169,7 +167,6 @@ func (batch *SpanBatch) Bytes() []byte {
 		s.writeJSON(buf)
 	}
 	buf.WriteByte(']')
-	return buf.Bytes()
 }
 
 func (batch *SpanBatch) split() []splittablePayloadEntry {

@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 	"io/ioutil"
@@ -20,8 +21,8 @@ func (p *testUnsplittablePayloadEntry) Type() string {
 	return "testUnsplittable"
 }
 
-func (p *testUnsplittablePayloadEntry) Bytes() []byte {
-	return p.rawData
+func (p *testUnsplittablePayloadEntry) WriteBytes(buf *bytes.Buffer) {
+	buf.Write(p.rawData)
 }
 
 type testSplittablePayloadEntry struct {
@@ -33,8 +34,8 @@ func (p *testSplittablePayloadEntry) Type() string {
 	return "testSplittable"
 }
 
-func (p *testSplittablePayloadEntry) Bytes() []byte {
-	return p.rawData
+func (p *testSplittablePayloadEntry) WriteBytes(buf *bytes.Buffer) {
+	buf.Write(p.rawData)
 }
 
 func (p *testSplittablePayloadEntry) split() []splittablePayloadEntry {
