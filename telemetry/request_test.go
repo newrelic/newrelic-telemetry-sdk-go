@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 	"io/ioutil"
@@ -16,12 +17,13 @@ type testUnsplittablePayloadEntry struct {
 	rawData json.RawMessage
 }
 
-func (p *testUnsplittablePayloadEntry) Type() string {
+func (p *testUnsplittablePayloadEntry) DataTypeKey() string {
 	return "testUnsplittable"
 }
 
-func (p *testUnsplittablePayloadEntry) Bytes() []byte {
-	return p.rawData
+func (p *testUnsplittablePayloadEntry) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
+	buf.Write(p.rawData)
+	return buf
 }
 
 type testSplittablePayloadEntry struct {
@@ -29,12 +31,13 @@ type testSplittablePayloadEntry struct {
 	splitPayloads []*testSplittablePayloadEntry
 }
 
-func (p *testSplittablePayloadEntry) Type() string {
+func (p *testSplittablePayloadEntry) DataTypeKey() string {
 	return "testSplittable"
 }
 
-func (p *testSplittablePayloadEntry) Bytes() []byte {
-	return p.rawData
+func (p *testSplittablePayloadEntry) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
+	buf.Write(p.rawData)
+	return buf
 }
 
 func (p *testSplittablePayloadEntry) split() []splittablePayloadEntry {
@@ -195,9 +198,9 @@ func TestNewRequestCantSplitPayloadsEnough(t *testing.T) {
 
 func TestNeedsToSplitBatchesAndEntries(t *testing.T) {
 	// Create a set of batches that must be first be split into two requests.
-	// The batch1 request must be further subdivided into two requests, creating
+	// The group1 request must be further subdivided into two requests, creating
 	// a total of 3 requests.
-	batch1 := []MapEntry{
+	group1 := []MapEntry{
 		&testSplittablePayloadEntry{
 			rawData: randomJSON(maxCompressedSizeBytes * 4),
 			splitPayloads: []*testSplittablePayloadEntry{
@@ -206,12 +209,12 @@ func TestNeedsToSplitBatchesAndEntries(t *testing.T) {
 			},
 		},
 	}
-	batch2 := []MapEntry{
+	group2 := []MapEntry{
 		&testSplittablePayloadEntry{
 			rawData: randomJSON(maxCompressedSizeBytes),
 		},
 	}
-	reqs, err := newRequests([]Batch{batch1, batch2}, testFactory())
+	reqs, err := newRequests([]Batch{group1, group2}, testFactory())
 	if err != nil {
 		t.Fatal(err)
 	}

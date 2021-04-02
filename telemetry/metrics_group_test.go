@@ -14,9 +14,8 @@ import (
 )
 
 func TestMetrics(t *testing.T) {
-	metrics := &MetricBatch{}
 	start := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
-	metrics.Metrics = []Metric{
+	metrics := []Metric{
 		Summary{
 			Name: "mySummary",
 			Attributes: map[string]interface{}{
@@ -48,7 +47,7 @@ func TestMetrics(t *testing.T) {
 		},
 	}
 	commonAttributes := &commonAttributes{RawJSON: json.RawMessage(`{"zip":"zap"}`)}
-	commonBlock := &metricCommonBlock{Attributes: commonAttributes}
+	commonBlock := &metricCommonBlock{attributes: commonAttributes}
 
 	expect := compactJSONString(`[{
 		"common":{
@@ -82,7 +81,7 @@ func TestMetrics(t *testing.T) {
 	}]`)
 
 	factory, _ := NewMetricRequestFactory(WithNoDefaultKey())
-	reqs, err := newRequests([]Batch{{commonBlock, metrics}}, factory)
+	reqs, err := newRequests([]Batch{{commonBlock, NewMetricGroup(metrics)}}, factory)
 	if err != nil {
 		t.Error("error creating request", err)
 	}
@@ -113,7 +112,7 @@ func TestMetrics(t *testing.T) {
 	}
 }
 
-func testBatchJSON(t testing.TB, batches []Batch, expect string) {
+func testGroupJSON(t testing.TB, batches []Batch, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
@@ -137,48 +136,48 @@ func testBatchJSON(t testing.TB, batches []Batch, expect string) {
 
 func TestSplit(t *testing.T) {
 	// test len 0
-	batch := &MetricBatch{}
-	split := batch.split()
+	group := NewMetricGroup(nil)
+	split := group.(splittablePayloadEntry).split()
 	if split != nil {
 		t.Error(split)
 	}
 
 	// test len 1
-	batch = &MetricBatch{Metrics: []Metric{Count{}}}
-	split = batch.split()
+	group = NewMetricGroup([]Metric{Count{}})
+	split = group.(splittablePayloadEntry).split()
 	if split != nil {
 		t.Error(split)
 	}
 
 	// test len 2
-	batch = &MetricBatch{Metrics: []Metric{Count{Name: "c1"}, Count{Name: "c2"}}}
-	split = batch.split()
+	group = NewMetricGroup([]Metric{Count{Name: "c1"}, Count{Name: "c2"}})
+	split = group.(splittablePayloadEntry).split()
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testBatchJSON(t, []Batch{{split[0]}}, `[{"metrics":[{"name":"c1","type":"count","value":0}]}]`)
-	testBatchJSON(t, []Batch{{split[1]}}, `[{"metrics":[{"name":"c2","type":"count","value":0}]}]`)
+	testGroupJSON(t, []Batch{{split[0]}}, `[{"metrics":[{"name":"c1","type":"count","value":0}]}]`)
+	testGroupJSON(t, []Batch{{split[1]}}, `[{"metrics":[{"name":"c2","type":"count","value":0}]}]`)
 
 	// test len 3
-	batch = &MetricBatch{Metrics: []Metric{Count{Name: "c1"}, Count{Name: "c2"}, Count{Name: "c3"}}}
-	split = batch.split()
+	group = NewMetricGroup([]Metric{Count{Name: "c1"}, Count{Name: "c2"}, Count{Name: "c3"}})
+	split = group.(splittablePayloadEntry).split()
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testBatchJSON(t, []Batch{{split[0]}}, `[{"metrics":[{"name":"c1","type":"count","value":0}]}]`)
-	testBatchJSON(t, []Batch{{split[1]}}, `[{"metrics":[{"name":"c2","type":"count","value":0},{"name":"c3","type":"count","value":0}]}]`)
+	testGroupJSON(t, []Batch{{split[0]}}, `[{"metrics":[{"name":"c1","type":"count","value":0}]}]`)
+	testGroupJSON(t, []Batch{{split[1]}}, `[{"metrics":[{"name":"c2","type":"count","value":0},{"name":"c3","type":"count","value":0}]}]`)
 }
 
 func BenchmarkMetricsJSON(b *testing.B) {
 	// This benchmark tests the overhead of turning metrics into JSON.
 	commonAttributes := commonAttributes{RawJSON: json.RawMessage(`{"zip": "zap"}`)}
-	commonBlock := &metricCommonBlock{Attributes: &commonAttributes}
-	batch := &MetricBatch{}
+	commonBlock := &metricCommonBlock{attributes: &commonAttributes}
+	var metrics []Metric
 	numMetrics := 10 * 1000
 	start := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 
 	for i := 0; i < numMetrics/3; i++ {
-		batch.Metrics = append(batch.Metrics, Summary{
+		metrics = append(metrics, Summary{
 			Name:       "mySummary",
 			Attributes: map[string]interface{}{"attribute": "string"},
 			Count:      3,
@@ -188,13 +187,13 @@ func BenchmarkMetricsJSON(b *testing.B) {
 			Timestamp:  start,
 			Interval:   5 * time.Second,
 		})
-		batch.Metrics = append(batch.Metrics, Gauge{
+		metrics = append(metrics, Gauge{
 			Name:       "myGauge",
 			Attributes: map[string]interface{}{"attribute": true},
 			Value:      12.3,
 			Timestamp:  start,
 		})
-		batch.Metrics = append(batch.Metrics, Count{
+		metrics = append(metrics, Count{
 			Name:       "myCount",
 			Attributes: map[string]interface{}{"attribute": 123},
 			Value:      100,
@@ -206,15 +205,16 @@ func BenchmarkMetricsJSON(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	entries := []MapEntry{commonBlock, batch}
-	estimate := len(batch.Metrics) * 256
+	entries := []MapEntry{commonBlock, NewMetricGroup(metrics)}
+	buf := &bytes.Buffer{}
 	for i := 0; i < b.N; i++ {
-		buf := bytes.NewBuffer(make([]byte, 0, estimate))
+		buf.Reset()
 
 		buf.Write([]byte{'[', '{'})
 		w := internal.JSONFieldsWriter{Buf: buf}
 		for _, entry := range entries {
-			w.RawField(entry.Type(), entry.Bytes())
+			w.AddKey(entry.DataTypeKey())
+			entry.WriteDataEntry(buf)
 		}
 		buf.Write([]byte{'}', ']'})
 
@@ -251,110 +251,127 @@ func TestMetricAttributesJSON(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		batch := &MetricBatch{}
-		batch.Metrics = append(batch.Metrics, Count{
+		var metrics []Metric
+		metrics = append(metrics, Count{
 			Attributes: map[string]interface{}{
 				test.key: test.val,
 			},
 		})
-		testBatchJSON(t, []Batch{{batch}}, test.expect)
+		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, test.expect)
 	}
 }
 
 func TestCountAttributesJSON(t *testing.T) {
-	batch := &MetricBatch{}
-	batch.Metrics = append(batch.Metrics, Count{
-		Attributes: map[string]interface{}{
-			"zip": "zap",
-		},
-		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
-	})
-	testBatchJSON(t, []Batch{{batch}}, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"zip":"zap"}}]}]`)
+	{
+		metrics := []Metric{
+			Count{
+				Attributes: map[string]interface{}{
+					"zip": "zap",
+				},
+				AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
+			},
+		}
+		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"zip":"zap"}}]}]`)
+	}
 
-	batch = &MetricBatch{}
-	batch.Metrics = append(batch.Metrics, Count{
-		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
-	})
-	testBatchJSON(t, []Batch{{batch}}, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"zing":"zang"}}]}]`)
+	{
+		metrics := []Metric{
+			Count{
+				AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
+			},
+		}
+		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"zing":"zang"}}]}]`)
+	}
 }
 
 func TestGaugeAttributesJSON(t *testing.T) {
 	start := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 
-	batch := &MetricBatch{}
-	batch.Metrics = append(batch.Metrics, Gauge{
-		Attributes: map[string]interface{}{
-			"zip": "zap",
-		},
-		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
-		Timestamp:      start,
-	})
-	testBatchJSON(t, []Batch{{batch}}, `[{"metrics":[{"name":"","type":"gauge","value":0,"timestamp":1417136460000,"attributes":{"zip":"zap"}}]}]`)
-
-	batch = &MetricBatch{}
-	batch.Metrics = append(batch.Metrics, Gauge{
-		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
-		Timestamp:      start,
-	})
-	testBatchJSON(t, []Batch{{batch}}, `[{"metrics":[{"name":"","type":"gauge","value":0,"timestamp":1417136460000,"attributes":{"zing":"zang"}}]}]`)
+	{
+		metrics := []Metric{
+			Gauge{
+				Attributes: map[string]interface{}{
+					"zip": "zap",
+				},
+				AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
+				Timestamp:      start,
+			},
+		}
+		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"gauge","value":0,"timestamp":1417136460000,"attributes":{"zip":"zap"}}]}]`)
+	}
+	{
+		metrics := []Metric{
+			Gauge{
+				AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
+				Timestamp:      start,
+			},
+		}
+		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"gauge","value":0,"timestamp":1417136460000,"attributes":{"zing":"zang"}}]}]`)
+	}
 }
 
 func TestSummaryAttributesJSON(t *testing.T) {
-	batch := &MetricBatch{}
-	batch.Metrics = append(batch.Metrics, Summary{
-		Attributes: map[string]interface{}{
-			"zip": "zap",
-		},
-		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
-	})
-	testBatchJSON(t, []Batch{{batch}}, `[{"metrics":[{"name":"","type":"summary","value":{"sum":0,"count":0,"min":0,"max":0},"attributes":{"zip":"zap"}}]}]`)
+	{
+		metrics := []Metric{
+			Summary{
+				Attributes: map[string]interface{}{
+					"zip": "zap",
+				},
+				AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
+			},
+		}
+		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"summary","value":{"sum":0,"count":0,"min":0,"max":0},"attributes":{"zip":"zap"}}]}]`)
+	}
 
-	batch = &MetricBatch{}
-	batch.Metrics = append(batch.Metrics, Summary{
-		AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
-	})
-	testBatchJSON(t, []Batch{{batch}}, `[{"metrics":[{"name":"","type":"summary","value":{"sum":0,"count":0,"min":0,"max":0},"attributes":{"zing":"zang"}}]}]`)
+	{
+		metrics := []Metric{
+			Summary{
+				AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
+			},
+		}
+		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"summary","value":{"sum":0,"count":0,"min":0,"max":0},"attributes":{"zing":"zang"}}]}]`)
+	}
 }
 
 func TestBatchAttributesJSON(t *testing.T) {
 	commonAttributes := &commonAttributes{RawJSON: json.RawMessage(`{"zing":"zang"}`)}
-	commonBlock := &metricCommonBlock{Attributes: commonAttributes}
-	batch := &MetricBatch{}
-	testBatchJSON(t, []Batch{{commonBlock, batch}}, `[{"common":{"attributes":{"zing":"zang"}},"metrics":[]}]`)
+	commonBlock := &metricCommonBlock{attributes: commonAttributes}
+	group := NewMetricGroup(nil)
+	testGroupJSON(t, []Batch{{commonBlock, group}}, `[{"common":{"attributes":{"zing":"zang"}},"metrics":[]}]`)
 }
 
 func TestBatchStartEndTimesJSON(t *testing.T) {
 	start := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 
 	commonBlock := &metricCommonBlock{}
-	emptyBatch := &MetricBatch{}
+	emptyGroup := NewMetricGroup(nil)
 
-	testBatchJSON(t, []Batch{{commonBlock, emptyBatch}}, `[{"common":{},"metrics":[]}]`)
-
-	commonBlock = &metricCommonBlock{
-		Timestamp: start,
-	}
-	testBatchJSON(t, []Batch{{commonBlock, emptyBatch}}, `[{"common":{"timestamp":1417136460000},"metrics":[]}]`)
+	testGroupJSON(t, []Batch{{commonBlock, emptyGroup}}, `[{"common":{},"metrics":[]}]`)
 
 	commonBlock = &metricCommonBlock{
-		Interval: 5 * time.Second,
+		timestamp: start,
 	}
-	testBatchJSON(t, []Batch{{commonBlock, emptyBatch}}, `[{"common":{"interval.ms":5000},"metrics":[]}]`)
+	testGroupJSON(t, []Batch{{commonBlock, emptyGroup}}, `[{"common":{"timestamp":1417136460000},"metrics":[]}]`)
 
 	commonBlock = &metricCommonBlock{
-		Timestamp: start,
-		Interval:  5 * time.Second,
+		interval: 5 * time.Second,
 	}
-	testBatchJSON(t, []Batch{{commonBlock, emptyBatch}}, `[{"common":{"timestamp":1417136460000,"interval.ms":5000},"metrics":[]}]`)
+	testGroupJSON(t, []Batch{{commonBlock, emptyGroup}}, `[{"common":{"interval.ms":5000},"metrics":[]}]`)
+
+	commonBlock = &metricCommonBlock{
+		timestamp: start,
+		interval:  5 * time.Second,
+	}
+	testGroupJSON(t, []Batch{{commonBlock, emptyGroup}}, `[{"common":{"timestamp":1417136460000,"interval.ms":5000},"metrics":[]}]`)
 }
 
 func TestCommonAttributes(t *testing.T) {
 	// Tests when the "common" key is included in the metrics payload
 	type testStruct struct {
-		start          time.Time
-		interval       time.Duration
-		attributesJSON json.RawMessage
-		expect         string
+		start      time.Time
+		interval   time.Duration
+		attributes map[string]interface{}
+		expect     string
 	}
 	sometime := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	testcases := []testStruct{
@@ -363,44 +380,40 @@ func TestCommonAttributes(t *testing.T) {
 		{interval: 5 * time.Second, expect: `[{"common":{"interval.ms":5000},"metrics":[]}]`},
 		{start: sometime, interval: 5 * time.Second,
 			expect: `[{"common":{"timestamp":1417136460000,"interval.ms":5000},"metrics":[]}]`},
-		{attributesJSON: json.RawMessage(`{"zip":"zap"}`),
+		{attributes: map[string]interface{}{"zip": "zap", "invalid": []string{"invalid"}},
 			expect: `[{"common":{"attributes":{"zip":"zap"}},"metrics":[]}]`},
 	}
 
-	emptyBatch := &MetricBatch{}
+	emptyGroup := NewMetricGroup(nil)
 	for _, test := range testcases {
-		commonBlock := &metricCommonBlock{
-			Timestamp:  test.start,
-			Interval:   test.interval,
-			Attributes: &commonAttributes{RawJSON: test.attributesJSON},
-		}
-		testBatchJSON(t, []Batch{{commonBlock, emptyBatch}}, test.expect)
+		commonBlock, _ := NewMetricCommonBlock(
+			WithMetricAttributes(test.attributes),
+			WithMetricInterval(test.interval),
+			WithMetricTimestamp(test.start),
+		)
+		testGroupJSON(t, []Batch{{commonBlock, emptyGroup}}, test.expect)
 	}
 }
 
 func TestMetricsJSONWithCommonAttributesJSON(t *testing.T) {
 	commonBlock := &metricCommonBlock{
-		Timestamp:  time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
-		Interval:   5 * time.Second,
-		Attributes: &commonAttributes{RawJSON: json.RawMessage(`{"zup":"wup"}`)},
+		timestamp:  time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
+		interval:   5 * time.Second,
+		attributes: &commonAttributes{RawJSON: json.RawMessage(`{"zup":"wup"}`)},
 	}
 
-	batch1 := &MetricBatch{
-		Metrics: []Metric{
-			&Summary{
-				Name:       "foo",
-				Attributes: map[string]interface{}{"zip": "zap"},
-			},
+	group1 := NewMetricGroup([]Metric{
+		&Summary{
+			Name:       "foo",
+			Attributes: map[string]interface{}{"zip": "zap"},
 		},
-	}
-	batch2 := &MetricBatch{
-		Metrics: []Metric{
-			&Summary{
-				Name: "bar",
-			},
+	})
+	group2 := NewMetricGroup([]Metric{
+		&Summary{
+			Name: "bar",
 		},
-	}
-	testBatchJSON(t, []Batch{{commonBlock, batch1}, {batch2}}, `[
+	})
+	testGroupJSON(t, []Batch{{commonBlock, group1}, {group2}}, `[
 		{
 			"common": {
 				"timestamp":1417136460000,
@@ -426,15 +439,4 @@ func TestMetricsJSONWithCommonAttributesJSON(t *testing.T) {
 			]
 		}
 	]`)
-}
-func TestMetricBatchSplittable(t *testing.T) {
-	batch := &MetricBatch{
-		Metrics: []Metric{
-			&Summary{
-				Name:       "foo",
-				Attributes: map[string]interface{}{"zip": "zap"},
-			},
-		},
-	}
-	_ = splittablePayloadEntry(batch)
 }

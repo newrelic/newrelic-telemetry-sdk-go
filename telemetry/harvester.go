@@ -178,8 +178,8 @@ func (h *Harvester) RecordSpan(s Span) error {
 }
 
 // RecordMetric adds a fully formed metric.  This metric is not aggregated with
-// any other metrics and is never dropped.  The Timestamp field must be
-// specified on Gauge metrics.  The Timestamp/Interval fields on Count and
+// any other metrics and is never dropped.  The timestamp field must be
+// specified on Gauge metrics.  The timestamp/interval fields on Count and
 // Summary are optional and will be assumed to be the harvester batch times if
 // unset.  Use MetricAggregator() instead to aggregate metrics.
 func (h *Harvester) RecordMetric(m Metric) {
@@ -326,12 +326,12 @@ func (h *Harvester) swapOutMetrics(now time.Time) []*http.Request {
 	}
 
 	commonBlock := &metricCommonBlock{
-		Timestamp:  lastHarvest,
-		Interval:   now.Sub(lastHarvest),
-		Attributes: h.commonAttributes,
+		timestamp:  lastHarvest,
+		interval:   now.Sub(lastHarvest),
+		attributes: h.commonAttributes,
 	}
-	batch := &MetricBatch{Metrics: rawMetrics}
-	entries := []MapEntry{commonBlock, batch}
+	group := &metricGroup{Metrics: rawMetrics}
+	entries := []MapEntry{commonBlock, group}
 	reqs, err := newRequests([]Batch{entries}, h.metricRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
@@ -353,11 +353,11 @@ func (h *Harvester) swapOutSpans() []*http.Request {
 		return nil
 	}
 
-	entries := []MapEntry{}
+	var entries []MapEntry
 	if nil != h.commonAttributes {
 		entries = append(entries, &spanCommonBlock{attributes: h.commonAttributes})
 	}
-	entries = append(entries, &SpanBatch{Spans: sps})
+	entries = append(entries, &spanGroup{Spans: sps})
 	reqs, err := newRequests([]Batch{entries}, h.spanRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
@@ -378,10 +378,10 @@ func (h *Harvester) swapOutEvents() []*http.Request {
 	if nil == events {
 		return nil
 	}
-	batch := &eventBatch{
+	group := &eventGroup{
 		Events: events,
 	}
-	reqs, err := newRequests([]Batch{{batch}}, h.eventRequestFactory)
+	reqs, err := newRequests([]Batch{{group}}, h.eventRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -402,11 +402,11 @@ func (h *Harvester) swapOutLogs() []*http.Request {
 		return nil
 	}
 
-	entries := []MapEntry{}
+	var entries []MapEntry
 	if nil != h.commonAttributes {
-		entries = append(entries, &logCommonBlock{Attributes: h.commonAttributes})
+		entries = append(entries, &logCommonBlock{attributes: h.commonAttributes})
 	}
-	entries = append(entries, &LogBatch{Logs: logs})
+	entries = append(entries, &logGroup{Logs: logs})
 	reqs, err := newRequests([]Batch{entries}, h.logRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{

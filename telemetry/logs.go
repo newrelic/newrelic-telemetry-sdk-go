@@ -50,54 +50,89 @@ func (l *Log) writeJSON(buf *bytes.Buffer) {
 }
 
 type logCommonBlock struct {
-	Attributes *commonAttributes
+	attributes *commonAttributes
 }
 
-// Type returns the type of data contained in this MapEntry.
-func (c *logCommonBlock) Type() string {
+// DataTypeKey returns the type of data contained in this MapEntry.
+func (c *logCommonBlock) DataTypeKey() string {
 	return "common"
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
-func (c *logCommonBlock) Bytes() []byte {
-	buf := &bytes.Buffer{}
+// WriteBytes writes the json serialized bytes of the MapEntry to the buffer.
+func (c *logCommonBlock) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 	buf.WriteByte('{')
-	if c.Attributes != nil {
+	if c.attributes != nil {
 		w := internal.JSONFieldsWriter{Buf: buf}
-		w.RawField(c.Attributes.Type(), c.Attributes.Bytes())
+		w.AddKey(c.attributes.DataTypeKey())
+		c.attributes.WriteDataEntry(buf)
 	}
 	buf.WriteByte('}')
-	return buf.Bytes()
+	return buf
 }
 
-// LogBatch represents a single batch of log messages to report to New Relic.
-type LogBatch struct {
+// LogCommonBlockOption is a function that can be used to configure a log common block
+type LogCommonBlockOption func(*logCommonBlock) error
+
+// NewLogCommonBlock creates a new MapEntry representing data common to all members of a group.
+func NewLogCommonBlock(options ...LogCommonBlockOption) (MapEntry, error) {
+	l := &logCommonBlock{}
+	for _, option := range options {
+		err := option(l)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return l, nil
+}
+
+// WithLogAttributes creates a LogCommonBlockOption to specify the common attributes of the common block.
+// Invalid attributes will be detected and ignored
+func WithLogAttributes(commonAttributes map[string]interface{}) LogCommonBlockOption {
+	return func(b *logCommonBlock) error {
+		validCommonAttr, err := newCommonAttributes(commonAttributes)
+		if err != nil {
+			// Ignore any error with invalid attributes
+			if _, ok := err.(errInvalidAttributes); !ok {
+				return err
+			}
+		}
+		b.attributes = validCommonAttr
+		return nil
+	}
+}
+
+// LogGroup represents a group of log messages in the New Relic HTTP API.
+type logGroup struct {
 	Logs []Log
 }
 
-// Type returns the type of data contained in this MapEntry.
-func (batch *LogBatch) Type() string {
+// DataTypeKey returns the type of data contained in this MapEntry.
+func (group *logGroup) DataTypeKey() string {
 	return logTypeName
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
-func (batch *LogBatch) Bytes() []byte {
-	buf := &bytes.Buffer{}
+// WriteDataEntry writes the json serialized bytes of the MapEntry to the buffer.
+func (group *logGroup) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 	buf.WriteByte('[')
-	for idx, s := range batch.Logs {
+	for idx, s := range group.Logs {
 		if idx > 0 {
 			buf.WriteByte(',')
 		}
 		s.writeJSON(buf)
 	}
 	buf.WriteByte(']')
-	return buf.Bytes()
+	return buf
 }
 
-func (batch *LogBatch) split() []splittablePayloadEntry {
-	if len(batch.Logs) < 2 {
+func (group *logGroup) split() []splittablePayloadEntry {
+	if len(group.Logs) < 2 {
 		return nil
 	}
-	middle := len(batch.Logs) / 2
-	return []splittablePayloadEntry{&LogBatch{Logs: batch.Logs[0:middle]}, &LogBatch{Logs: batch.Logs[middle:]}}
+	middle := len(group.Logs) / 2
+	return []splittablePayloadEntry{&logGroup{Logs: group.Logs[0:middle]}, &logGroup{Logs: group.Logs[middle:]}}
+}
+
+// NewLogGroup creates a new MapEntry representing a group of logs in a batch.
+func NewLogGroup(logs []Log) MapEntry {
+	return &logGroup{Logs: logs}
 }

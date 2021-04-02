@@ -42,29 +42,29 @@ func (e *Event) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('}')
 }
 
-// eventBatch represents a single batch of events to report to New Relic.
-type eventBatch struct {
+// eventGroup represents a single batch of events to report to New Relic.
+type eventGroup struct {
 	Events []Event
 }
 
-// split will split the eventBatch into 2 equally sized batches.
+// split will split the eventGroup into 2 equally sized batches.
 // If the number of events in the original is 0 or 1 then nil is returned.
-func (batch *eventBatch) split() []splittablePayloadEntry {
-	if len(batch.Events) < 2 {
+func (group *eventGroup) split() []splittablePayloadEntry {
+	if len(group.Events) < 2 {
 		return nil
 	}
 
-	half := len(batch.Events) / 2
-	b1 := *batch
-	b1.Events = batch.Events[:half]
-	b2 := *batch
-	b2.Events = batch.Events[half:]
+	half := len(group.Events) / 2
+	b1 := *group
+	b1.Events = group.Events[:half]
+	b2 := *group
+	b2.Events = group.Events[half:]
 
 	return []splittablePayloadEntry{&b1, &b2}
 }
 
-func (batch *eventBatch) writeJSON(buf *bytes.Buffer) {
-	for idx, s := range batch.Events {
+func (group *eventGroup) writeJSON(buf *bytes.Buffer) {
+	for idx, s := range group.Events {
 		if idx > 0 {
 			buf.WriteByte(',')
 		}
@@ -72,20 +72,13 @@ func (batch *eventBatch) writeJSON(buf *bytes.Buffer) {
 	}
 }
 
-func (batch *eventBatch) makeBody() json.RawMessage {
-	buf := &bytes.Buffer{}
-	batch.writeJSON(buf)
-	return buf.Bytes()
-}
-
 // Type returns the type of data contained in this MapEntry.
-func (batch *eventBatch) Type() string {
+func (group *eventGroup) DataTypeKey() string {
 	return eventTypeName
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
-func (batch *eventBatch) Bytes() []byte {
-	buf := &bytes.Buffer{}
-	batch.writeJSON(buf)
-	return buf.Bytes()
+// WriteBytes writes the json serialized bytes of the MapEntry to the buffer.
+func (group *eventGroup) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
+	group.writeJSON(buf)
+	return buf
 }

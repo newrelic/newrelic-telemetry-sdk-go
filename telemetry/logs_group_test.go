@@ -4,7 +4,6 @@
 package telemetry
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -12,7 +11,7 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
-func testLogBatchJSON(t testing.TB, batches []Batch, expect string) {
+func testLogGroupJSON(t testing.TB, batches []Batch, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
@@ -51,48 +50,48 @@ func testLogBatchJSON(t testing.TB, batches []Batch, expect string) {
 
 func TestLogsPayloadSplit(t *testing.T) {
 	// test len 0
-	sp := &LogBatch{}
-	split := sp.split()
+	sp := NewLogGroup([]Log{})
+	split := sp.(splittablePayloadEntry).split()
 	if split != nil {
 		t.Error(split)
 	}
 
 	// test len 1
-	sp = &LogBatch{Logs: []Log{{Message: "a"}}}
-	split = sp.split()
+	sp = NewLogGroup([]Log{{Message: "a"}})
+	split = sp.(splittablePayloadEntry).split()
 	if split != nil {
 		t.Error(split)
 	}
 
 	// test len 2
-	sp = &LogBatch{Logs: []Log{{Message: "a"}, {Message: "b"}}}
-	split = sp.split()
+	sp = NewLogGroup([]Log{{Message: "a"}, {Message: "b"}})
+	split = sp.(splittablePayloadEntry).split()
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testLogBatchJSON(t, []Batch{{split[0]}}, `[{"logs":[{"message":"a","timestamp":-6795364578871,"attributes":{}}]}]`)
-	testLogBatchJSON(t, []Batch{{split[1]}}, `[{"logs":[{"message":"b","timestamp":-6795364578871,"attributes":{}}]}]`)
+	testLogGroupJSON(t, []Batch{{split[0]}}, `[{"logs":[{"message":"a","timestamp":-6795364578871,"attributes":{}}]}]`)
+	testLogGroupJSON(t, []Batch{{split[1]}}, `[{"logs":[{"message":"b","timestamp":-6795364578871,"attributes":{}}]}]`)
 
 	// test len 3
-	sp = &LogBatch{Logs: []Log{{Message: "a"}, {Message: "b"}, {Message: "c"}}}
-	split = sp.split()
+	sp = NewLogGroup([]Log{{Message: "a"}, {Message: "b"}, {Message: "c"}})
+	split = sp.(splittablePayloadEntry).split()
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testLogBatchJSON(t, []Batch{{split[0]}}, `[{"logs":[{"message":"a","timestamp":-6795364578871,"attributes":{}}]}]`)
-	testLogBatchJSON(t, []Batch{{split[1]}}, `[{"logs":[{"message":"b","timestamp":-6795364578871,"attributes":{}},{"message":"c","timestamp":-6795364578871,"attributes":{}}]}]`)
+	testLogGroupJSON(t, []Batch{{split[0]}}, `[{"logs":[{"message":"a","timestamp":-6795364578871,"attributes":{}}]}]`)
+	testLogGroupJSON(t, []Batch{{split[1]}}, `[{"logs":[{"message":"b","timestamp":-6795364578871,"attributes":{}},{"message":"c","timestamp":-6795364578871,"attributes":{}}]}]`)
 }
 
 func TestLogsJSON(t *testing.T) {
-	batch := &LogBatch{Logs: []Log{
+	group := NewLogGroup([]Log{
 		{}, // Empty log
 		{ // Log with everything
 			Message:    "This is a log message.",
 			Timestamp:  time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
 			Attributes: map[string]interface{}{"zip": "zap"},
 		},
-	}}
-	testLogBatchJSON(t, []Batch{{batch}}, `[{"logs":[
+	})
+	testLogGroupJSON(t, []Batch{{group}}, `[{"logs":[
 		{
 			"message":"",
 			"timestamp":-6795364578871,
@@ -110,27 +109,25 @@ func TestLogsJSON(t *testing.T) {
 }
 
 func TestLogsJSONWithCommonAttributesJSON(t *testing.T) {
-	commonBlock := &logCommonBlock{
-		Attributes: &commonAttributes{RawJSON: json.RawMessage(`{"zup":"wup"}`)},
+	commonBlock, err := NewLogCommonBlock(WithLogAttributes(map[string]interface{}{"zup": "wup", "invalid": []string{"invalid"}}))
+	if err != nil {
+		t.Fatal()
 	}
 
-	batch1 := &LogBatch{
-		Logs: []Log{
-			{
-				Message:    "This is a log message.",
-				Timestamp:  time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
-				Attributes: map[string]interface{}{"zip": "zap"},
-			},
-		}}
-	batch2 := &LogBatch{
-		Logs: []Log{
-			{
-				Message:   "Another log message.",
-				Timestamp: time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
-			},
+	group1 := NewLogGroup([]Log{
+		{
+			Message:    "This is a log message.",
+			Timestamp:  time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
+			Attributes: map[string]interface{}{"zip": "zap"},
 		},
-	}
-	testLogBatchJSON(t, []Batch{{commonBlock, batch1}, {batch2}}, `[
+	})
+	group2 := NewLogGroup([]Log{
+		{
+			Message:   "Another log message.",
+			Timestamp: time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
+		},
+	})
+	testLogGroupJSON(t, []Batch{{commonBlock, group1}, {group2}}, `[
 		{
 			"common": {
 				"attributes": {
@@ -157,16 +154,4 @@ func TestLogsJSONWithCommonAttributesJSON(t *testing.T) {
 			]
 		}
 	]`)
-}
-
-func TestLogBatchSplittable(t *testing.T) {
-	batch := &LogBatch{
-		Logs: []Log{
-			{
-				Message:    "This is a log message.",
-				Timestamp:  time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
-				Attributes: map[string]interface{}{"zip": "zap"},
-			},
-		}}
-	_ = splittablePayloadEntry(batch)
 }
