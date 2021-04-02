@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Breaking Changes ⚠️ 
+* BuildRequest on Request factories now have new interfaces to reflect the outline of the payload. Helpers for common blocks and groups are provided.
+
+### Performance Improvements 🚀 
+* Buffer allocations are now minimized within the request factory via internal buffer caching and re-use.
+
 ## [0.6.0] - 2021-03-17
 ### Added
 - Adds support for sending log data to New Relic.
