@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Performance Improvements 🚀 
 * Buffer allocations are now minimized within the request factory via internal buffer caching and re-use.
 
+### Bug fixes 🧯
+* Large payloads were not automatically split when using the harvester. Payloads are now split to reduce payload size when required.
+
 ## [0.6.0] - 2021-03-17
 ### Added
 - Adds support for sending log data to New Relic.
