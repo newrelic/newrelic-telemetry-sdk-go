@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -13,12 +14,12 @@ import (
 
 func BenchmarkSpansJSON(b *testing.B) {
 	// This benchmark tests the overhead of turning spans into JSON.
-	batch := &SpanBatch{}
+	var spans []Span
 	numSpans := 10 * 1000
 	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 
 	for i := 0; i < numSpans; i++ {
-		batch.Spans = append(batch.Spans, Span{
+		spans = append(spans, Span{
 			ID:          "myid",
 			TraceID:     "mytraceid",
 			Name:        "myname",
@@ -31,10 +32,9 @@ func BenchmarkSpansJSON(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
-
 	for i := 0; i < b.N; i++ {
-		if bts := batch.Bytes(); nil == bts || len(bts) == 0 {
-			b.Fatal(string(bts))
+		if bytes := NewSpanGroup(spans).WriteDataEntry(&bytes.Buffer{}).Bytes(); nil == bytes || len(bytes) == 0 {
+			b.Fatal(string(bytes))
 		}
 	}
 }
@@ -57,7 +57,7 @@ func testHarvesterSpans(t testing.TB, h *Harvester, expect string) {
 	compressedBytes, _ := ioutil.ReadAll(bodyReader)
 	uncompressedBytes, _ := internal.Uncompress(compressedBytes)
 	js := string(uncompressedBytes)
-	actual := string(js)
+	actual := js
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
@@ -152,20 +152,20 @@ func TestRecordSpanNilHarvester(t *testing.T) {
 func TestSpanCommonBlock(t *testing.T) {
 	type testCase struct {
 		expected string
-		options []SpanCommonBlockOption
+		options  []SpanCommonBlockOption
 	}
 	tests := []testCase{
 		{
 			expected: `{}`,
-			options: nil,
+			options:  nil,
 		},
 		{
-			expected: `{"attributes":null}`,
-			options: []SpanCommonBlockOption{WithSpanAttributes(nil)},
+			expected: `{}`,
+			options:  []SpanCommonBlockOption{WithSpanAttributes(nil)},
 		},
 		{
 			expected: `{"attributes":{"zup":"wup"}}`,
-			options: []SpanCommonBlockOption{WithSpanAttributes(map[string]interface{}{"zup": "wup"})},
+			options:  []SpanCommonBlockOption{WithSpanAttributes(map[string]interface{}{"zup": "wup"})},
 		},
 	}
 	for _, test := range tests {
@@ -173,7 +173,9 @@ func TestSpanCommonBlock(t *testing.T) {
 		if err != nil {
 			t.Fail()
 		}
-		json := string(mapEntry.Bytes())
+		buf := &bytes.Buffer{}
+		mapEntry.WriteDataEntry(buf)
+		json := string(buf.Bytes())
 		if test.expected != json {
 			t.Errorf("Expected spanCommonBlock to serialize to %s but was %s", test.expected, json)
 		}

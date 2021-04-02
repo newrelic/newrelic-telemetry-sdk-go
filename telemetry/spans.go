@@ -100,32 +100,32 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('}')
 }
 
-// spanCommonBlock represents the shared elements of a SpanBatch.
+// spanCommonBlock represents the shared elements of a SpanGroup.
 type spanCommonBlock struct {
 	attributes *commonAttributes
 }
 
-// Type returns the type of data contained in this MapEntry.
-func (c *spanCommonBlock) Type() string {
+// DataTypeKey returns the type of data contained in this MapEntry.
+func (c *spanCommonBlock) DataTypeKey() string {
 	return "common"
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
-func (c *spanCommonBlock) Bytes() []byte {
-	buf := &bytes.Buffer{}
+// WriteDataEntry writes the json serialized bytes of the MapEntry to the buffer.
+func (c *spanCommonBlock) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 	buf.WriteByte('{')
 	if c.attributes != nil {
 		w := internal.JSONFieldsWriter{Buf: buf}
-		w.RawField(c.attributes.Type(), c.attributes.Bytes())
+		w.AddKey(c.attributes.DataTypeKey())
+		c.attributes.WriteDataEntry(buf)
 	}
 	buf.WriteByte('}')
-	return buf.Bytes()
+	return buf
 }
 
-// SpanCommonBlockOption is a function that can be used to configure a spanCommonBlock
+// SpanCommonBlockOption is a function that can be used to configure a span common block
 type SpanCommonBlockOption func(scb *spanCommonBlock) error
 
-// NewSpanCommonBlock creates a new MapEntry representing data common to all spans in a batch.
+// NewSpanCommonBlock creates a new MapEntry representing data common to all spans in a group.
 func NewSpanCommonBlock(options ...SpanCommonBlockOption) (MapEntry, error) {
 	scb := &spanCommonBlock{}
 	for _, option := range options {
@@ -138,44 +138,53 @@ func NewSpanCommonBlock(options ...SpanCommonBlockOption) (MapEntry, error) {
 }
 
 // WithSpanAttributes creates a SpanCommonBlockOption to specify the common attributes of the common block.
-// If invalid attributes are detected an error will be returned describing which keys were invalid, but
-// the valid attributes will still be added to the span common block.
+// Invalid attributes will be detected and ignored
 func WithSpanAttributes(commonAttributes map[string]interface{}) SpanCommonBlockOption {
 	return func(scb *spanCommonBlock) error {
 		validCommonAttr, err := newCommonAttributes(commonAttributes)
+		if err != nil {
+			// Ignore any error with invalid attributes
+			if _, ok := err.(errInvalidAttributes); !ok {
+				return err
+			}
+		}
 		scb.attributes = validCommonAttr
-		return err
+		return nil
 	}
 }
 
-// SpanBatch represents a single batch of spans to report to New Relic.
-type SpanBatch struct {
+// SpanGroup represents a grouping of spans in a payload to New Relic.
+type spanGroup struct {
 	Spans []Span
 }
 
-// Type returns the type of data contained in this MapEntry.
-func (batch *SpanBatch) Type() string {
+// DataTypeKey returns the type of data contained in this MapEntry.
+func (group *spanGroup) DataTypeKey() string {
 	return spanTypeName
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
-func (batch *SpanBatch) Bytes() []byte {
-	buf := &bytes.Buffer{}
+// WriteDataEntry writes the json serialized bytes of the MapEntry to the buffer.
+func (group *spanGroup) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 	buf.WriteByte('[')
-	for idx, s := range batch.Spans {
+	for idx, s := range group.Spans {
 		if idx > 0 {
 			buf.WriteByte(',')
 		}
 		s.writeJSON(buf)
 	}
 	buf.WriteByte(']')
-	return buf.Bytes()
+	return buf
 }
 
-func (batch *SpanBatch) split() []splittablePayloadEntry {
-	if len(batch.Spans) < 2 {
+func (group *spanGroup) split() []splittablePayloadEntry {
+	if len(group.Spans) < 2 {
 		return nil
 	}
-	middle := len(batch.Spans) / 2
-	return []splittablePayloadEntry{&SpanBatch{Spans: batch.Spans[0:middle]}, &SpanBatch{Spans: batch.Spans[middle:]}}
+	middle := len(group.Spans) / 2
+	return []splittablePayloadEntry{&spanGroup{Spans: group.Spans[0:middle]}, &spanGroup{Spans: group.Spans[middle:]}}
+}
+
+// NewSpanGroup creates a new MapEntry representing a group of spans in a batch.
+func NewSpanGroup(spans []Span) MapEntry {
+	return &spanGroup{Spans: spans}
 }

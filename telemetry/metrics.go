@@ -235,84 +235,135 @@ func (m Gauge) writeJSON(buf *bytes.Buffer) {
 }
 
 type metricCommonBlock struct {
-	// Timestamp is the start time of all metrics in the MetricBatch.  This value
-	// can be overridden by setting Timestamp on any particular metric.
-	// Timestamp must be set here or on all metrics.
-	Timestamp time.Time
-	// Interval is the length of time for all metrics in the MetricBatch.  This
-	// value can be overriden by setting Interval on any particular Count or
-	// Summary metric.  Interval must be set to a non-zero value here or on
+	// timestamp is the start time of all metrics in the MetricGroup.  This value
+	// can be overridden by setting timestamp on any particular metric.
+	// timestamp must be set here or on all metrics.
+	timestamp time.Time
+	// interval is the length of time for all metrics in the MetricGroup.  This
+	// value can be overridden by setting interval on any particular Count or
+	// Summary metric.  interval must be set to a non-zero value here or on
 	// all Count and Summary metrics.
-	Interval time.Duration
-	// Attributes is the reference to the common attributes that apply to
+	interval time.Duration
+	// attributes is the reference to the common attributes that apply to
 	// all metrics in the batch.
-	Attributes *commonAttributes
+	attributes *commonAttributes
 }
 
 // Type returns the type of data contained in this MapEntry.
-func (mcb *metricCommonBlock) Type() string {
+func (mcb *metricCommonBlock) DataTypeKey() string {
 	return "common"
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
-func (mcb *metricCommonBlock) Bytes() []byte {
-	buf := &bytes.Buffer{}
+// WriteBytes writes the json serialized bytes of the MapEntry to the buffer.
+func (mcb *metricCommonBlock) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
-	writeTimestampInterval(&w, mcb.Timestamp, mcb.Interval)
-	if nil != mcb.Attributes && nil != mcb.Attributes.RawJSON {
-		w.RawField(mcb.Attributes.Type(), mcb.Attributes.Bytes())
+	writeTimestampInterval(&w, mcb.timestamp, mcb.interval)
+	if nil != mcb.attributes && nil != mcb.attributes.RawJSON {
+		w.AddKey(mcb.attributes.DataTypeKey())
+		mcb.attributes.WriteDataEntry(buf)
 	}
 	buf.WriteByte('}')
-	return buf.Bytes()
+	return buf
 }
 
-// MetricBatch represents a single batch of metrics to report to New Relic.
+// MetricCommonBlockOption is a function that can be used to configure a metric common block
+type MetricCommonBlockOption func(block *metricCommonBlock) error
+
+// NewMetricCommonBlock creates a new MapEntry representing data common to all metrics in a group.
+func NewMetricCommonBlock(options ...MetricCommonBlockOption) (MapEntry, error) {
+	common := &metricCommonBlock{}
+	for _, option := range options {
+		err := option(common)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return common, nil
+}
+
+// WithMetricAttributes creates a MetricCommonBlockOption to specify the common attributes of the common block.
+// Invalid attributes will be detected and ignored
+func WithMetricAttributes(commonAttributes map[string]interface{}) MetricCommonBlockOption {
+	return func(b *metricCommonBlock) error {
+		validCommonAttr, err := newCommonAttributes(commonAttributes)
+		if err != nil {
+			// Ignore any error with invalid attributes
+			if _, ok := err.(errInvalidAttributes); !ok {
+				return err
+			}
+		}
+		b.attributes = validCommonAttr
+		return nil
+	}
+}
+
+// WithMetricInterval sets the interval in a common block for metrics.
+func WithMetricInterval(interval time.Duration) MetricCommonBlockOption {
+	return func(b *metricCommonBlock) error {
+		b.interval = interval
+		return nil
+	}
+}
+
+// WithMetricTimestamp sets the timestamp (start time) in a common block for metrics.
+func WithMetricTimestamp(startTime time.Time) MetricCommonBlockOption {
+	return func(b *metricCommonBlock) error {
+		b.timestamp = startTime
+		return nil
+	}
+}
+
+// MetricGroup represents a single grouping of metrics in a payload sent to New Relic.
 //
-// Timestamp/Interval are optional and can be used to represent the start and
+// timestamp/interval are optional and can be used to represent the start and
 // duration of the batch as a whole. Individual Count and Summary metrics may
-// provide Timestamp/Interval fields which will take priority over the batch
-// Timestamp/Interval. This is not the case for Gauge metrics which each require
-// a Timestamp.
+// provide timestamp/interval fields which will take priority over the batch
+// timestamp/interval. This is not the case for Gauge metrics which each require
+// a timestamp.
 //
-// Attributes are any attributes that should be applied to all metrics in this
-// batch. Each metric type also accepts an Attributes field.
-type MetricBatch struct {
-	// Metrics is the slice of metrics to send with this MetricBatch.
+// attributes are any attributes that should be applied to all metrics in this
+// batch. Each metric type also accepts an attributes field.
+type metricGroup struct {
+	// Metrics is the slice of metrics to send with this MetricGroup.
 	Metrics []Metric
 }
 
-// split will split the MetricBatch into 2 equal parts, returning a slice of MetricBatches.
+// split will split the MetricGroup into 2 equal parts, returning a slice of MetricBatches.
 // If the number of metrics in the original is 0 or 1 then nil is returned.
-func (batch *MetricBatch) split() []splittablePayloadEntry {
-	if len(batch.Metrics) < 2 {
+func (group *metricGroup) split() []splittablePayloadEntry {
+	if len(group.Metrics) < 2 {
 		return nil
 	}
 
-	half := len(batch.Metrics) / 2
-	mb1 := *batch
-	mb1.Metrics = batch.Metrics[:half]
-	mb2 := *batch
-	mb2.Metrics = batch.Metrics[half:]
+	half := len(group.Metrics) / 2
+	mb1 := *group
+	mb1.Metrics = group.Metrics[:half]
+	mb2 := *group
+	mb2.Metrics = group.Metrics[half:]
 
 	return []splittablePayloadEntry{&mb1, &mb2}
 }
 
-// Type returns the type of data contained in this MapEntry.
-func (batch *MetricBatch) Type() string {
+// DataTypeKey returns the type of data contained in this MapEntry.
+func (group *metricGroup) DataTypeKey() string {
 	return metricTypeName
 }
 
-// Bytes returns the json serialized bytes of the MapEntry.
-func (batch *MetricBatch) Bytes() []byte {
-	buf := &bytes.Buffer{}
+// WriteDataEntry writes the json serialized bytes of the MapEntry to the buffer.
+func (group *metricGroup) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 	buf.WriteByte('[')
-	for idx, m := range batch.Metrics {
+	for idx, m := range group.Metrics {
 		if idx > 0 {
 			buf.WriteByte(',')
 		}
 		m.writeJSON(buf)
 	}
 	buf.WriteByte(']')
-	return buf.Bytes()
+	return buf
+}
+
+// NewMetricGroup creates a new MapEntry representing a group of metrics in a batch.
+func NewMetricGroup(metrics []Metric) MapEntry {
+	return &metricGroup{Metrics: metrics}
 }

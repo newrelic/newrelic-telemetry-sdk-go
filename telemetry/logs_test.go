@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -13,12 +14,12 @@ import (
 
 func BenchmarkLogsJSON(b *testing.B) {
 	// This benchmark tests the overhead of turning logs into JSON.
-	batch := &LogBatch{}
+	group := &logGroup{}
 	numLogs := 10 * 1000
 	tm := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 
 	for i := 0; i < numLogs; i++ {
-		batch.Logs = append(batch.Logs, Log{
+		group.Logs = append(group.Logs, Log{
 			Message:   "This is a log message.",
 			Timestamp: tm,
 		})
@@ -27,9 +28,11 @@ func BenchmarkLogsJSON(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
+	buf := &bytes.Buffer{}
 	for i := 0; i < b.N; i++ {
-		if bts := batch.Bytes(); nil == bts || len(bts) == 0 {
-			b.Fatal(string(bts))
+		buf.Reset()
+		if group.WriteDataEntry(buf); nil == buf.Bytes() || len(buf.Bytes()) == 0 {
+			b.Fatal(string(buf.Bytes()))
 		}
 	}
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
-func testEventBatchJSON(t testing.TB, batches []Batch, expect string) {
+func testEventGroupJSON(t testing.TB, batches []Batch, expect string) {
 	if th, ok := t.(interface{ Helper() }); ok {
 		th.Helper()
 	}
@@ -48,43 +48,43 @@ func TestEventsPayloadSplit(t *testing.T) {
 	t.Parallel()
 
 	// test len 0
-	ev := &eventBatch{}
+	ev := &eventGroup{}
 	split := ev.split()
 	if split != nil {
 		t.Error(split)
 	}
 
 	// test len 1
-	ev = &eventBatch{Events: []Event{{EventType: "a"}}}
+	ev = &eventGroup{Events: []Event{{EventType: "a"}}}
 	split = ev.split()
 	if split != nil {
 		t.Error(split)
 	}
 
 	// test len 2
-	ev = &eventBatch{Events: []Event{{EventType: "a"}, {EventType: "b"}}}
+	ev = &eventGroup{Events: []Event{{EventType: "a"}, {EventType: "b"}}}
 	split = ev.split()
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
 
-	testEventBatchJSON(t, []Batch{{split[0]}}, `[{"eventType":"a","timestamp":-6795364578871}]`)
-	testEventBatchJSON(t, []Batch{{split[1]}}, `[{"eventType":"b","timestamp":-6795364578871}]`)
+	testEventGroupJSON(t, []Batch{{split[0]}}, `[{"eventType":"a","timestamp":-6795364578871}]`)
+	testEventGroupJSON(t, []Batch{{split[1]}}, `[{"eventType":"b","timestamp":-6795364578871}]`)
 
 	// test len 3
-	ev = &eventBatch{Events: []Event{{EventType: "a"}, {EventType: "b"}, {EventType: "c"}}}
+	ev = &eventGroup{Events: []Event{{EventType: "a"}, {EventType: "b"}, {EventType: "c"}}}
 	split = ev.split()
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testEventBatchJSON(t, []Batch{{split[0]}}, `[{"eventType":"a","timestamp":-6795364578871}]`)
-	testEventBatchJSON(t, []Batch{{split[1]}}, `[{"eventType":"b","timestamp":-6795364578871},{"eventType":"c","timestamp":-6795364578871}]`)
+	testEventGroupJSON(t, []Batch{{split[0]}}, `[{"eventType":"a","timestamp":-6795364578871}]`)
+	testEventGroupJSON(t, []Batch{{split[1]}}, `[{"eventType":"b","timestamp":-6795364578871},{"eventType":"c","timestamp":-6795364578871}]`)
 }
 
 func TestEventsJSON(t *testing.T) {
 	t.Parallel()
 
-	batch1 := &eventBatch{Events: []Event{
+	group1 := &eventGroup{Events: []Event{
 		{}, // Empty
 		{ // with everything
 			EventType:  "testEvent",
@@ -92,10 +92,10 @@ func TestEventsJSON(t *testing.T) {
 			Attributes: map[string]interface{}{"zip": "zap"},
 		},
 	}}
-	batch2 := &eventBatch{Events: []Event{{EventType: "a"}}}
-	batch3 := &eventBatch{Events: []Event{{EventType: "b"}}}
+	group2 := &eventGroup{Events: []Event{{EventType: "a"}}}
+	group3 := &eventGroup{Events: []Event{{EventType: "b"}}}
 
-	testEventBatchJSON(t, []Batch{{batch1, batch2}, {batch3}}, `[
+	testEventGroupJSON(t, []Batch{{group1, group2}, {group3}}, `[
 		{
 		  "eventType":"",
 		  "timestamp":-6795364578871
@@ -116,7 +116,7 @@ func TestEventsJSON(t *testing.T) {
 	]`)
 }
 
-func TestEventBatchSplittable(t *testing.T) {
-	batch := &eventBatch{Events: []Event{{EventType: "a"}}}
-	_ = splittablePayloadEntry(batch)
+func TestEventGroupSplittable(t *testing.T) {
+	group := &eventGroup{Events: []Event{{EventType: "a"}}}
+	_ = splittablePayloadEntry(group)
 }

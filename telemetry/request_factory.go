@@ -15,16 +15,19 @@ import (
 
 const defaultUserAgent = "NewRelic-Go-TelemetrySDK/" + version
 const defaultScheme = "https"
+const apiKeyHeader = "Api-Key"
+const licenseKeyHeader = "X-License-Key"
 
 // MapEntry represents a piece of the telemetry data that is included in a single
-// request that should be sent to New Relic. Example MapEntry types include SpanBatch
+// request that should be sent to New Relic. Example MapEntry types include SpanGroup
 // and the internal spanCommonBlock.
 type MapEntry interface {
 	// Type returns the type of data contained in this MapEntry.
-	Type() string
+	DataTypeKey() string
 
-	// Bytes returns the json serialized bytes of the MapEntry.
-	Bytes() []byte
+	// WriteDataEntry writes the json serialized bytes of the MapEntry to the buffer.
+	// It returns the input buffer for chaining.
+	WriteDataEntry(*bytes.Buffer) *bytes.Buffer
 }
 
 // A Batch is an array of MapEntry. A single HTTP request body is composed of
@@ -43,13 +46,20 @@ type RequestFactory interface {
 }
 
 type requestFactory struct {
-	insertKey    string
-	noDefaultKey bool
-	scheme       string
-	endpoint     string
-	path         string
-	userAgent    string
-	zippers      *sync.Pool
+	apiKeyHeader        string
+	apiKey              string
+	noDefaultKey        bool
+	scheme              string
+	endpoint            string
+	path                string
+	userAgent           string
+	zippers             *sync.Pool
+	uncompressedBuffers *sync.Pool
+}
+
+type gzipPoolEntry struct {
+	compressedBuffer *bytes.Buffer
+	zipper           *gzip.Writer
 }
 
 type hashRequestFactory struct {
@@ -65,8 +75,8 @@ func configure(f *requestFactory, options []ClientOption) error {
 		option(f)
 	}
 
-	if f.insertKey == "" && !f.noDefaultKey {
-		return errors.New("insert key option must be specified! (one of WithInsertKey or WithNoDefaultKey)")
+	if f.apiKey == "" && !f.noDefaultKey {
+		return errors.New("api key option must be specified! (one of WithLicenseKey, WithInsertKey, or WithNoDefaultKey)")
 	}
 	return nil
 
@@ -86,13 +96,15 @@ func (f *requestFactory) buildRequest(batches []Batch, bufferRequestBytes writer
 	configuredFactory := f
 	if len(options) > 0 {
 		configuredFactory = &requestFactory{
-			insertKey:    f.insertKey,
-			noDefaultKey: f.noDefaultKey,
-			scheme:       f.scheme,
-			endpoint:     f.endpoint,
-			path:         f.path,
-			userAgent:    f.userAgent,
-			zippers:      f.zippers,
+			apiKeyHeader:        f.apiKeyHeader,
+			apiKey:              f.apiKey,
+			noDefaultKey:        f.noDefaultKey,
+			scheme:              f.scheme,
+			endpoint:            f.endpoint,
+			path:                f.path,
+			userAgent:           f.userAgent,
+			zippers:             f.zippers,
+			uncompressedBuffers: f.uncompressedBuffers,
 		}
 
 		err := configure(configuredFactory, options)
@@ -102,24 +114,37 @@ func (f *requestFactory) buildRequest(batches []Batch, bufferRequestBytes writer
 		}
 	}
 
-	buf := &bytes.Buffer{}
-	bufferRequestBytes(buf, batches)
+	// Grab a buffer from the cached buffers and reset it
+	decompressedBuffer := configuredFactory.uncompressedBuffers.Get().(*bytes.Buffer)
+	defer configuredFactory.uncompressedBuffers.Put(decompressedBuffer)
+	decompressedBuffer.Reset()
 
-	var compressedBuffer bytes.Buffer
-	zipper := configuredFactory.zippers.Get().(*gzip.Writer)
-	defer configuredFactory.zippers.Put(zipper)
-	zipper.Reset(&compressedBuffer)
-	err := internal.CompressWithWriter(buf.Bytes(), zipper)
+	// Grab a gzip structure (and buffer) from the cache and reset it
+	poolEntry := configuredFactory.zippers.Get().(*gzipPoolEntry)
+	defer configuredFactory.zippers.Put(poolEntry)
+	poolEntry.compressedBuffer.Reset()
+	poolEntry.zipper.Reset(poolEntry.compressedBuffer)
+
+	// Generate the payload
+	bufferRequestBytes(decompressedBuffer, batches)
+
+	// Compress the payload
+	err := internal.CompressWithWriter(decompressedBuffer.Bytes(), poolEntry.zipper)
 	if err != nil {
 		return &http.Request{}, err
 	}
-	buf = &compressedBuffer
+
+	// The following buffers are no longer used after this point:
+	// * decompressedBuffer
+	// * poolEntry.compressedBuffer
+	requestBytes := make([]byte, len(poolEntry.compressedBuffer.Bytes()))
+	copy(requestBytes, poolEntry.compressedBuffer.Bytes())
 
 	getBody := func() (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewBuffer(buf.Bytes())), nil
+		return ioutil.NopCloser(bytes.NewBuffer(requestBytes)), nil
 	}
 
-	var contentLength = int64(buf.Len())
+	var contentLength = int64(len(requestBytes))
 	body, _ := getBody()
 	endpoint := configuredFactory.endpoint
 	headers := configuredFactory.getHeaders()
@@ -144,7 +169,7 @@ func (f *requestFactory) getHeaders() http.Header {
 	return http.Header{
 		"Content-Type":     []string{"application/json"},
 		"Content-Encoding": []string{"gzip"},
-		"Api-Key":          []string{f.insertKey},
+		f.apiKeyHeader:     []string{f.apiKey},
 		"User-Agent":       []string{f.userAgent},
 	}
 }
@@ -158,7 +183,8 @@ func bufferRequestBytes(buf *bytes.Buffer, batches []Batch) {
 		buf.WriteByte('{')
 		w := internal.JSONFieldsWriter{Buf: buf}
 		for _, mapEntry := range batch {
-			w.RawField(mapEntry.Type(), mapEntry.Bytes())
+			w.AddKey(mapEntry.DataTypeKey())
+			mapEntry.WriteDataEntry(buf)
 		}
 		buf.WriteByte('}')
 	}
@@ -173,7 +199,7 @@ func bufferEventRequestBytes(buf *bytes.Buffer, batches []Batch) {
 			if count > 0 {
 				buf.WriteByte(',')
 			}
-			buf.Write(mapEntry.Bytes())
+			mapEntry.WriteDataEntry(buf)
 			count++
 		}
 	}
@@ -187,11 +213,13 @@ type ClientOption func(o *requestFactory)
 // NewSpanRequestFactory creates a new instance of a RequestFactory that can be used to send Span data to New Relic,
 func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{
-		endpoint:  "trace-api.newrelic.com",
-		path:      "/trace/v1",
-		userAgent: defaultUserAgent,
-		scheme:    defaultScheme,
-		zippers:   newGzipPool(gzip.DefaultCompression),
+		apiKeyHeader:        apiKeyHeader,
+		endpoint:            "trace-api.newrelic.com",
+		path:                "/trace/v1",
+		userAgent:           defaultUserAgent,
+		scheme:              defaultScheme,
+		zippers:             newGzipPool(gzip.DefaultCompression),
+		uncompressedBuffers: newUncompressedBufferPool(),
 	}
 	err := configure(f, options)
 	if err != nil {
@@ -204,11 +232,13 @@ func NewSpanRequestFactory(options ...ClientOption) (RequestFactory, error) {
 // NewMetricRequestFactory creates a new instance of a RequestFactory that can be used to send Metric data to New Relic.
 func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{
-		endpoint:  "metric-api.newrelic.com",
-		path:      "/metric/v1",
-		userAgent: defaultUserAgent,
-		scheme:    defaultScheme,
-		zippers:   newGzipPool(gzip.DefaultCompression),
+		apiKeyHeader:        apiKeyHeader,
+		endpoint:            "metric-api.newrelic.com",
+		path:                "/metric/v1",
+		userAgent:           defaultUserAgent,
+		scheme:              defaultScheme,
+		zippers:             newGzipPool(gzip.DefaultCompression),
+		uncompressedBuffers: newUncompressedBufferPool(),
 	}
 	err := configure(f, options)
 	if err != nil {
@@ -221,11 +251,13 @@ func NewMetricRequestFactory(options ...ClientOption) (RequestFactory, error) {
 // NewEventRequestFactory creates a new instance of a RequestFactory that can be used to send Event data to New Relic.
 func NewEventRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{
-		endpoint:  "insights-collector.newrelic.com",
-		path:      "/v1/accounts/events",
-		userAgent: defaultUserAgent,
-		scheme:    defaultScheme,
-		zippers:   newGzipPool(gzip.DefaultCompression),
+		apiKeyHeader:        apiKeyHeader,
+		endpoint:            "insights-collector.newrelic.com",
+		path:                "/v1/accounts/events",
+		userAgent:           defaultUserAgent,
+		scheme:              defaultScheme,
+		zippers:             newGzipPool(gzip.DefaultCompression),
+		uncompressedBuffers: newUncompressedBufferPool(),
 	}
 	err := configure(f, options)
 	if err != nil {
@@ -238,11 +270,13 @@ func NewEventRequestFactory(options ...ClientOption) (RequestFactory, error) {
 // NewLogRequestFactory creates a new instance of a RequestFactory that can be used to send Log data to New Relic.
 func NewLogRequestFactory(options ...ClientOption) (RequestFactory, error) {
 	f := &requestFactory{
-		endpoint:  "log-api.newrelic.com",
-		path:      "/log/v1",
-		userAgent: defaultUserAgent,
-		scheme:    defaultScheme,
-		zippers:   newGzipPool(gzip.DefaultCompression),
+		apiKeyHeader:        apiKeyHeader,
+		endpoint:            "log-api.newrelic.com",
+		path:                "/log/v1",
+		userAgent:           defaultUserAgent,
+		scheme:              defaultScheme,
+		zippers:             newGzipPool(gzip.DefaultCompression),
+		uncompressedBuffers: newUncompressedBufferPool(),
 	}
 	err := configure(f, options)
 	if err != nil {
@@ -253,17 +287,33 @@ func NewLogRequestFactory(options ...ClientOption) (RequestFactory, error) {
 }
 
 func newGzipPool(gzipLevel int) *sync.Pool {
-	pool := sync.Pool{New: func() interface{} {
-		z, _ := gzip.NewWriterLevel(nil, gzipLevel)
-		return z
+	return &sync.Pool{New: func() interface{} {
+		var buffer bytes.Buffer
+		z, _ := gzip.NewWriterLevel(&buffer, gzipLevel)
+		return &gzipPoolEntry{compressedBuffer: &buffer, zipper: z}
 	}}
-	return &pool
 }
 
-// WithInsertKey creates a ClientOption to specify the api key to use when generating requests.
+func newUncompressedBufferPool() *sync.Pool {
+	return &sync.Pool{New: func() interface{} {
+		var buffer bytes.Buffer
+		return &buffer
+	}}
+}
+
+// WithInsertKey creates a ClientOption to specify the insert key to use when generating requests.
 func WithInsertKey(insertKey string) ClientOption {
 	return func(o *requestFactory) {
-		o.insertKey = insertKey
+		o.apiKeyHeader = apiKeyHeader
+		o.apiKey = insertKey
+	}
+}
+
+// WithLicenseKey creates a ClientOption to specify the license key to use when generating requests.
+func WithLicenseKey(licenseKey string) ClientOption {
+	return func(o *requestFactory) {
+		o.apiKeyHeader = licenseKeyHeader
+		o.apiKey = licenseKey
 	}
 }
 

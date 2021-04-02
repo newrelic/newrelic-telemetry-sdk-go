@@ -4,8 +4,8 @@
 package telemetry
 
 import (
+	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -18,6 +18,14 @@ func attributeValueValid(val interface{}) bool {
 	default:
 		return false
 	}
+}
+
+type errInvalidAttributes struct {
+	msg string
+}
+
+func (e errInvalidAttributes) Error() string {
+	return e.msg
 }
 
 // vetAttributes returns the attributes that are valid.  vetAttributes does not
@@ -44,19 +52,20 @@ func vetAttributes(attributes map[string]interface{}) (map[string]interface{}, e
 			errStrs = append(errStrs, fmt.Sprintf(`attribute "%s" has invalid type %T`, key, val))
 		}
 	}
-	return validAttributes, errors.New(strings.Join(errStrs, ","))
+	return validAttributes, errInvalidAttributes{strings.Join(errStrs, ",")}
 }
 
 type commonAttributes struct {
 	RawJSON json.RawMessage
 }
 
-func (ca *commonAttributes) Type() string {
+func (ca *commonAttributes) DataTypeKey() string {
 	return "attributes"
 }
 
-func (ca *commonAttributes) Bytes() []byte {
-	return ca.RawJSON
+func (ca *commonAttributes) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
+	buf.Write(ca.RawJSON)
+	return buf
 }
 
 // newCommonAttributes vets and marshals the attributes map. If invalid attributes are
@@ -64,6 +73,9 @@ func (ca *commonAttributes) Bytes() []byte {
 // keys were invalid. If a marshalling error occurs, nil  commonAttributes and an error
 // will be returned.
 func newCommonAttributes(attributes map[string]interface{}) (*commonAttributes, error) {
+	if attributes == nil || len(attributes) == 0 {
+		return nil, nil
+	}
 	response := commonAttributes{}
 	validAttrs, err := vetAttributes(attributes)
 	validAttrsJSON, marshalErr := json.Marshal(validAttrs)
