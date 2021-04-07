@@ -1,3 +1,5 @@
+[![Community Plus header](https://github.com/newrelic/opensource-website/raw/master/src/images/categories/Community_Plus.png)](https://opensource.newrelic.com/oss-category/#community-plus)
+
 # Go Telemetry SDK [![GoDoc](https://godoc.org/github.com/newrelic/newrelic-telemetry-sdk-go?status.svg)](https://godoc.org/github.com/newrelic/newrelic-telemetry-sdk-go)
 
 What is the New Relic Go Telemetry SDK?
