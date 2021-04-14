@@ -81,7 +81,7 @@ func TestMetrics(t *testing.T) {
 	}]`)
 
 	factory, _ := NewMetricRequestFactory(WithNoDefaultKey())
-	reqs, err := newRequests([]Batch{{commonBlock, NewMetricGroup(metrics)}}, factory)
+	reqs, err := BuildSplitRequests([]Batch{{commonBlock, NewMetricGroup(metrics)}}, factory)
 	if err != nil {
 		t.Error("error creating request", err)
 	}
@@ -117,7 +117,7 @@ func testGroupJSON(t testing.TB, batches []Batch, expect string) {
 		th.Helper()
 	}
 	factory, _ := NewMetricRequestFactory(WithNoDefaultKey())
-	reqs, err := newRequests(batches, factory)
+	reqs, err := BuildSplitRequests(batches, factory)
 	if nil != err {
 		t.Fatal(err)
 	}
