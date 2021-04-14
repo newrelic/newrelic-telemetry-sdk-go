@@ -214,7 +214,7 @@ func TestNeedsToSplitBatchesAndEntries(t *testing.T) {
 			rawData: randomJSON(maxCompressedSizeBytes),
 		},
 	}
-	reqs, err := newRequests([]Batch{group1, group2}, testFactory())
+	reqs, err := BuildSplitRequests([]Batch{group1, group2}, testFactory())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +226,7 @@ func TestNeedsToSplitBatchesAndEntries(t *testing.T) {
 func TestLargeRequestNeedsSplit(t *testing.T) {
 	js := randomJSON(4 * maxCompressedSizeBytes)
 	payloadEntry := testUnsplittablePayloadEntry{rawData: js}
-	reqs, err := newRequests([]Batch{{&payloadEntry}}, testFactory())
+	reqs, err := BuildSplitRequests([]Batch{{&payloadEntry}}, testFactory())
 	if reqs != nil {
 		t.Error(reqs)
 	}
@@ -238,7 +238,7 @@ func TestLargeRequestNeedsSplit(t *testing.T) {
 func TestLargeRequestNoSplit(t *testing.T) {
 	js := randomJSON(maxCompressedSizeBytes / 2)
 	payloadEntry := testUnsplittablePayloadEntry{rawData: js}
-	reqs, err := newRequests([]Batch{{&payloadEntry}}, testFactory())
+	reqs, err := BuildSplitRequests([]Batch{{&payloadEntry}}, testFactory())
 	if err != nil {
 		t.Fatal(err)
 	}
