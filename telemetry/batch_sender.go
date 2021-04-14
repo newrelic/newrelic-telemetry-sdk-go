@@ -21,7 +21,7 @@ func NewBatchSender(factory RequestFactory, client *http.Client) *BatchSender {
 }
 
 func (b *BatchSender) SendBatch(batches []Batch, ctx context.Context) error {
-	reqs, err := newRequests(batches, b.factory)
+	reqs, err := BuildSplitRequests(batches, b.factory)
 	if err != nil {
 		return err
 	}
