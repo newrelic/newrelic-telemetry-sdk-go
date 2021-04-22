@@ -82,3 +82,8 @@ func (group *eventGroup) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 	group.writeJSON(buf)
 	return buf
 }
+
+// NewEventGroup creates a new MapEntry representing a group of events in a batch.
+func NewEventGroup(events []Event) MapEntry {
+	return &eventGroup{Events: events}
+}

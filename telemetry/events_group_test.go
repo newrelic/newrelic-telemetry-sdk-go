@@ -48,22 +48,22 @@ func TestEventsPayloadSplit(t *testing.T) {
 	t.Parallel()
 
 	// test len 0
-	ev := &eventGroup{}
-	split := ev.split()
+	ev := NewEventGroup([]Event{})
+	split := ev.(splittablePayloadEntry).split()
 	if split != nil {
 		t.Error(split)
 	}
 
 	// test len 1
-	ev = &eventGroup{Events: []Event{{EventType: "a"}}}
-	split = ev.split()
+	ev = NewEventGroup([]Event{{EventType: "a"}})
+	split = ev.(splittablePayloadEntry).split()
 	if split != nil {
 		t.Error(split)
 	}
 
 	// test len 2
-	ev = &eventGroup{Events: []Event{{EventType: "a"}, {EventType: "b"}}}
-	split = ev.split()
+	ev = NewEventGroup([]Event{{EventType: "a"}, {EventType: "b"}})
+	split = ev.(splittablePayloadEntry).split()
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
@@ -72,8 +72,8 @@ func TestEventsPayloadSplit(t *testing.T) {
 	testEventGroupJSON(t, []Batch{{split[1]}}, `[{"eventType":"b","timestamp":-6795364578871}]`)
 
 	// test len 3
-	ev = &eventGroup{Events: []Event{{EventType: "a"}, {EventType: "b"}, {EventType: "c"}}}
-	split = ev.split()
+	ev = NewEventGroup([]Event{{EventType: "a"}, {EventType: "b"}, {EventType: "c"}})
+	split = ev.(splittablePayloadEntry).split()
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
@@ -84,16 +84,16 @@ func TestEventsPayloadSplit(t *testing.T) {
 func TestEventsJSON(t *testing.T) {
 	t.Parallel()
 
-	group1 := &eventGroup{Events: []Event{
+	group1 := NewEventGroup([]Event{
 		{}, // Empty
 		{ // with everything
 			EventType:  "testEvent",
 			Timestamp:  time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC),
 			Attributes: map[string]interface{}{"zip": "zap"},
 		},
-	}}
-	group2 := &eventGroup{Events: []Event{{EventType: "a"}}}
-	group3 := &eventGroup{Events: []Event{{EventType: "b"}}}
+	})
+	group2 := NewEventGroup([]Event{{EventType: "a"}})
+	group3 := NewEventGroup([]Event{{EventType: "b"}})
 
 	testEventGroupJSON(t, []Batch{{group1, group2}, {group3}}, `[
 		{
@@ -114,9 +114,4 @@ func TestEventsJSON(t *testing.T) {
 		  "timestamp":-6795364578871
 		}
 	]`)
-}
-
-func TestEventGroupSplittable(t *testing.T) {
-	group := &eventGroup{Events: []Event{{EventType: "a"}}}
-	_ = splittablePayloadEntry(group)
 }
