@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,6 +43,9 @@ const (
 	// NOTE:  These constant values are used in Config field doc comments.
 	defaultHarvestPeriod  = 5 * time.Second
 	defaultHarvestTimeout = 15 * time.Second
+
+	// euKeyPrefix is used to sanitize the api-key for logging.
+	euKeyPrefix = "eu01xx"
 )
 
 var (
@@ -132,7 +136,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 
 	h.config.logDebug(map[string]interface{}{
 		"event":                  "harvester created",
-		"api-key":                h.config.APIKey,
+		"api-key":                sanitizeAPIKeyForLogging(h.config.APIKey),
 		"harvest-period-seconds": h.config.HarvestPeriod.Seconds(),
 		"metrics-url-override":   h.config.MetricsURLOverride,
 		"spans-url-override":     h.config.SpansURLOverride,
@@ -146,6 +150,17 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	}
 
 	return h, nil
+}
+
+func sanitizeAPIKeyForLogging(apiKey string) string {
+	if len(apiKey) <= 8 {
+		return apiKey
+	}
+	end := 8
+	if strings.HasPrefix(apiKey, euKeyPrefix) {
+		end += len(euKeyPrefix)
+	}
+	return apiKey[:end]
 }
 
 var (
