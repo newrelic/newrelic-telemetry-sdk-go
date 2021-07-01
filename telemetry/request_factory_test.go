@@ -3,9 +3,11 @@ package telemetry
 import (
 	"bytes"
 	"compress/gzip"
-	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
+	"context"
 	"io/ioutil"
 	"testing"
+
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 func TestNewRequestFactoryNoInsertKeyConfigSuccess(t *testing.T) {
@@ -74,7 +76,7 @@ func (m *MockPayloadEntry) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 
 func TestSpanFactoryRequest(t *testing.T) {
 	f, _ := NewSpanRequestFactory(WithInsertKey("key!"))
-	request, _ := f.BuildRequest([]Batch{{&MockPayloadEntry{}}})
+	request, _ := f.BuildRequest(context.Background(), []Batch{{&MockPayloadEntry{}}})
 	if request.Method != "POST" {
 		t.Error("Method was not POST")
 	}
