@@ -219,9 +219,9 @@ func (cfg *Config) logURL() string {
 // https://github.com/newrelic/newrelic-telemetry-sdk-specs/blob/master/communication.md#user-agent
 func (cfg *Config) userAgent() string {
 	agent := ""
-	if "" != cfg.Product {
+	if cfg.Product != "" {
 		agent += cfg.Product
-		if "" != cfg.ProductVersion {
+		if cfg.ProductVersion != "" {
 			agent += "/" + cfg.ProductVersion
 		}
 	}

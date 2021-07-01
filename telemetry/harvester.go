@@ -93,6 +93,9 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		WithEndpoint(spanURL.Host),
 		WithUserAgent(h.config.userAgent()),
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	metricURL, err := url.Parse(h.config.metricURL())
 	if nil != err {
@@ -105,6 +108,9 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		WithEndpoint(metricURL.Host),
 		WithUserAgent(h.config.userAgent()),
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	eventURL, err := url.Parse(h.config.eventURL())
 	if nil != err {
@@ -117,9 +123,12 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		WithEndpoint(eventURL.Host),
 		WithUserAgent(h.config.userAgent()),
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	logURL, err := url.Parse(h.config.logURL())
-	if nil != err {
+	if err != nil {
 		return nil, err
 	}
 
@@ -129,6 +138,9 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		WithEndpoint(logURL.Host),
 		WithUserAgent(h.config.userAgent()),
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	h.config.logDebug(map[string]interface{}{
 		"event":                  "harvester created",
@@ -141,7 +153,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		"version":                version,
 	})
 
-	if 0 != h.config.HarvestPeriod {
+	if h.config.HarvestPeriod != 0 {
 		go harvestRoutine(h)
 	}
 
@@ -160,10 +172,10 @@ func (h *Harvester) RecordSpan(s Span) error {
 	if nil == h {
 		return nil
 	}
-	if "" == s.TraceID {
+	if s.TraceID == "" {
 		return errTraceIDUnset
 	}
-	if "" == s.ID {
+	if s.ID == "" {
 		return errSpanIDUnset
 	}
 	if s.Timestamp.IsZero() {
@@ -202,7 +214,7 @@ func (h *Harvester) RecordEvent(e Event) error {
 	if nil == h {
 		return nil
 	}
-	if "" == e.EventType {
+	if e.EventType == "" {
 		return errEventTypeUnset
 	}
 	if e.Timestamp.IsZero() {
@@ -221,7 +233,7 @@ func (h *Harvester) RecordLog(l Log) error {
 	if nil == h {
 		return nil
 	}
-	if "" == l.Message {
+	if l.Message == "" {
 		return errLogMessageUnset
 	}
 	if l.Timestamp.IsZero() {
@@ -261,7 +273,7 @@ func (r response) needsRetry(cfg *Config, attempts int) (bool, time.Duration) {
 		return false, 0
 	case 429:
 		// special retry backoff time
-		if "" != r.retryAfter {
+		if r.retryAfter != "" {
 			// Honor Retry-After header value in seconds
 			if d, err := time.ParseDuration(r.retryAfter + "s"); nil == err {
 				if d > backoff {
@@ -321,7 +333,7 @@ func (h *Harvester) swapOutMetrics(now time.Time) []*http.Request {
 		}
 	}
 
-	if 0 == len(rawMetrics) {
+	if len(rawMetrics) == 0 {
 		return nil
 	}
 
@@ -460,7 +472,6 @@ func harvestRequest(req *http.Request, cfg *Config) {
 		tmr := time.NewTimer(backoff)
 		select {
 		case <-tmr.C:
-			break
 		case <-req.Context().Done():
 			tmr.Stop()
 			return

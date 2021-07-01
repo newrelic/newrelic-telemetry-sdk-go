@@ -24,7 +24,7 @@ type jsonString string
 
 // MarshalJSON returns the JSONString unmodified without any escaping.
 func (js jsonString) MarshalJSON() ([]byte, error) {
-	if "" == js {
+	if js == "" {
 		return []byte("null"), nil
 	}
 	return []byte(js), nil

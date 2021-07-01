@@ -73,7 +73,7 @@ func (ca *commonAttributes) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 // keys were invalid. If a marshalling error occurs, nil  commonAttributes and an error
 // will be returned.
 func newCommonAttributes(attributes map[string]interface{}) (*commonAttributes, error) {
-	if attributes == nil || len(attributes) == 0 {
+	if len(attributes) == 0 {
 		return nil, nil
 	}
 	response := commonAttributes{}

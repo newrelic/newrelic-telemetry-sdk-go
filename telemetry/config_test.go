@@ -32,7 +32,7 @@ func TestConfigHarvestPeriod(t *testing.T) {
 	if nil == h || err != nil {
 		t.Fatal(h, err)
 	}
-	if 0 != h.config.HarvestPeriod {
+	if h.config.HarvestPeriod != 0 {
 		t.Error("config func does not set harvest period correctly")
 	}
 }

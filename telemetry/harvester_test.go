@@ -270,7 +270,7 @@ func TestNewRequestHeaders(t *testing.T) {
 		t.Fatal(reqs)
 	}
 	req := reqs[0]
-	if h := req.Header.Get("Content-Encoding"); "gzip" != h {
+	if h := req.Header.Get("Content-Encoding"); h != "gzip" {
 		t.Error("incorrect Content-Encoding header", req.Header)
 	}
 	if h := req.Header.Get("User-Agent"); expectUserAgent != h {
@@ -282,13 +282,13 @@ func TestNewRequestHeaders(t *testing.T) {
 		t.Fatal(reqs)
 	}
 	req = reqs[0]
-	if h := req.Header.Get("Content-Type"); "application/json" != h {
+	if h := req.Header.Get("Content-Type"); h != "application/json" {
 		t.Error("incorrect Content-Type", h)
 	}
-	if h := req.Header.Get("Api-Key"); "api-key" != h {
+	if h := req.Header.Get("Api-Key"); h != "api-key" {
 		t.Error("incorrect Api-Key", h)
 	}
-	if h := req.Header.Get("Content-Encoding"); "gzip" != h {
+	if h := req.Header.Get("Content-Encoding"); h != "gzip" {
 		t.Error("incorrect Content-Encoding header", h)
 	}
 	if h := req.Header.Get("User-Agent"); expectUserAgent != h {
@@ -310,20 +310,6 @@ func emptyResponse(status int) *http.Response {
 		StatusCode: status,
 		Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
 	}
-}
-
-func uncompressBody(req *http.Request) (string, error) {
-	body, err := ioutil.ReadAll(req.Body)
-	defer req.Body.Close()
-
-	if err != nil {
-		return "", fmt.Errorf("unable to read body: %v", err)
-	}
-	uncompressed, err := internal.Uncompress(body)
-	if err != nil {
-		return "", fmt.Errorf("unable to uncompress body: %v", err)
-	}
-	return string(uncompressed), nil
 }
 
 // sortedMetricsHelper is used to sort metrics for JSON comparison.
@@ -447,7 +433,7 @@ func TestReturnCodes(t *testing.T) {
 		})
 		h.RecordSpan(sp)
 		h.HarvestNow(context.Background())
-		if (test.shouldRetry && 2 != posts) || (!test.shouldRetry && 1 != posts) {
+		if (test.shouldRetry && posts != 2) || (!test.shouldRetry && posts != 1) {
 			t.Error("incorrect number of posts", posts)
 		}
 	}
