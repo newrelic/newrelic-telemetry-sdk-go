@@ -87,11 +87,13 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		return nil, err
 	}
 
+	userAgent := "harvester " + h.config.userAgent()
+
 	h.spanRequestFactory, err = NewSpanRequestFactory(
 		WithInsertKey(h.config.APIKey),
 		withScheme(spanURL.Scheme),
 		WithEndpoint(spanURL.Host),
-		WithUserAgent(h.config.userAgent()),
+		WithUserAgent(userAgent),
 	)
 	if err != nil {
 		return nil, err
@@ -106,7 +108,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		WithInsertKey(h.config.APIKey),
 		withScheme(metricURL.Scheme),
 		WithEndpoint(metricURL.Host),
-		WithUserAgent(h.config.userAgent()),
+		WithUserAgent(userAgent),
 	)
 	if err != nil {
 		return nil, err
@@ -121,7 +123,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		WithInsertKey(h.config.APIKey),
 		withScheme(eventURL.Scheme),
 		WithEndpoint(eventURL.Host),
-		WithUserAgent(h.config.userAgent()),
+		WithUserAgent(userAgent),
 	)
 	if err != nil {
 		return nil, err
@@ -136,7 +138,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		WithInsertKey(h.config.APIKey),
 		withScheme(logURL.Scheme),
 		WithEndpoint(logURL.Host),
-		WithUserAgent(h.config.userAgent()),
+		WithUserAgent(userAgent),
 	)
 	if err != nil {
 		return nil, err
@@ -344,7 +346,7 @@ func (h *Harvester) swapOutMetrics(now time.Time) []*http.Request {
 	}
 	group := &metricGroup{Metrics: rawMetrics}
 	entries := []MapEntry{commonBlock, group}
-	reqs, err := BuildSplitRequests([]Batch{entries}, h.metricRequestFactory)
+	reqs, err := buildSplitRequests([]Batch{entries}, h.metricRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -370,7 +372,7 @@ func (h *Harvester) swapOutSpans() []*http.Request {
 		entries = append(entries, &spanCommonBlock{attributes: h.commonAttributes})
 	}
 	entries = append(entries, &spanGroup{Spans: sps})
-	reqs, err := BuildSplitRequests([]Batch{entries}, h.spanRequestFactory)
+	reqs, err := buildSplitRequests([]Batch{entries}, h.spanRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -393,7 +395,7 @@ func (h *Harvester) swapOutEvents() []*http.Request {
 	group := &eventGroup{
 		Events: events,
 	}
-	reqs, err := BuildSplitRequests([]Batch{{group}}, h.eventRequestFactory)
+	reqs, err := buildSplitRequests([]Batch{{group}}, h.eventRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -419,7 +421,7 @@ func (h *Harvester) swapOutLogs() []*http.Request {
 		entries = append(entries, &logCommonBlock{attributes: h.commonAttributes})
 	}
 	entries = append(entries, &logGroup{Logs: logs})
-	reqs, err := BuildSplitRequests([]Batch{entries}, h.logRequestFactory)
+	reqs, err := buildSplitRequests([]Batch{entries}, h.logRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -430,8 +432,9 @@ func (h *Harvester) swapOutLogs() []*http.Request {
 	return reqs
 }
 
-func harvestRequest(req *http.Request, cfg *Config) {
+func harvestRequest(req *http.Request, cfg *Config, wg *sync.WaitGroup) {
 	var attempts int
+	defer wg.Done()
 	for {
 		cfg.logDebug(map[string]interface{}{
 			"event":       "data post",
@@ -474,6 +477,18 @@ func harvestRequest(req *http.Request, cfg *Config) {
 		case <-tmr.C:
 		case <-req.Context().Done():
 			tmr.Stop()
+			if err := req.Context().Err(); err != nil {
+				// NOTE: It is possible that the context was
+				// cancelled/timedout right after the request
+				// successfully finished.  In that case, we will
+				// erroneously log a message.  I (will) don't think
+				// that's worth trying to engineer around.
+				cfg.logError(map[string]interface{}{
+					"event":         "harvest cancelled or timed out",
+					"message":       "dropping data",
+					"context-error": err.Error(),
+				})
+			}
 			return
 		}
 		attempts++
@@ -502,24 +517,14 @@ func (h *Harvester) HarvestNow(ct context.Context) {
 	reqs = append(reqs, h.swapOutSpans()...)
 	reqs = append(reqs, h.swapOutEvents()...)
 	reqs = append(reqs, h.swapOutLogs()...)
+	wg := sync.WaitGroup{}
 
 	for _, req := range reqs {
+		wg.Add(1)
 		httpRequest := req.WithContext(ctx)
-		harvestRequest(httpRequest, &h.config)
-		if err := ctx.Err(); err != nil {
-			// NOTE: It is possible that the context was
-			// cancelled/timedout right after the request
-			// successfully finished.  In that case, we will
-			// erroneously log a message.  I (will) don't think
-			// that's worth trying to engineer around.
-			h.config.logError(map[string]interface{}{
-				"event":         "harvest cancelled or timed out",
-				"message":       "dropping data",
-				"context-error": err.Error(),
-			})
-			return
-		}
+		go harvestRequest(httpRequest, &h.config, &wg)
 	}
+	wg.Wait()
 }
 
 func harvestRoutine(h *Harvester) {
