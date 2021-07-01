@@ -60,16 +60,16 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('{')
 	ww := internal.JSONFieldsWriter{Buf: buf}
 
-	if "" != s.Name {
+	if s.Name != "" {
 		ww.StringField("name", s.Name)
 	}
-	if "" != s.ParentID {
+	if s.ParentID != "" {
 		ww.StringField("parent.id", s.ParentID)
 	}
-	if 0 != s.Duration {
+	if s.Duration != 0 {
 		ww.FloatField("duration.ms", s.Duration.Seconds()*1000.0)
 	}
-	if "" != s.ServiceName {
+	if s.ServiceName != "" {
 		ww.StringField("service.name", s.ServiceName)
 	}
 

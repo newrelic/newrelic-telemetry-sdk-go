@@ -175,7 +175,7 @@ func TestSpanCommonBlock(t *testing.T) {
 		}
 		buf := &bytes.Buffer{}
 		mapEntry.WriteDataEntry(buf)
-		json := string(buf.Bytes())
+		json := buf.String()
 		if test.expected != json {
 			t.Errorf("Expected spanCommonBlock to serialize to %s but was %s", test.expected, json)
 		}

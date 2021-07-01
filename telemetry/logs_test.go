@@ -32,7 +32,7 @@ func BenchmarkLogsJSON(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		if group.WriteDataEntry(buf); nil == buf.Bytes() || len(buf.Bytes()) == 0 {
-			b.Fatal(string(buf.Bytes()))
+			b.Fatal(buf.String())
 		}
 	}
 }
