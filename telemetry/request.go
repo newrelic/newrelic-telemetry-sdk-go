@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 )
@@ -31,7 +32,8 @@ func BuildSplitRequests(batches []Batch, factory RequestFactory) ([]*http.Reques
 }
 
 func newRequestsInternal(batches []Batch, factory RequestFactory, needsSplit func(*http.Request) bool) ([]*http.Request, error) {
-	r, err := factory.BuildRequest(batches)
+	// Context will be defined in the harvester when the request is actually submitted to the client
+	r, err := factory.BuildRequest(context.TODO(), batches)
 	if nil != err {
 		return nil, err
 	}

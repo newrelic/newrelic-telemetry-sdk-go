@@ -3,6 +3,7 @@ package telemetry
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -42,7 +43,7 @@ type RequestFactory interface {
 	// BuildRequest converts the telemetry payload slice into an http.Request.
 	// Do not mix telemetry data types in a single call to build request. Each
 	// telemetry data type has its own RequestFactory.
-	BuildRequest([]Batch, ...ClientOption) (*http.Request, error)
+	BuildRequest(context.Context, []Batch, ...ClientOption) (*http.Request, error)
 }
 
 type requestFactory struct {
@@ -82,17 +83,17 @@ func configure(f *requestFactory, options []ClientOption) error {
 
 }
 
-func (f *hashRequestFactory) BuildRequest(batches []Batch, options ...ClientOption) (*http.Request, error) {
-	return f.buildRequest(batches, bufferRequestBytes, options)
+func (f *hashRequestFactory) BuildRequest(ctx context.Context, batches []Batch, options ...ClientOption) (*http.Request, error) {
+	return f.buildRequest(ctx, batches, bufferRequestBytes, options)
 }
 
-func (f *eventRequestFactory) BuildRequest(batches []Batch, options ...ClientOption) (*http.Request, error) {
-	return f.buildRequest(batches, bufferEventRequestBytes, options)
+func (f *eventRequestFactory) BuildRequest(ctx context.Context, batches []Batch, options ...ClientOption) (*http.Request, error) {
+	return f.buildRequest(ctx, batches, bufferEventRequestBytes, options)
 }
 
 type writer func(buf *bytes.Buffer, batches []Batch)
 
-func (f *requestFactory) buildRequest(batches []Batch, bufferRequestBytes writer, options []ClientOption) (*http.Request, error) {
+func (f *requestFactory) buildRequest(ctx context.Context, batches []Batch, bufferRequestBytes writer, options []ClientOption) (*http.Request, error) {
 	configuredFactory := f
 	if len(options) > 0 {
 		configuredFactory = &requestFactory{
@@ -149,7 +150,7 @@ func (f *requestFactory) buildRequest(batches []Batch, bufferRequestBytes writer
 	endpoint := configuredFactory.endpoint
 	headers := configuredFactory.getHeaders()
 
-	return &http.Request{
+	request := &http.Request{
 		Method: "POST",
 		URL: &url.URL{
 			Scheme: configuredFactory.scheme,
@@ -162,7 +163,8 @@ func (f *requestFactory) buildRequest(batches []Batch, bufferRequestBytes writer
 		ContentLength: contentLength,
 		Close:         false,
 		Host:          endpoint,
-	}, nil
+	}
+	return request.WithContext(ctx), nil
 }
 
 func (f *requestFactory) getHeaders() http.Header {
