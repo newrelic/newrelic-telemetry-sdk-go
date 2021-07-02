@@ -129,6 +129,19 @@ func validateReqUsedCorrectEndpointValues(reqs []*http.Request, expectedURL stri
 	}
 }
 
+func TestSanitizeApiKeyForLogging(t *testing.T) {
+	assertEqual := func(expected, actual string) {
+		if actual != expected {
+			t.Errorf("Got %s but expected %s", actual, expected)
+		}
+	}
+	assertEqual("", sanitizeAPIKeyForLogging(""))
+	assertEqual("", sanitizeAPIKeyForLogging(""))
+	assertEqual("foo", sanitizeAPIKeyForLogging("foo"))
+	assertEqual("foobarba", sanitizeAPIKeyForLogging("foobarbazqux"))
+	assertEqual("eu01xxfoobarba", sanitizeAPIKeyForLogging("eu01xxfoobarbazqux"))
+}
+
 func TestHarvesterRecordSpan(t *testing.T) {
 	t.Parallel()
 
