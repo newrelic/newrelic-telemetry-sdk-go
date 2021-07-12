@@ -16,7 +16,7 @@ func testSpanGroupJSON(t testing.TB, batches []Batch, expect string) {
 		th.Helper()
 	}
 	factory, _ := NewSpanRequestFactory(WithNoDefaultKey())
-	reqs, err := BuildSplitRequests(batches, factory)
+	reqs, err := buildSplitRequests(batches, factory)
 	if nil != err {
 		t.Fatal(err)
 	}

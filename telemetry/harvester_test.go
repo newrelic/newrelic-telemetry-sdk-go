@@ -274,7 +274,7 @@ func TestNewRequestHeaders(t *testing.T) {
 		cfg.Product = "myProduct"
 		cfg.ProductVersion = "0.1.0"
 	})
-	expectUserAgent := "NewRelic-Go-TelemetrySDK/" + version + " myProduct/0.1.0"
+	expectUserAgent := "NewRelic-Go-TelemetrySDK/" + version + " harvester myProduct/0.1.0"
 	h.RecordSpan(Span{TraceID: "id", ID: "id"})
 	h.RecordMetric(Gauge{})
 

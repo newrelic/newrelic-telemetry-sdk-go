@@ -26,8 +26,8 @@ func requestNeedsSplit(r *http.Request) bool {
 	return r.ContentLength >= maxCompressedSizeBytes
 }
 
-// BuildSplitRequests converts a []Batch into a collection of appropiately sized requests
-func BuildSplitRequests(batches []Batch, factory RequestFactory) ([]*http.Request, error) {
+// buildSplitRequests converts a []Batch into a collection of appropiately sized requests
+func buildSplitRequests(batches []Batch, factory RequestFactory) ([]*http.Request, error) {
 	return newRequestsInternal(batches, factory, requestNeedsSplit)
 }
 
