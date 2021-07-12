@@ -4,7 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## Unreleased
+## [Unreleased]
+
+## [0.8.0] - 2021-07-12
+
+### Breaking Changes ⚠️ 
+* Require a request context for `RequestFactory.BuildRequest` so that request cancellation can be properly handled. ([#66](https://github.com/newrelic/newrelic-telemetry-sdk-go/pull/66))
+* Made `buildSplitRequests` internal. ([#68]https://github.com/newrelic/newrelic-telemetry-sdk-go/pull/68)
+
+### Performance Improvements 🚀 
+* Harvester now parallelizes the requests when a payload is split. ([#68]https://github.com/newrelic/newrelic-telemetry-sdk-go/pull/68)
+
+### Bug fixes 🧯
+* Sanitize API key when logging during harvester creation. ([#65](https://github.com/newrelic/newrelic-telemetry-sdk-go/pull/65))
 
 ## [0.7.1] - 2021-05-07
 
@@ -67,7 +79,9 @@ used to the `User-Agent` header if set. (#2)
 ## [0.1.0]
 First release!
 
-[Unreleased]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.7.1...v0.8.0
+[0.7.1]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.6.0...v0.7.1
 [0.6.0]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.5.0...v0.5.1
