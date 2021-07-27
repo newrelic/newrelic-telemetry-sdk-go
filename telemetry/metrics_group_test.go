@@ -51,6 +51,7 @@ func TestMetrics(t *testing.T) {
 
 	expect := compactJSONString(`[{
 		"common":{
+			"interval.ms":0,
 			"attributes":{"zip":"zap"}
 		},
 		"metrics":[
@@ -155,8 +156,8 @@ func TestSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testGroupJSON(t, []Batch{{split[0]}}, `[{"metrics":[{"name":"c1","type":"count","value":0}]}]`)
-	testGroupJSON(t, []Batch{{split[1]}}, `[{"metrics":[{"name":"c2","type":"count","value":0}]}]`)
+	testGroupJSON(t, []Batch{{split[0]}}, `[{"metrics":[{"name":"c1","type":"count","value":0, "interval.ms":0}]}]`)
+	testGroupJSON(t, []Batch{{split[1]}}, `[{"metrics":[{"name":"c2","type":"count","value":0, "interval.ms":0}]}]`)
 
 	// test len 3
 	group = NewMetricGroup([]Metric{Count{Name: "c1"}, Count{Name: "c2"}, Count{Name: "c3"}})
@@ -164,8 +165,8 @@ func TestSplit(t *testing.T) {
 	if len(split) != 2 {
 		t.Error("split into incorrect number of slices", len(split))
 	}
-	testGroupJSON(t, []Batch{{split[0]}}, `[{"metrics":[{"name":"c1","type":"count","value":0}]}]`)
-	testGroupJSON(t, []Batch{{split[1]}}, `[{"metrics":[{"name":"c2","type":"count","value":0},{"name":"c3","type":"count","value":0}]}]`)
+	testGroupJSON(t, []Batch{{split[0]}}, `[{"metrics":[{"name":"c1","type":"count","value":0,"interval.ms":0}]}]`)
+	testGroupJSON(t, []Batch{{split[1]}}, `[{"metrics":[{"name":"c2","type":"count","value":0,"interval.ms":0},{"name":"c3","type":"count","value":0,"interval.ms":0}]}]`)
 }
 
 func BenchmarkMetricsJSON(b *testing.B) {
@@ -231,23 +232,23 @@ func TestMetricAttributesJSON(t *testing.T) {
 		val    interface{}
 		expect string
 	}{
-		{"string", "string", `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"string":"string"}}]}]`},
-		{"true", true, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"true":true}}]}]`},
-		{"false", false, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"false":false}}]}]`},
-		{"uint8", uint8(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint8":1}}]}]`},
-		{"uint16", uint16(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint16":1}}]}]`},
-		{"uint32", uint32(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint32":1}}]}]`},
-		{"uint64", uint64(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint64":1}}]}]`},
-		{"uint", uint(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"uint":1}}]}]`},
-		{"uintptr", uintptr(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"uintptr":1}}]}]`},
-		{"int8", int8(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"int8":1}}]}]`},
-		{"int16", int16(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"int16":1}}]}]`},
-		{"int32", int32(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"int32":1}}]}]`},
-		{"int64", int64(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"int64":1}}]}]`},
-		{"int", int(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"int":1}}]}]`},
-		{"float32", float32(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"float32":1}}]}]`},
-		{"float64", float64(1), `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"float64":1}}]}]`},
-		{"default", func() {}, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"default":"func()"}}]}]`},
+		{"string", "string", `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"string":"string"}}]}]`},
+		{"true", true, `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"true":true}}]}]`},
+		{"false", false, `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"false":false}}]}]`},
+		{"uint8", uint8(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"uint8":1}}]}]`},
+		{"uint16", uint16(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"uint16":1}}]}]`},
+		{"uint32", uint32(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"uint32":1}}]}]`},
+		{"uint64", uint64(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"uint64":1}}]}]`},
+		{"uint", uint(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"uint":1}}]}]`},
+		{"uintptr", uintptr(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"uintptr":1}}]}]`},
+		{"int8", int8(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"int8":1}}]}]`},
+		{"int16", int16(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"int16":1}}]}]`},
+		{"int32", int32(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"int32":1}}]}]`},
+		{"int64", int64(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"int64":1}}]}]`},
+		{"int", int(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"int":1}}]}]`},
+		{"float32", float32(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"float32":1}}]}]`},
+		{"float64", float64(1), `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"float64":1}}]}]`},
+		{"default", func() {}, `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"default":"func()"}}]}]`},
 	}
 
 	for _, test := range tests {
@@ -271,7 +272,7 @@ func TestCountAttributesJSON(t *testing.T) {
 				AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
 			},
 		}
-		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"zip":"zap"}}]}]`)
+		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"zip":"zap"}}]}]`)
 	}
 
 	{
@@ -280,7 +281,7 @@ func TestCountAttributesJSON(t *testing.T) {
 				AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
 			},
 		}
-		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"count","value":0,"attributes":{"zing":"zang"}}]}]`)
+		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"count","value":0,"interval.ms":0,"attributes":{"zing":"zang"}}]}]`)
 	}
 }
 
@@ -320,7 +321,7 @@ func TestSummaryAttributesJSON(t *testing.T) {
 				AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
 			},
 		}
-		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"summary","value":{"sum":0,"count":0,"min":0,"max":0},"attributes":{"zip":"zap"}}]}]`)
+		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"summary","value":{"sum":0,"count":0,"min":0,"max":0},"interval.ms":0,"attributes":{"zip":"zap"}}]}]`)
 	}
 
 	{
@@ -329,7 +330,7 @@ func TestSummaryAttributesJSON(t *testing.T) {
 				AttributesJSON: json.RawMessage(`{"zing":"zang"}`),
 			},
 		}
-		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"summary","value":{"sum":0,"count":0,"min":0,"max":0},"attributes":{"zing":"zang"}}]}]`)
+		testGroupJSON(t, []Batch{{NewMetricGroup(metrics)}}, `[{"metrics":[{"name":"","type":"summary","value":{"sum":0,"count":0,"min":0,"max":0},"interval.ms":0,"attributes":{"zing":"zang"}}]}]`)
 	}
 }
 
@@ -337,7 +338,7 @@ func TestBatchAttributesJSON(t *testing.T) {
 	commonAttributes := &commonAttributes{RawJSON: json.RawMessage(`{"zing":"zang"}`)}
 	commonBlock := &metricCommonBlock{attributes: commonAttributes}
 	group := NewMetricGroup(nil)
-	testGroupJSON(t, []Batch{{commonBlock, group}}, `[{"common":{"attributes":{"zing":"zang"}},"metrics":[]}]`)
+	testGroupJSON(t, []Batch{{commonBlock, group}}, `[{"common":{"interval.ms":0,"attributes":{"zing":"zang"}},"metrics":[]}]`)
 }
 
 func TestBatchStartEndTimesJSON(t *testing.T) {
@@ -346,12 +347,12 @@ func TestBatchStartEndTimesJSON(t *testing.T) {
 	commonBlock := &metricCommonBlock{}
 	emptyGroup := NewMetricGroup(nil)
 
-	testGroupJSON(t, []Batch{{commonBlock, emptyGroup}}, `[{"common":{},"metrics":[]}]`)
+	testGroupJSON(t, []Batch{{commonBlock, emptyGroup}}, `[{"common":{"interval.ms":0},"metrics":[]}]`)
 
 	commonBlock = &metricCommonBlock{
 		timestamp: start,
 	}
-	testGroupJSON(t, []Batch{{commonBlock, emptyGroup}}, `[{"common":{"timestamp":1417136460000},"metrics":[]}]`)
+	testGroupJSON(t, []Batch{{commonBlock, emptyGroup}}, `[{"common":{"timestamp":1417136460000,"interval.ms":0},"metrics":[]}]`)
 
 	commonBlock = &metricCommonBlock{
 		interval: 5 * time.Second,
@@ -375,13 +376,13 @@ func TestCommonAttributes(t *testing.T) {
 	}
 	sometime := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	testcases := []testStruct{
-		{expect: `[{"common":{},"metrics":[]}]`},
-		{start: sometime, expect: `[{"common":{"timestamp":1417136460000},"metrics":[]}]`},
+		{expect: `[{"common":{"interval.ms":0},"metrics":[]}]`},
+		{start: sometime, expect: `[{"common":{"timestamp":1417136460000,"interval.ms":0},"metrics":[]}]`},
 		{interval: 5 * time.Second, expect: `[{"common":{"interval.ms":5000},"metrics":[]}]`},
 		{start: sometime, interval: 5 * time.Second,
 			expect: `[{"common":{"timestamp":1417136460000,"interval.ms":5000},"metrics":[]}]`},
 		{attributes: map[string]interface{}{"zip": "zap", "invalid": []string{"invalid"}},
-			expect: `[{"common":{"attributes":{"zip":"zap"}},"metrics":[]}]`},
+			expect: `[{"common":{"interval.ms":0,"attributes":{"zip":"zap"}},"metrics":[]}]`},
 	}
 
 	emptyGroup := NewMetricGroup(nil)
@@ -406,11 +407,13 @@ func TestMetricsJSONWithCommonAttributesJSON(t *testing.T) {
 		&Summary{
 			Name:       "foo",
 			Attributes: map[string]interface{}{"zip": "zap"},
+			Interval:   -1,
 		},
 	})
 	group2 := NewMetricGroup([]Metric{
 		&Summary{
-			Name: "bar",
+			Name:     "bar",
+			Interval: -1,
 		},
 	})
 	testGroupJSON(t, []Batch{{commonBlock, group1}, {group2}}, `[

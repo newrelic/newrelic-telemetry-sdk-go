@@ -60,8 +60,8 @@ func TestMetricPayload(t *testing.T) {
 		},
 		"metrics":[
 			{"name":"metric","type":"gauge","value":1,"timestamp":1417136460000,"attributes":{"zip":"zap"}},
-			{"name":"summary-metric-nan-min","type":"summary","value":{"sum":1,"count":4,"min":null,"max":3},"timestamp":1417136460000,"attributes":{"zip":"zap"}},
-			{"name":"summary-metric-nan-max","type":"summary","value":{"sum":1,"count":4,"min":10,"max":null},"timestamp":1417136460000,"attributes":{"zip":"zap"}}
+			{"name":"summary-metric-nan-min","type":"summary","value":{"sum":1,"count":4,"min":null,"max":3},"timestamp":1417136460000,"interval.ms":0,"attributes":{"zip":"zap"}},
+			{"name":"summary-metric-nan-max","type":"summary","value":{"sum":1,"count":4,"min":10,"max":null},"timestamp":1417136460000,"interval.ms":0,"attributes":{"zip":"zap"}}
 		]
 	}]`
 	compactExpect := compactJSONString(expect)

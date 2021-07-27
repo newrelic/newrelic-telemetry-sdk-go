@@ -696,7 +696,7 @@ func TestHarvestAuditLog(t *testing.T) {
 	}
 	// We can't test "data" against a fixed string because of the dynamic
 	// timestamp.
-	if d := audit["data"]; !strings.Contains(string(d.(jsonString)), `"metrics":[{"name":"","type":"count","value":0}]`) {
+	if d := audit["data"]; !strings.Contains(string(d.(jsonString)), `"metrics":[{"name":"","type":"count","value":0,"interval.ms":0}]`) {
 		t.Fatal(d)
 	}
 }
