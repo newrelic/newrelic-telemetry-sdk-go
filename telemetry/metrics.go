@@ -42,6 +42,8 @@ type Count struct {
 	// Interval is the length of time for this metric.  If Interval is unset
 	// then the time between Harvester harvests will be used.
 	Interval time.Duration
+	// Set to true to force the value of interval to be written to the payload
+	ForceIntervalValid bool
 }
 
 func (m Count) validate() map[string]interface{} {
@@ -61,12 +63,12 @@ type Metric interface {
 	validate() map[string]interface{}
 }
 
-func writeTimestampInterval(w *internal.JSONFieldsWriter, timestamp time.Time, interval time.Duration) {
+func writeTimestampInterval(w *internal.JSONFieldsWriter, timestamp time.Time, interval time.Duration, forceIntervalValid bool) {
 	if !timestamp.IsZero() {
 		w.IntField("timestamp", timestamp.UnixNano()/(1000*1000))
 	}
-	if interval != 0 {
-		w.IntField("interval.ms", interval.Nanoseconds()/(1000*1000))
+	if interval != 0 || forceIntervalValid {
+		w.IntField("interval.ms", interval.Milliseconds())
 	}
 }
 
@@ -76,7 +78,7 @@ func (m Count) writeJSON(buf *bytes.Buffer) {
 	w.StringField("name", m.Name)
 	w.StringField("type", "count")
 	w.FloatField("value", m.Value)
-	writeTimestampInterval(&w, m.Timestamp, m.Interval)
+	writeTimestampInterval(&w, m.Timestamp, m.Interval, m.ForceIntervalValid)
 	if nil != m.Attributes {
 		w.WriterField("attributes", internal.Attributes(m.Attributes))
 	} else if nil != m.AttributesJSON {
@@ -117,6 +119,8 @@ type Summary struct {
 	// Interval is the length of time for this metric.  If Interval is unset
 	// then the time between Harvester harvests will be used.
 	Interval time.Duration
+	// Set to true to force the value of interval to be written to the payload
+	ForceIntervalValid bool
 }
 
 func (m Summary) validate() map[string]interface{} {
@@ -173,7 +177,7 @@ func (m Summary) writeJSON(buf *bytes.Buffer) {
 	}
 	buf.WriteByte('}')
 
-	writeTimestampInterval(&w, m.Timestamp, m.Interval)
+	writeTimestampInterval(&w, m.Timestamp, m.Interval, m.ForceIntervalValid)
 	if nil != m.Attributes {
 		w.WriterField("attributes", internal.Attributes(m.Attributes))
 	} else if nil != m.AttributesJSON {
@@ -225,7 +229,7 @@ func (m Gauge) writeJSON(buf *bytes.Buffer) {
 	w.StringField("name", m.Name)
 	w.StringField("type", "gauge")
 	w.FloatField("value", m.Value)
-	writeTimestampInterval(&w, m.Timestamp, 0)
+	writeTimestampInterval(&w, m.Timestamp, 0, false)
 	if nil != m.Attributes {
 		w.WriterField("attributes", internal.Attributes(m.Attributes))
 	} else if nil != m.AttributesJSON {
@@ -244,6 +248,8 @@ type metricCommonBlock struct {
 	// Summary metric.  interval must be set to a non-zero value here or on
 	// all Count and Summary metrics.
 	interval time.Duration
+	// Set to true to force the value of interval to be written to the payload
+	forceIntervalValid bool
 	// attributes is the reference to the common attributes that apply to
 	// all metrics in the batch.
 	attributes *commonAttributes
@@ -258,7 +264,7 @@ func (mcb *metricCommonBlock) DataTypeKey() string {
 func (mcb *metricCommonBlock) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
-	writeTimestampInterval(&w, mcb.timestamp, mcb.interval)
+	writeTimestampInterval(&w, mcb.timestamp, mcb.interval, mcb.forceIntervalValid)
 	if nil != mcb.attributes && nil != mcb.attributes.RawJSON {
 		w.AddKey(mcb.attributes.DataTypeKey())
 		mcb.attributes.WriteDataEntry(buf)
@@ -302,6 +308,7 @@ func WithMetricAttributes(commonAttributes map[string]interface{}) MetricCommonB
 func WithMetricInterval(interval time.Duration) MetricCommonBlockOption {
 	return func(b *metricCommonBlock) error {
 		b.interval = interval
+		b.forceIntervalValid = true
 		return nil
 	}
 }
