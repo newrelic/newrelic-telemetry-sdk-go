@@ -65,7 +65,7 @@ func writeTimestampInterval(w *internal.JSONFieldsWriter, timestamp time.Time, i
 	if !timestamp.IsZero() {
 		w.IntField("timestamp", timestamp.UnixNano()/(1000*1000))
 	}
-	if interval >= 0 {
+	if interval != 0 {
 		w.IntField("interval.ms", interval.Nanoseconds()/(1000*1000))
 	}
 }
@@ -225,9 +225,7 @@ func (m Gauge) writeJSON(buf *bytes.Buffer) {
 	w.StringField("name", m.Name)
 	w.StringField("type", "gauge")
 	w.FloatField("value", m.Value)
-	if !m.Timestamp.IsZero() {
-		w.IntField("timestamp", m.Timestamp.UnixNano()/(1000*1000))
-	}
+	writeTimestampInterval(&w, m.Timestamp, 0)
 	if nil != m.Attributes {
 		w.WriterField("attributes", internal.Attributes(m.Attributes))
 	} else if nil != m.AttributesJSON {

@@ -74,7 +74,6 @@ func (c *AggregatedCount) Increase(val float64) {
 		m.c = &Count{
 			Name:           c.Name,
 			AttributesJSON: json.RawMessage(c.attributesJSON),
-			Interval:       -1,
 		}
 	}
 	m.c.Value += val
@@ -180,7 +179,6 @@ func (s *AggregatedSummary) Record(val float64) {
 			Sum:            val,
 			Min:            val,
 			Max:            val,
-			Interval:       -1,
 		}
 		return
 	}
