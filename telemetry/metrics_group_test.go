@@ -375,13 +375,13 @@ func TestCommonAttributes(t *testing.T) {
 	}
 	sometime := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	testcases := []testStruct{
-		{expect: `[{"common":{},"metrics":[]}]`},
-		{start: sometime, expect: `[{"common":{"timestamp":1417136460000},"metrics":[]}]`},
+		{expect: `[{"common":{"interval.ms":0},"metrics":[]}]`},
+		{start: sometime, expect: `[{"common":{"timestamp":1417136460000,"interval.ms":0},"metrics":[]}]`},
 		{interval: 5 * time.Second, expect: `[{"common":{"interval.ms":5000},"metrics":[]}]`},
 		{start: sometime, interval: 5 * time.Second,
 			expect: `[{"common":{"timestamp":1417136460000,"interval.ms":5000},"metrics":[]}]`},
 		{attributes: map[string]interface{}{"zip": "zap", "invalid": []string{"invalid"}},
-			expect: `[{"common":{"attributes":{"zip":"zap"}},"metrics":[]}]`},
+			expect: `[{"common":{"interval.ms":0,"attributes":{"zip":"zap"}},"metrics":[]}]`},
 	}
 
 	emptyGroup := NewMetricGroup(nil)
@@ -393,6 +393,9 @@ func TestCommonAttributes(t *testing.T) {
 		)
 		testGroupJSON(t, []Batch{{commonBlock, emptyGroup}}, test.expect)
 	}
+	// Verify an empty common block (without metric interval) can be written without metric interval call
+	commonBlock, _ := NewMetricCommonBlock()
+	testGroupJSON(t, []Batch{{commonBlock, emptyGroup}}, `[{"common":{},"metrics":[]}]`)
 }
 
 func TestMetricsJSONWithCommonAttributesJSON(t *testing.T) {
