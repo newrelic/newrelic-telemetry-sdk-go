@@ -84,7 +84,8 @@ used to the `User-Agent` header if set. (#2)
 ## [0.1.0]
 First release!
 
-[Unreleased]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.6.0...v0.7.1
 [0.6.0]: https://github.com/newrelic/newrelic-telemetry-sdk-go/compare/v0.5.2...v0.6.0
