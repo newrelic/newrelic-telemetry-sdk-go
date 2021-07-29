@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.8.1] - 2021-07-29
+
+### Added
+* Add `ForceIntervalValid` to metric structs to allow for intervals with 0 duration. ([#70](https://github.com/newrelic/newrelic-telemetry-sdk-go/pull/70))
+
 ## [0.8.0] - 2021-07-12
 
 ### Breaking Changes ⚠️ 
