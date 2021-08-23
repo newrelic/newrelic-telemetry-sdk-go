@@ -60,6 +60,8 @@ type commonAttributes struct {
 	Attributes map[string]interface{}
 }
 
+var _ = MapEntry(&commonAttributes{})
+
 func (ca *commonAttributes) DataTypeKey() string {
 	return "attributes"
 }
