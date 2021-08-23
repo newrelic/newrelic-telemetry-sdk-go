@@ -77,7 +77,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	// harvest.  This also has the benefit that it avoids race conditions if
 	// the consumer modifies the CommonAttributes map after calling
 	// NewHarvester.
-	if nil != h.config.CommonAttributes {
+	if len(h.config.CommonAttributes) > 0 {
 		commonAttributes, err := newCommonAttributes(h.config.CommonAttributes)
 		if err != nil {
 			h.config.logError(map[string]interface{}{"err": err.Error()})
