@@ -102,7 +102,7 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 
 // spanCommonBlock represents the shared elements of a SpanGroup.
 type spanCommonBlock struct {
-	attributes *commonAttributes
+	attributes MapEntry
 }
 
 // DataTypeKey returns the type of data contained in this MapEntry.
@@ -141,6 +141,9 @@ func NewSpanCommonBlock(options ...SpanCommonBlockOption) (MapEntry, error) {
 // Invalid attributes will be detected and ignored
 func WithSpanAttributes(commonAttributes map[string]interface{}) SpanCommonBlockOption {
 	return func(scb *spanCommonBlock) error {
+		if len(commonAttributes) == 0 {
+			return nil
+		}
 		validCommonAttr, err := newCommonAttributes(commonAttributes)
 		if err != nil {
 			// Ignore any error with invalid attributes

@@ -252,7 +252,7 @@ type metricCommonBlock struct {
 	forceIntervalValid bool
 	// attributes is the reference to the common attributes that apply to
 	// all metrics in the batch.
-	attributes *commonAttributes
+	attributes MapEntry
 }
 
 // Type returns the type of data contained in this MapEntry.
@@ -265,7 +265,7 @@ func (mcb *metricCommonBlock) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
 	writeTimestampInterval(&w, mcb.timestamp, mcb.interval, mcb.forceIntervalValid)
-	if nil != mcb.attributes && nil != mcb.attributes.Attributes {
+	if nil != mcb.attributes {
 		w.AddKey(mcb.attributes.DataTypeKey())
 		mcb.attributes.WriteDataEntry(buf)
 	}
@@ -292,6 +292,9 @@ func NewMetricCommonBlock(options ...MetricCommonBlockOption) (MapEntry, error) 
 // Invalid attributes will be detected and ignored
 func WithMetricAttributes(commonAttributes map[string]interface{}) MetricCommonBlockOption {
 	return func(b *metricCommonBlock) error {
+		if len(commonAttributes) == 0 {
+			return nil
+		}
 		validCommonAttr, err := newCommonAttributes(commonAttributes)
 		if err != nil {
 			// Ignore any error with invalid attributes

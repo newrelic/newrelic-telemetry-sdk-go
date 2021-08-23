@@ -23,7 +23,7 @@ type Harvester struct {
 	// These fields are not modified after Harvester creation.  They may be
 	// safely accessed without locking.
 	config           Config
-	commonAttributes *commonAttributes
+	commonAttributes *cachedMapEntry
 
 	// lock protects the mutable fields below.
 	lock                 sync.Mutex
@@ -82,7 +82,8 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		if err != nil {
 			h.config.logError(map[string]interface{}{"err": err.Error()})
 		}
-		h.commonAttributes = commonAttributes
+
+		h.commonAttributes = newCachedMapEntry(commonAttributes)
 		h.config.CommonAttributes = nil
 	}
 
@@ -355,9 +356,11 @@ func (h *Harvester) swapOutMetrics(now time.Time) []*http.Request {
 	}
 
 	commonBlock := &metricCommonBlock{
-		timestamp:  lastHarvest,
-		interval:   now.Sub(lastHarvest),
-		attributes: h.commonAttributes,
+		timestamp: lastHarvest,
+		interval:  now.Sub(lastHarvest),
+	}
+	if h.commonAttributes != nil {
+		commonBlock.attributes = h.commonAttributes
 	}
 	group := &metricGroup{Metrics: rawMetrics}
 	entries := []MapEntry{commonBlock, group}
