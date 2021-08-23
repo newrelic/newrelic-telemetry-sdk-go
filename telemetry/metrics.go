@@ -265,7 +265,7 @@ func (mcb *metricCommonBlock) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 	buf.WriteByte('{')
 	w := internal.JSONFieldsWriter{Buf: buf}
 	writeTimestampInterval(&w, mcb.timestamp, mcb.interval, mcb.forceIntervalValid)
-	if nil != mcb.attributes && nil != mcb.attributes.RawJSON {
+	if nil != mcb.attributes && nil != mcb.attributes.Attributes {
 		w.AddKey(mcb.attributes.DataTypeKey())
 		mcb.attributes.WriteDataEntry(buf)
 	}
