@@ -4,7 +4,9 @@
 package telemetry
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -637,4 +639,29 @@ func (ag *MetricAggregator) Summary(name string, attributes map[string]interface
 		return nil
 	}
 	return &AggregatedSummary{metricHandle: newMetricHandle(ag.harvester, name, attributes)}
+}
+
+type cachedMapEntry struct {
+	key  string
+	data json.RawMessage
+}
+
+var _ = MapEntry(cachedMapEntry{})
+
+func (c cachedMapEntry) DataTypeKey() string {
+	return c.key
+}
+
+func (c cachedMapEntry) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
+	buf.Write(c.data)
+	return buf
+}
+
+func newCachedMapEntry(e MapEntry) *cachedMapEntry {
+	buf := &bytes.Buffer{}
+	e.WriteDataEntry(buf)
+	return &cachedMapEntry{
+		key:  e.DataTypeKey(),
+		data: buf.Bytes(),
+	}
 }
