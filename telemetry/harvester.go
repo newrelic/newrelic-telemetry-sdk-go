@@ -4,7 +4,9 @@
 package telemetry
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -23,7 +25,7 @@ type Harvester struct {
 	// These fields are not modified after Harvester creation.  They may be
 	// safely accessed without locking.
 	config           Config
-	commonAttributes *commonAttributes
+	commonAttributes *cachedMapEntry
 
 	// lock protects the mutable fields below.
 	lock                 sync.Mutex
@@ -77,12 +79,13 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	// harvest.  This also has the benefit that it avoids race conditions if
 	// the consumer modifies the CommonAttributes map after calling
 	// NewHarvester.
-	if nil != h.config.CommonAttributes {
+	if len(h.config.CommonAttributes) > 0 {
 		commonAttributes, err := newCommonAttributes(h.config.CommonAttributes)
 		if err != nil {
 			h.config.logError(map[string]interface{}{"err": err.Error()})
 		}
-		h.commonAttributes = commonAttributes
+
+		h.commonAttributes = newCachedMapEntry(commonAttributes)
 		h.config.CommonAttributes = nil
 	}
 
@@ -355,9 +358,11 @@ func (h *Harvester) swapOutMetrics(now time.Time) []*http.Request {
 	}
 
 	commonBlock := &metricCommonBlock{
-		timestamp:  lastHarvest,
-		interval:   now.Sub(lastHarvest),
-		attributes: h.commonAttributes,
+		timestamp: lastHarvest,
+		interval:  now.Sub(lastHarvest),
+	}
+	if h.commonAttributes != nil {
+		commonBlock.attributes = h.commonAttributes
 	}
 	group := &metricGroup{Metrics: rawMetrics}
 	entries := []MapEntry{commonBlock, group}
@@ -634,4 +639,29 @@ func (ag *MetricAggregator) Summary(name string, attributes map[string]interface
 		return nil
 	}
 	return &AggregatedSummary{metricHandle: newMetricHandle(ag.harvester, name, attributes)}
+}
+
+type cachedMapEntry struct {
+	key  string
+	data json.RawMessage
+}
+
+var _ = MapEntry(cachedMapEntry{})
+
+func (c cachedMapEntry) DataTypeKey() string {
+	return c.key
+}
+
+func (c cachedMapEntry) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
+	buf.Write(c.data)
+	return buf
+}
+
+func newCachedMapEntry(e MapEntry) *cachedMapEntry {
+	buf := &bytes.Buffer{}
+	e.WriteDataEntry(buf)
+	return &cachedMapEntry{
+		key:  e.DataTypeKey(),
+		data: buf.Bytes(),
+	}
 }

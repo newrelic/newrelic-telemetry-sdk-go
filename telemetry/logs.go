@@ -50,7 +50,7 @@ func (l *Log) writeJSON(buf *bytes.Buffer) {
 }
 
 type logCommonBlock struct {
-	attributes *commonAttributes
+	attributes MapEntry
 }
 
 // DataTypeKey returns the type of data contained in this MapEntry.
@@ -89,6 +89,9 @@ func NewLogCommonBlock(options ...LogCommonBlockOption) (MapEntry, error) {
 // Invalid attributes will be detected and ignored
 func WithLogAttributes(commonAttributes map[string]interface{}) LogCommonBlockOption {
 	return func(b *logCommonBlock) error {
+		if len(commonAttributes) == 0 {
+			return nil
+		}
 		validCommonAttr, err := newCommonAttributes(commonAttributes)
 		if err != nil {
 			// Ignore any error with invalid attributes

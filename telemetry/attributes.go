@@ -5,9 +5,10 @@ package telemetry
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 func attributeValueValid(val interface{}) bool {
@@ -56,32 +57,32 @@ func vetAttributes(attributes map[string]interface{}) (map[string]interface{}, e
 }
 
 type commonAttributes struct {
-	RawJSON json.RawMessage
+	Attributes map[string]interface{}
 }
+
+var _ = MapEntry(&commonAttributes{})
 
 func (ca *commonAttributes) DataTypeKey() string {
 	return "attributes"
 }
 
 func (ca *commonAttributes) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
-	buf.Write(ca.RawJSON)
+	w := internal.JSONFieldsWriter{Buf: buf}
+	buf.WriteByte('{')
+	internal.AddAttributes(&w, ca.Attributes)
+	buf.WriteByte('}')
 	return buf
 }
 
-// newCommonAttributes vets and marshals the attributes map. If invalid attributes are
+// newCommonAttributes vets the attributes map. If invalid attributes are
 // detected, the response will contain the valid attributes and an error describing which
-// keys were invalid. If a marshalling error occurs, nil  commonAttributes and an error
-// will be returned.
+// keys were invalid will be returned.
 func newCommonAttributes(attributes map[string]interface{}) (*commonAttributes, error) {
 	if len(attributes) == 0 {
 		return nil, nil
 	}
-	response := commonAttributes{}
 	validAttrs, err := vetAttributes(attributes)
-	validAttrsJSON, marshalErr := json.Marshal(validAttrs)
-	if marshalErr != nil {
-		return nil, marshalErr
-	}
-	response.RawJSON = validAttrsJSON
-	return &response, err
+	return &commonAttributes{
+		Attributes: validAttrs,
+	}, err
 }
