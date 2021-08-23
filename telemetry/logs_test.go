@@ -123,14 +123,14 @@ func TestRecordLogNilHarvester(t *testing.T) {
 }
 
 func BenchmarkLogCommonBlock(b *testing.B) {
-	block, err := NewLogCommonBlock(WithLogAttributes(map[string]interface{}{"zup": "wup"}))
-	if err != nil {
-		b.Fatal(err)
-	}
 
 	buf := &bytes.Buffer{}
 
 	for i := 0; i<b.N; i++ {
+		block, err := NewLogCommonBlock(WithLogAttributes(map[string]interface{}{"zup": "wup"}))
+		if err != nil {
+			b.Fatal(err)
+		}
 		buf.Reset()
 		buf.WriteString(block.DataTypeKey())
 		block.WriteDataEntry(buf)

@@ -79,8 +79,8 @@ func newCommonAttributes(attributes map[string]interface{}) (*commonAttributes, 
 	if len(attributes) == 0 {
 		return nil, nil
 	}
-	response := commonAttributes{}
 	validAttrs, err := vetAttributes(attributes)
-	response.Attributes = validAttrs
-	return &response, err
+	return &commonAttributes{
+		Attributes: validAttrs,
+	}, err
 }

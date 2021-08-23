@@ -221,14 +221,14 @@ func TestValidateSummary(t *testing.T) {
 }
 
 func BenchmarkMetricCommonBlock(b *testing.B) {
-	block, err := NewMetricCommonBlock(WithMetricAttributes(map[string]interface{}{"zup": "wup"}))
-	if err != nil {
-		b.Fatal(err)
-	}
-
 	buf := &bytes.Buffer{}
 
 	for i := 0; i < b.N; i++ {
+		block, err := NewMetricCommonBlock(WithMetricAttributes(map[string]interface{}{"zup": "wup"}))
+		if err != nil {
+			b.Fatal(err)
+		}
+
 		buf.Reset()
 		buf.WriteString(block.DataTypeKey())
 		block.WriteDataEntry(buf)
