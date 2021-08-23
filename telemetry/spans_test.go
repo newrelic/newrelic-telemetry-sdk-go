@@ -226,3 +226,19 @@ func TestSpanWithEvents(t *testing.T) {
 	}]}]`
 	testHarvesterSpans(t, h, expect)
 }
+
+
+func BenchmarkSpanCommonBlock(b *testing.B) {
+	block, err := NewSpanCommonBlock(WithSpanAttributes(map[string]interface{}{"zup": "wup"}))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	buf := &bytes.Buffer{}
+
+	for i := 0; i<b.N; i++ {
+		buf.Reset()
+		buf.WriteString(block.DataTypeKey())
+		block.WriteDataEntry(buf)
+	}
+}

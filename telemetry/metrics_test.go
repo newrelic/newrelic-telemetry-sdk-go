@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"io/ioutil"
 	"math"
 	"reflect"
@@ -216,5 +217,20 @@ func TestValidateSummary(t *testing.T) {
 		if !reflect.DeepEqual(got, tc.fields) {
 			t.Error(idx, got, tc.fields)
 		}
+	}
+}
+
+func BenchmarkMetricCommonBlock(b *testing.B) {
+	block, err := NewMetricCommonBlock(WithMetricAttributes(map[string]interface{}{"zup": "wup"}))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	buf := &bytes.Buffer{}
+
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		buf.WriteString(block.DataTypeKey())
+		block.WriteDataEntry(buf)
 	}
 }
