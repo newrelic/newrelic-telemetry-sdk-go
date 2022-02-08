@@ -17,7 +17,7 @@ import (
 
 func Example() {
 	h, err := telemetry.NewHarvester(
-		telemetry.ConfigAPIKey(os.Getenv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")),
+		telemetry.ConfigAPIKey(os.Getenv("NEW_RELIC_INSERT_API_KEY")),
 	)
 	if err != nil {
 		fmt.Println(err)

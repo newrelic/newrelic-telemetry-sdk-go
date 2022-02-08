@@ -4,10 +4,14 @@
 package telemetry
 
 import (
+	"bytes"
+	"io/ioutil"
 	"math"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 func TestMetricPayload(t *testing.T) {
@@ -15,12 +19,29 @@ func TestMetricPayload(t *testing.T) {
 	// attributes correctly marshals into JSON.
 	now := time.Date(2014, time.November, 28, 1, 1, 0, 0, time.UTC)
 	h, _ := NewHarvester(ConfigCommonAttributes(map[string]interface{}{"zop": "zup"}), configTesting)
-	// Use a single metric to avoid sorting.
 	h.RecordMetric(Gauge{
 		Name:       "metric",
 		Attributes: map[string]interface{}{"zip": "zap"},
 		Timestamp:  now,
 		Value:      1.0,
+	})
+	h.RecordMetric(Summary{
+		Name:       "summary-metric-nan-min",
+		Attributes: map[string]interface{}{"zip": "zap"},
+		Timestamp:  now,
+		Count:      4.0,
+		Sum:        1.0,
+		Min:        math.NaN(),
+		Max:        3.0,
+	})
+	h.RecordMetric(Summary{
+		Name:       "summary-metric-nan-max",
+		Attributes: map[string]interface{}{"zip": "zap"},
+		Timestamp:  now,
+		Count:      4.0,
+		Sum:        1.0,
+		Min:        10,
+		Max:        math.NaN(),
 	})
 	h.lastHarvest = now
 	end := h.lastHarvest.Add(5 * time.Second)
@@ -28,7 +49,9 @@ func TestMetricPayload(t *testing.T) {
 	if len(reqs) != 1 {
 		t.Fatal(reqs)
 	}
-	js := reqs[0].UncompressedBody
+	bodyReader, _ := reqs[0].GetBody()
+	compressedBytes, _ := ioutil.ReadAll(bodyReader)
+	js, _ := internal.Uncompress(compressedBytes)
 	actual := string(js)
 	expect := `[{
 		"common":{
@@ -37,7 +60,9 @@ func TestMetricPayload(t *testing.T) {
 			"attributes":{"zop":"zup"}
 		},
 		"metrics":[
-			{"name":"metric","type":"gauge","value":1,"timestamp":1417136460000,"attributes":{"zip":"zap"}}
+			{"name":"metric","type":"gauge","value":1,"timestamp":1417136460000,"attributes":{"zip":"zap"}},
+			{"name":"summary-metric-nan-min","type":"summary","value":{"sum":1,"count":4,"min":null,"max":3},"timestamp":1417136460000,"attributes":{"zip":"zap"}},
+			{"name":"summary-metric-nan-max","type":"summary","value":{"sum":1,"count":4,"min":10,"max":null},"timestamp":1417136460000,"attributes":{"zip":"zap"}}
 		]
 	}]`
 	compactExpect := compactJSONString(expect)
@@ -79,10 +104,7 @@ func TestVetAttributes(t *testing.T) {
 		input := map[string]interface{}{
 			key: tc.Input,
 		}
-		var errorLogged map[string]interface{}
-		output := vetAttributes(input, func(e map[string]interface{}) {
-			errorLogged = e
-		})
+		output, err := vetAttributes(input)
 		// Test the the input map has not been modified.
 		if len(input) != 1 {
 			t.Error("input map modified", input)
@@ -94,11 +116,11 @@ func TestVetAttributes(t *testing.T) {
 			if _, ok := output[key]; !ok {
 				t.Error(idx, tc.Input, output)
 			}
-			if errorLogged != nil {
+			if err != nil {
 				t.Error(idx, "unexpected error present")
 			}
 		} else {
-			if errorLogged == nil {
+			if err == nil {
 				t.Error(idx, "expected error missing")
 			}
 			if len(output) != 0 {
@@ -151,10 +173,15 @@ func TestValidateGauge(t *testing.T) {
 }
 
 func TestValidateSummary(t *testing.T) {
-	want := map[string]interface{}{
+	expectNaNErr := map[string]interface{}{
 		"message": "invalid summary field",
 		"name":    "my-summary",
 		"err":     errFloatNaN.Error(),
+	}
+	expectInfErr := map[string]interface{}{
+		"message": "invalid summary field",
+		"name":    "my-summary",
+		"err":     errFloatInfinity.Error(),
 	}
 	testcases := []struct {
 		m      Summary
@@ -165,20 +192,24 @@ func TestValidateSummary(t *testing.T) {
 			fields: nil,
 		},
 		{
+			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: math.NaN(), Max: math.NaN()},
+			fields: nil,
+		},
+		{
 			m:      Summary{Name: "my-summary", Count: math.NaN(), Sum: 2.0, Min: 3.0, Max: 4.0},
-			fields: want,
+			fields: expectNaNErr,
 		},
 		{
 			m:      Summary{Name: "my-summary", Count: 1.0, Sum: math.NaN(), Min: 3.0, Max: 4.0},
-			fields: want,
+			fields: expectNaNErr,
 		},
 		{
-			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: math.NaN(), Max: 4.0},
-			fields: want,
+			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: math.Inf(-3), Max: 4.0},
+			fields: expectInfErr,
 		},
 		{
-			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: 3.0, Max: math.NaN()},
-			fields: want,
+			m:      Summary{Name: "my-summary", Count: 1.0, Sum: 2.0, Min: 3.0, Max: math.Inf(3)},
+			fields: expectInfErr,
 		},
 	}
 	for idx, tc := range testcases {
@@ -186,5 +217,20 @@ func TestValidateSummary(t *testing.T) {
 		if !reflect.DeepEqual(got, tc.fields) {
 			t.Error(idx, got, tc.fields)
 		}
+	}
+}
+
+func BenchmarkMetricCommonBlock(b *testing.B) {
+	buf := &bytes.Buffer{}
+
+	for i := 0; i < b.N; i++ {
+		block, err := NewMetricCommonBlock(WithMetricAttributes(map[string]interface{}{"zup": "wup"}))
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		buf.Reset()
+		buf.WriteString(block.DataTypeKey())
+		block.WriteDataEntry(buf)
 	}
 }

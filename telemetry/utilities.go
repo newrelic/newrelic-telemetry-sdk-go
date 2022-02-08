@@ -3,7 +3,10 @@
 
 package telemetry
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 // jsonOrString returns its input as a jsonString if it is valid JSON, and as a
 // string otherwise.
@@ -21,8 +24,16 @@ type jsonString string
 
 // MarshalJSON returns the JSONString unmodified without any escaping.
 func (js jsonString) MarshalJSON() ([]byte, error) {
-	if "" == js {
+	if js == "" {
 		return []byte("null"), nil
 	}
 	return []byte(js), nil
+}
+
+// minDuration returns the smaller of the two durations
+func minDuration(d1, d2 time.Duration) time.Duration {
+	if d1 < d2 {
+		return d1
+	}
+	return d2
 }

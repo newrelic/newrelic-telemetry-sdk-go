@@ -78,19 +78,19 @@ func BenchmarkAggregatedMetric(b *testing.B) {
 }
 
 func ExampleMetricAggregator_Count() {
-	h, _ := NewHarvester(ConfigAPIKey(os.Getenv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")))
+	h, _ := NewHarvester(ConfigAPIKey(os.Getenv("NEW_RELIC_INSERT_API_KEY")))
 	count := h.MetricAggregator().Count("myCount", map[string]interface{}{"zip": "zap"})
 	count.Increment()
 }
 
 func ExampleMetricAggregator_Gauge() {
-	h, _ := NewHarvester(ConfigAPIKey(os.Getenv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")))
+	h, _ := NewHarvester(ConfigAPIKey(os.Getenv("NEW_RELIC_INSERT_API_KEY")))
 	gauge := h.MetricAggregator().Gauge("temperature", map[string]interface{}{"zip": "zap"})
 	gauge.Value(23.4)
 }
 
 func ExampleMetricAggregator_Summary() {
-	h, _ := NewHarvester(ConfigAPIKey(os.Getenv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")))
+	h, _ := NewHarvester(ConfigAPIKey(os.Getenv("NEW_RELIC_INSERT_API_KEY")))
 	summary := h.MetricAggregator().Summary("mySummary", map[string]interface{}{"zip": "zap"})
 	summary.RecordDuration(3 * time.Second)
 }

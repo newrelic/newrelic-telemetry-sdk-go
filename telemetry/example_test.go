@@ -12,8 +12,8 @@ import (
 
 func Example() {
 	h, err := NewHarvester(
-		// APIKey is the only required field and refers to your New Relic Insights Insert API key.
-		ConfigAPIKey(os.Getenv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")),
+		// APIKey is the only required field and refers to your New Relic Insert API key.
+		ConfigAPIKey(os.Getenv("NEW_RELIC_INSERT_API_KEY")),
 		ConfigCommonAttributes(map[string]interface{}{
 			"app.name": "myApplication",
 		}),
@@ -61,7 +61,7 @@ func Example() {
 
 func ExampleNewHarvester() {
 	h, err := NewHarvester(
-		ConfigAPIKey(os.Getenv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")),
+		ConfigAPIKey(os.Getenv("NEW_RELIC_INSERT_API_KEY")),
 	)
 	if err != nil {
 		fmt.Println(err)
@@ -78,7 +78,7 @@ func ExampleNewHarvester() {
 
 func ExampleHarvester_RecordMetric() {
 	h, _ := NewHarvester(
-		ConfigAPIKey(os.Getenv("NEW_RELIC_INSIGHTS_INSERT_API_KEY")),
+		ConfigAPIKey(os.Getenv("NEW_RELIC_INSERT_API_KEY")),
 	)
 	start := time.Now()
 	h.RecordMetric(Count{
@@ -87,5 +87,26 @@ func ExampleHarvester_RecordMetric() {
 		Value:          123,
 		Timestamp:      start,
 		Interval:       5 * time.Second,
+	})
+}
+
+func ExampleConfigSpansURLOverride() {
+	h, _ := NewHarvester(
+		ConfigAPIKey(os.Getenv("NEW_RELIC_INSERT_API_KEY")),
+		// Use ConfigSpansURLOverride to enable Infinite Tracing on the New
+		// Relic Edge by passing it your Trace Observer URL, including scheme
+		// and path.
+		ConfigSpansURLOverride("https://nr-internal.aws-us-east-1.tracing.edge.nr-data.net/trace/v1"),
+	)
+	h.RecordSpan(Span{
+		ID:          "12345",
+		TraceID:     "67890",
+		Name:        "purple-span",
+		Timestamp:   time.Now(),
+		Duration:    time.Second,
+		ServiceName: "ExampleApplication",
+		Attributes: map[string]interface{}{
+			"color": "purple",
+		},
 	})
 }

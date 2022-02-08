@@ -5,11 +5,12 @@ package telemetry
 
 import (
 	"bytes"
-	"encoding/json"
 	"time"
 
 	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
+
+const spanTypeName string = "spans"
 
 // Span is a distributed tracing span.
 type Span struct {
@@ -42,9 +43,9 @@ type Span struct {
 	// Attributes is a map of user specified tags on this span.  The map
 	// values can be any of bool, number, or string.
 	Attributes map[string]interface{}
-	// AttributesJSON is a json.RawMessage of attributes for this metric. It
-	// will only be sent if Attributes is nil.
-	AttributesJSON json.RawMessage
+	// Events is a slice of events that occurred during the execution of a span.
+	// This feature is a work in progress.
+	Events []Event
 }
 
 func (s *Span) writeJSON(buf *bytes.Buffer) {
@@ -59,82 +60,134 @@ func (s *Span) writeJSON(buf *bytes.Buffer) {
 	buf.WriteByte('{')
 	ww := internal.JSONFieldsWriter{Buf: buf}
 
-	if "" != s.Name {
+	if s.Name != "" {
 		ww.StringField("name", s.Name)
 	}
-	if "" != s.ParentID {
+	if s.ParentID != "" {
 		ww.StringField("parent.id", s.ParentID)
 	}
-	if 0 != s.Duration {
+	if s.Duration != 0 {
 		ww.FloatField("duration.ms", s.Duration.Seconds()*1000.0)
 	}
-	if "" != s.ServiceName {
+	if s.ServiceName != "" {
 		ww.StringField("service.name", s.ServiceName)
 	}
 
 	internal.AddAttributes(&ww, s.Attributes)
-
 	buf.WriteByte('}')
+
+	if len(s.Events) > 0 {
+		w.AddKey("events")
+		buf.WriteByte('[')
+		for i, e := range s.Events {
+			if i > 0 {
+				buf.WriteByte(',')
+			}
+			buf.WriteByte('{')
+			aw := internal.JSONFieldsWriter{Buf: buf}
+			aw.StringField("name", e.EventType)
+			aw.IntField("timestamp", e.Timestamp.UnixNano()/(1000*1000))
+			aw.AddKey("attributes")
+			buf.WriteByte('{')
+			aw.NoComma()
+			internal.AddAttributes(&aw, e.Attributes)
+			buf.WriteByte('}')
+			buf.WriteByte('}')
+		}
+		buf.WriteByte(']')
+	}
+
 	buf.WriteByte('}')
 }
 
-// spanBatch represents a single batch of spans to report to New Relic.
-type spanBatch struct {
-	// AttributesJSON is a json.RawMessage of attributes to apply to all
-	// spans in this spanBatch. It will only be sent if the Attributes field
-	// on this spanBatch is nil. These attributes are included in addition
-	// to any attributes on any particular span.
-	AttributesJSON json.RawMessage
-	Spans          []Span
+// spanCommonBlock represents the shared elements of a SpanGroup.
+type spanCommonBlock struct {
+	attributes MapEntry
 }
 
-// split will split the spanBatch into 2 equally sized batches.
-// If the number of spans in the original is 0 or 1 then nil is returned.
-func (batch *spanBatch) split() []requestsBuilder {
-	if len(batch.Spans) < 2 {
+// DataTypeKey returns the type of data contained in this MapEntry.
+func (c *spanCommonBlock) DataTypeKey() string {
+	return "common"
+}
+
+// WriteDataEntry writes the json serialized bytes of the MapEntry to the buffer.
+func (c *spanCommonBlock) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
+	buf.WriteByte('{')
+	if c.attributes != nil {
+		w := internal.JSONFieldsWriter{Buf: buf}
+		w.AddKey(c.attributes.DataTypeKey())
+		c.attributes.WriteDataEntry(buf)
+	}
+	buf.WriteByte('}')
+	return buf
+}
+
+// SpanCommonBlockOption is a function that can be used to configure a span common block
+type SpanCommonBlockOption func(scb *spanCommonBlock) error
+
+// NewSpanCommonBlock creates a new MapEntry representing data common to all spans in a group.
+func NewSpanCommonBlock(options ...SpanCommonBlockOption) (MapEntry, error) {
+	scb := &spanCommonBlock{}
+	for _, option := range options {
+		err := option(scb)
+		if err != nil {
+			return scb, err
+		}
+	}
+	return scb, nil
+}
+
+// WithSpanAttributes creates a SpanCommonBlockOption to specify the common attributes of the common block.
+// Invalid attributes will be detected and ignored
+func WithSpanAttributes(commonAttributes map[string]interface{}) SpanCommonBlockOption {
+	return func(scb *spanCommonBlock) error {
+		if len(commonAttributes) == 0 {
+			return nil
+		}
+		validCommonAttr, err := newCommonAttributes(commonAttributes)
+		if err != nil {
+			// Ignore any error with invalid attributes
+			if _, ok := err.(errInvalidAttributes); !ok {
+				return err
+			}
+		}
+		scb.attributes = validCommonAttr
 		return nil
 	}
-
-	half := len(batch.Spans) / 2
-	b1 := *batch
-	b1.Spans = batch.Spans[:half]
-	b2 := *batch
-	b2.Spans = batch.Spans[half:]
-
-	return []requestsBuilder{
-		requestsBuilder(&b1),
-		requestsBuilder(&b2),
-	}
 }
 
-func (batch *spanBatch) writeJSON(buf *bytes.Buffer) {
-	buf.WriteByte('[')
-	buf.WriteByte('{')
-	w := internal.JSONFieldsWriter{Buf: buf}
+// SpanGroup represents a grouping of spans in a payload to New Relic.
+type spanGroup struct {
+	Spans []Span
+}
 
-	w.AddKey("common")
-	buf.WriteByte('{')
-	ww := internal.JSONFieldsWriter{Buf: buf}
-	if nil != batch.AttributesJSON {
-		ww.RawField("attributes", batch.AttributesJSON)
-	}
-	buf.WriteByte('}')
+// DataTypeKey returns the type of data contained in this MapEntry.
+func (group *spanGroup) DataTypeKey() string {
+	return spanTypeName
+}
 
-	w.AddKey("spans")
+// WriteDataEntry writes the json serialized bytes of the MapEntry to the buffer.
+func (group *spanGroup) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
 	buf.WriteByte('[')
-	for idx, s := range batch.Spans {
+	for idx, s := range group.Spans {
 		if idx > 0 {
 			buf.WriteByte(',')
 		}
 		s.writeJSON(buf)
 	}
 	buf.WriteByte(']')
-	buf.WriteByte('}')
-	buf.WriteByte(']')
+	return buf
 }
 
-func (batch *spanBatch) makeBody() json.RawMessage {
-	buf := &bytes.Buffer{}
-	batch.writeJSON(buf)
-	return buf.Bytes()
+func (group *spanGroup) split() []splittablePayloadEntry {
+	if len(group.Spans) < 2 {
+		return nil
+	}
+	middle := len(group.Spans) / 2
+	return []splittablePayloadEntry{&spanGroup{Spans: group.Spans[0:middle]}, &spanGroup{Spans: group.Spans[middle:]}}
+}
+
+// NewSpanGroup creates a new MapEntry representing a group of spans in a batch.
+func NewSpanGroup(spans []Span) MapEntry {
+	return &spanGroup{Spans: spans}
 }

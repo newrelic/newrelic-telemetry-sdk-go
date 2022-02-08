@@ -4,7 +4,11 @@
 package telemetry
 
 import (
+	"bytes"
 	"fmt"
+	"strings"
+
+	"github.com/newrelic/newrelic-telemetry-sdk-go/internal"
 )
 
 func attributeValueValid(val interface{}) bool {
@@ -17,9 +21,17 @@ func attributeValueValid(val interface{}) bool {
 	}
 }
 
+type errInvalidAttributes struct {
+	msg string
+}
+
+func (e errInvalidAttributes) Error() string {
+	return e.msg
+}
+
 // vetAttributes returns the attributes that are valid.  vetAttributes does not
-// modify remove any elements from its parameter.
-func vetAttributes(attributes map[string]interface{}, errorLogger func(map[string]interface{})) map[string]interface{} {
+// modify or remove any elements from its parameter.
+func vetAttributes(attributes map[string]interface{}) (map[string]interface{}, error) {
 	valid := true
 	for _, val := range attributes {
 		if !attributeValueValid(val) {
@@ -28,19 +40,49 @@ func vetAttributes(attributes map[string]interface{}, errorLogger func(map[strin
 		}
 	}
 	if valid {
-		return attributes
+		return attributes, nil
 	}
 	// Note that the map is only copied if elements are to be removed to
 	// improve performance.
 	validAttributes := make(map[string]interface{}, len(attributes))
+	var errStrs []string
 	for key, val := range attributes {
 		if attributeValueValid(val) {
 			validAttributes[key] = val
-		} else if nil != errorLogger {
-			errorLogger(map[string]interface{}{
-				"err": fmt.Sprintf(`attribute "%s" has invalid type %T`, key, val),
-			})
+		} else {
+			errStrs = append(errStrs, fmt.Sprintf(`attribute "%s" has invalid type %T`, key, val))
 		}
 	}
-	return validAttributes
+	return validAttributes, errInvalidAttributes{strings.Join(errStrs, ",")}
+}
+
+type commonAttributes struct {
+	Attributes map[string]interface{}
+}
+
+var _ = MapEntry(&commonAttributes{})
+
+func (ca *commonAttributes) DataTypeKey() string {
+	return "attributes"
+}
+
+func (ca *commonAttributes) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
+	w := internal.JSONFieldsWriter{Buf: buf}
+	buf.WriteByte('{')
+	internal.AddAttributes(&w, ca.Attributes)
+	buf.WriteByte('}')
+	return buf
+}
+
+// newCommonAttributes vets the attributes map. If invalid attributes are
+// detected, the response will contain the valid attributes and an error describing which
+// keys were invalid will be returned.
+func newCommonAttributes(attributes map[string]interface{}) (*commonAttributes, error) {
+	if len(attributes) == 0 {
+		return nil, nil
+	}
+	validAttrs, err := vetAttributes(attributes)
+	return &commonAttributes{
+		Attributes: validAttrs,
+	}, err
 }

@@ -32,7 +32,7 @@ func TestConfigHarvestPeriod(t *testing.T) {
 	if nil == h || err != nil {
 		t.Fatal(h, err)
 	}
-	if 0 != h.config.HarvestPeriod {
+	if h.config.HarvestPeriod != 0 {
 		t.Error("config func does not set harvest period correctly")
 	}
 }
@@ -108,9 +108,7 @@ func TestConfigMetricURL(t *testing.T) {
 	if u := h.config.metricURL(); u != defaultMetricURL {
 		t.Fatal(u)
 	}
-	h, err = NewHarvester(configTesting, func(cfg *Config) {
-		cfg.MetricsURLOverride = "metric-url-override"
-	})
+	h, err = NewHarvester(configTesting, ConfigMetricsURLOverride("metric-url-override"))
 	if nil == h || err != nil {
 		t.Fatal(h, err)
 	}
@@ -119,7 +117,10 @@ func TestConfigMetricURL(t *testing.T) {
 	}
 }
 
-func TestConfigSpanURL(t *testing.T) {
+func TestConfigSpansURL(t *testing.T) {
+	t.Parallel()
+
+	// We get the default
 	h, err := NewHarvester(configTesting)
 	if nil == h || err != nil {
 		t.Fatal(h, err)
@@ -127,13 +128,35 @@ func TestConfigSpanURL(t *testing.T) {
 	if u := h.config.spanURL(); u != defaultSpanURL {
 		t.Fatal(u)
 	}
-	h, err = NewHarvester(configTesting, func(cfg *Config) {
-		cfg.SpansURLOverride = "span-url-override"
-	})
+
+	// The override config option works
+	h, err = NewHarvester(configTesting, ConfigSpansURLOverride("span-url-override"))
 	if nil == h || err != nil {
 		t.Fatal(h, err)
 	}
 	if u := h.config.spanURL(); u != "span-url-override" {
+		t.Fatal(u)
+	}
+}
+
+func TestConfigEventsURL(t *testing.T) {
+	t.Parallel()
+
+	// We get the default
+	h, err := NewHarvester(configTesting)
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	if u := h.config.eventURL(); u != defaultEventURL {
+		t.Fatal(u)
+	}
+
+	// The override config option works
+	h, err = NewHarvester(configTesting, ConfigEventsURLOverride("event-url-override"))
+	if nil == h || err != nil {
+		t.Fatal(h, err)
+	}
+	if u := h.config.eventURL(); u != "event-url-override" {
 		t.Fatal(u)
 	}
 }
@@ -145,27 +168,27 @@ func TestConfigUserAgent(t *testing.T) {
 	}{
 		{
 			option: func(*Config) {},
-			expect: "NewRelic-Go-TelemetrySDK/" + version,
+			expect: "",
 		},
 		{
 			option: func(cfg *Config) {
 				cfg.Product = "myProduct"
 			},
-			expect: "NewRelic-Go-TelemetrySDK/" + version + " myProduct",
+			expect: "myProduct",
 		},
 		{
 			option: func(cfg *Config) {
 				cfg.Product = "myProduct"
 				cfg.ProductVersion = "0.1.0"
 			},
-			expect: "NewRelic-Go-TelemetrySDK/" + version + " myProduct/0.1.0",
+			expect: "myProduct/0.1.0",
 		},
 		{
 			option: func(cfg *Config) {
 				// Only use ProductVersion if Product is set.
 				cfg.ProductVersion = "0.1.0"
 			},
-			expect: "NewRelic-Go-TelemetrySDK/" + version,
+			expect: "",
 		},
 	}
 

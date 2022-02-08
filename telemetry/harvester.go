@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,8 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,21 +24,30 @@ import (
 type Harvester struct {
 	// These fields are not modified after Harvester creation.  They may be
 	// safely accessed without locking.
-	config               Config
-	commonAttributesJSON json.RawMessage
+	config           Config
+	commonAttributes *cachedMapEntry
 
 	// lock protects the mutable fields below.
-	lock              sync.Mutex
-	lastHarvest       time.Time
-	rawMetrics        []Metric
-	aggregatedMetrics map[metricIdentity]*metric
-	spans             []Span
+	lock                 sync.Mutex
+	lastHarvest          time.Time
+	rawMetrics           []Metric
+	aggregatedMetrics    map[metricIdentity]*metric
+	spans                []Span
+	events               []Event
+	logs                 []Log
+	spanRequestFactory   RequestFactory
+	metricRequestFactory RequestFactory
+	eventRequestFactory  RequestFactory
+	logRequestFactory    RequestFactory
 }
 
 const (
 	// NOTE:  These constant values are used in Config field doc comments.
 	defaultHarvestPeriod  = 5 * time.Second
 	defaultHarvestTimeout = 15 * time.Second
+
+	// euKeyPrefix is used to sanitize the api-key for logging.
+	euKeyPrefix = "eu01xx"
 )
 
 var (
@@ -67,39 +79,112 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	// harvest.  This also has the benefit that it avoids race conditions if
 	// the consumer modifies the CommonAttributes map after calling
 	// NewHarvester.
-	if nil != h.config.CommonAttributes {
-		attrs := vetAttributes(h.config.CommonAttributes, h.config.logError)
-		attributesJSON, err := json.Marshal(attrs)
+	if len(h.config.CommonAttributes) > 0 {
+		commonAttributes, err := newCommonAttributes(h.config.CommonAttributes)
 		if err != nil {
-			h.config.logError(map[string]interface{}{
-				"err":     err.Error(),
-				"message": "error marshaling common attributes",
-			})
-		} else {
-			h.commonAttributesJSON = attributesJSON
+			h.config.logError(map[string]interface{}{"err": err.Error()})
 		}
+
+		h.commonAttributes = newCachedMapEntry(commonAttributes)
 		h.config.CommonAttributes = nil
+	}
+
+	spanURL, err := url.Parse(h.config.spanURL())
+	if nil != err {
+		return nil, err
+	}
+
+	userAgent := "harvester " + h.config.userAgent()
+
+	h.spanRequestFactory, err = NewSpanRequestFactory(
+		WithInsertKey(h.config.APIKey),
+		withScheme(spanURL.Scheme),
+		WithEndpoint(spanURL.Host),
+		WithUserAgent(userAgent),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	metricURL, err := url.Parse(h.config.metricURL())
+	if nil != err {
+		return nil, err
+	}
+
+	h.metricRequestFactory, err = NewMetricRequestFactory(
+		WithInsertKey(h.config.APIKey),
+		withScheme(metricURL.Scheme),
+		WithEndpoint(metricURL.Host),
+		WithUserAgent(userAgent),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	eventURL, err := url.Parse(h.config.eventURL())
+	if nil != err {
+		return nil, err
+	}
+
+	h.eventRequestFactory, err = NewEventRequestFactory(
+		WithInsertKey(h.config.APIKey),
+		withScheme(eventURL.Scheme),
+		WithEndpoint(eventURL.Host),
+		WithUserAgent(userAgent),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	logURL, err := url.Parse(h.config.logURL())
+	if err != nil {
+		return nil, err
+	}
+
+	h.logRequestFactory, err = NewLogRequestFactory(
+		WithInsertKey(h.config.APIKey),
+		withScheme(logURL.Scheme),
+		WithEndpoint(logURL.Host),
+		WithUserAgent(userAgent),
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	h.config.logDebug(map[string]interface{}{
 		"event":                  "harvester created",
-		"api-key":                h.config.APIKey,
+		"api-key":                sanitizeAPIKeyForLogging(h.config.APIKey),
 		"harvest-period-seconds": h.config.HarvestPeriod.Seconds(),
 		"metrics-url-override":   h.config.MetricsURLOverride,
 		"spans-url-override":     h.config.SpansURLOverride,
+		"events-url-override":    h.config.EventsURLOverride,
+		"logs-url-override":      h.config.LogsURLOverride,
 		"version":                version,
 	})
 
-	if 0 != h.config.HarvestPeriod {
+	if h.config.HarvestPeriod != 0 {
 		go harvestRoutine(h)
 	}
 
 	return h, nil
 }
 
+func sanitizeAPIKeyForLogging(apiKey string) string {
+	if len(apiKey) <= 8 {
+		return apiKey
+	}
+	end := 8
+	if strings.HasPrefix(apiKey, euKeyPrefix) {
+		end += len(euKeyPrefix)
+	}
+	return apiKey[:end]
+}
+
 var (
-	errSpanIDUnset  = errors.New("span id must be set")
-	errTraceIDUnset = errors.New("trace id must be set")
+	errSpanIDUnset     = errors.New("span id must be set")
+	errTraceIDUnset    = errors.New("trace id must be set")
+	errEventTypeUnset  = errors.New("eventType must be set")
+	errLogMessageUnset = errors.New("log message must be set")
 )
 
 // RecordSpan records the given span.
@@ -107,10 +192,10 @@ func (h *Harvester) RecordSpan(s Span) error {
 	if nil == h {
 		return nil
 	}
-	if "" == s.TraceID {
+	if s.TraceID == "" {
 		return errTraceIDUnset
 	}
-	if "" == s.ID {
+	if s.ID == "" {
 		return errSpanIDUnset
 	}
 	if s.Timestamp.IsZero() {
@@ -125,8 +210,8 @@ func (h *Harvester) RecordSpan(s Span) error {
 }
 
 // RecordMetric adds a fully formed metric.  This metric is not aggregated with
-// any other metrics and is never dropped.  The Timestamp field must be
-// specified on Gauge metrics.  The Timestamp/Interval fields on Count and
+// any other metrics and is never dropped.  The timestamp field must be
+// specified on Gauge metrics.  The timestamp/interval fields on Count and
 // Summary are optional and will be assumed to be the harvester batch times if
 // unset.  Use MetricAggregator() instead to aggregate metrics.
 func (h *Harvester) RecordMetric(m Metric) {
@@ -142,6 +227,44 @@ func (h *Harvester) RecordMetric(m Metric) {
 	}
 
 	h.rawMetrics = append(h.rawMetrics, m)
+}
+
+// RecordEvent records the given event.
+func (h *Harvester) RecordEvent(e Event) error {
+	if nil == h {
+		return nil
+	}
+	if e.EventType == "" {
+		return errEventTypeUnset
+	}
+	if e.Timestamp.IsZero() {
+		e.Timestamp = time.Now()
+	}
+
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
+	h.events = append(h.events, e)
+	return nil
+}
+
+// RecordLog records the given log message.
+func (h *Harvester) RecordLog(l Log) error {
+	if nil == h {
+		return nil
+	}
+	if l.Message == "" {
+		return errLogMessageUnset
+	}
+	if l.Timestamp.IsZero() {
+		l.Timestamp = time.Now()
+	}
+
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
+	h.logs = append(h.logs, l)
+	return nil
 }
 
 type response struct {
@@ -170,7 +293,7 @@ func (r response) needsRetry(cfg *Config, attempts int) (bool, time.Duration) {
 		return false, 0
 	case 429:
 		// special retry backoff time
-		if "" != r.retryAfter {
+		if r.retryAfter != "" {
 			// Honor Retry-After header value in seconds
 			if d, err := time.ParseDuration(r.retryAfter + "s"); nil == err {
 				if d > backoff {
@@ -208,7 +331,7 @@ func postData(req *http.Request, client *http.Client) response {
 	return r
 }
 
-func (h *Harvester) swapOutMetrics(now time.Time) []request {
+func (h *Harvester) swapOutMetrics(now time.Time) []*http.Request {
 	h.lock.Lock()
 	lastHarvest := h.lastHarvest
 	h.lastHarvest = now
@@ -230,17 +353,20 @@ func (h *Harvester) swapOutMetrics(now time.Time) []request {
 		}
 	}
 
-	if 0 == len(rawMetrics) {
+	if len(rawMetrics) == 0 {
 		return nil
 	}
 
-	batch := &metricBatch{
-		Timestamp:      lastHarvest,
-		Interval:       now.Sub(lastHarvest),
-		AttributesJSON: h.commonAttributesJSON,
-		Metrics:        rawMetrics,
+	commonBlock := &metricCommonBlock{
+		timestamp: lastHarvest,
+		interval:  now.Sub(lastHarvest),
 	}
-	reqs, err := newRequests(batch, h.config.APIKey, h.config.metricURL(), h.config.userAgent())
+	if h.commonAttributes != nil {
+		commonBlock.attributes = h.commonAttributes
+	}
+	group := &metricGroup{Metrics: rawMetrics}
+	entries := []MapEntry{commonBlock, group}
+	reqs, err := buildSplitRequests([]Batch{entries}, h.metricRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -251,7 +377,7 @@ func (h *Harvester) swapOutMetrics(now time.Time) []request {
 	return reqs
 }
 
-func (h *Harvester) swapOutSpans() []request {
+func (h *Harvester) swapOutSpans() []*http.Request {
 	h.lock.Lock()
 	sps := h.spans
 	h.spans = nil
@@ -260,11 +386,13 @@ func (h *Harvester) swapOutSpans() []request {
 	if nil == sps {
 		return nil
 	}
-	batch := &spanBatch{
-		AttributesJSON: h.commonAttributesJSON,
-		Spans:          sps,
+
+	var entries []MapEntry
+	if nil != h.commonAttributes {
+		entries = append(entries, &spanCommonBlock{attributes: h.commonAttributes})
 	}
-	reqs, err := newRequests(batch, h.config.APIKey, h.config.spanURL(), h.config.userAgent())
+	entries = append(entries, &spanGroup{Spans: sps})
+	reqs, err := buildSplitRequests([]Batch{entries}, h.spanRequestFactory)
 	if nil != err {
 		h.config.logError(map[string]interface{}{
 			"err":     err.Error(),
@@ -275,25 +403,78 @@ func (h *Harvester) swapOutSpans() []request {
 	return reqs
 }
 
-func harvestRequest(req request, cfg *Config) {
+func (h *Harvester) swapOutEvents() []*http.Request {
+	h.lock.Lock()
+	events := h.events
+	h.events = nil
+	h.lock.Unlock()
+
+	if nil == events {
+		return nil
+	}
+	group := &eventGroup{
+		Events: events,
+	}
+	reqs, err := buildSplitRequests([]Batch{{group}}, h.eventRequestFactory)
+	if nil != err {
+		h.config.logError(map[string]interface{}{
+			"err":     err.Error(),
+			"message": "error creating requests for events",
+		})
+		return nil
+	}
+	return reqs
+}
+
+func (h *Harvester) swapOutLogs() []*http.Request {
+	h.lock.Lock()
+	logs := h.logs
+	h.logs = nil
+	h.lock.Unlock()
+
+	if nil == logs {
+		return nil
+	}
+
+	var entries []MapEntry
+	if nil != h.commonAttributes {
+		entries = append(entries, &logCommonBlock{attributes: h.commonAttributes})
+	}
+	entries = append(entries, &logGroup{Logs: logs})
+	reqs, err := buildSplitRequests([]Batch{entries}, h.logRequestFactory)
+	if nil != err {
+		h.config.logError(map[string]interface{}{
+			"err":     err.Error(),
+			"message": "error creating requests for logs",
+		})
+		return nil
+	}
+	return reqs
+}
+
+func harvestRequest(req *http.Request, cfg *Config, wg *sync.WaitGroup) {
 	var attempts int
+	defer wg.Done()
 	for {
 		cfg.logDebug(map[string]interface{}{
 			"event":       "data post",
-			"url":         req.Request.URL.String(),
-			"body-length": req.compressedBodyLength,
+			"url":         req.URL.String(),
+			"body-length": req.ContentLength,
 		})
 		// Check if the audit log is enabled to prevent unnecessarily
 		// copying UncompressedBody.
 		if cfg.auditLogEnabled() {
+			bodyReader, _ := req.GetBody()
+			compressedBody, _ := ioutil.ReadAll(bodyReader)
+			uncompressedBody, _ := internal.Uncompress(compressedBody)
 			cfg.logAudit(map[string]interface{}{
 				"event": "uncompressed request body",
-				"url":   req.Request.URL.String(),
-				"data":  jsonString(req.UncompressedBody),
+				"url":   req.URL.String(),
+				"data":  jsonString(uncompressedBody),
 			})
 		}
 
-		resp := postData(req.Request, cfg.Client)
+		resp := postData(req, cfg.Client)
 
 		if nil != resp.err {
 			cfg.logError(map[string]interface{}{
@@ -314,12 +495,28 @@ func harvestRequest(req request, cfg *Config) {
 		tmr := time.NewTimer(backoff)
 		select {
 		case <-tmr.C:
-			break
-		case <-req.Request.Context().Done():
+		case <-req.Context().Done():
 			tmr.Stop()
+			if err := req.Context().Err(); err != nil {
+				// NOTE: It is possible that the context was
+				// cancelled/timedout right after the request
+				// successfully finished.  In that case, we will
+				// erroneously log a message.  I (will) don't think
+				// that's worth trying to engineer around.
+				cfg.logError(map[string]interface{}{
+					"event":         "harvest cancelled or timed out",
+					"message":       "dropping data",
+					"context-error": err.Error(),
+				})
+			}
 			return
 		}
 		attempts++
+
+		// Reattach request body because the original one has already been read
+		// and closed.
+		originalBody, _ := req.GetBody()
+		req.Body = originalBody
 	}
 }
 
@@ -335,34 +532,19 @@ func (h *Harvester) HarvestNow(ct context.Context) {
 	ctx, cancel := context.WithTimeout(ct, h.config.HarvestTimeout)
 	defer cancel()
 
-	var reqs []request
+	var reqs []*http.Request
 	reqs = append(reqs, h.swapOutMetrics(time.Now())...)
 	reqs = append(reqs, h.swapOutSpans()...)
+	reqs = append(reqs, h.swapOutEvents()...)
+	reqs = append(reqs, h.swapOutLogs()...)
+	wg := sync.WaitGroup{}
 
 	for _, req := range reqs {
-		req.Request = req.Request.WithContext(ctx)
-		harvestRequest(req, &h.config)
-		if err := ctx.Err(); err != nil {
-			// NOTE: It is possible that the context was
-			// cancelled/timedout right after the request
-			// successfully finished.  In that case, we will
-			// erroneously log a message.  I (will) don't think
-			// that's worth trying to engineer around.
-			h.config.logError(map[string]interface{}{
-				"event":         "harvest cancelled or timed out",
-				"message":       "dropping data",
-				"context-error": err.Error(),
-			})
-			return
-		}
+		wg.Add(1)
+		httpRequest := req.WithContext(ctx)
+		go harvestRequest(httpRequest, &h.config, &wg)
 	}
-}
-
-func minDuration(d1, d2 time.Duration) time.Duration {
-	if d1 < d2 {
-		return d1
-	}
-	return d2
+	wg.Wait()
 }
 
 func harvestRoutine(h *Harvester) {
@@ -457,4 +639,29 @@ func (ag *MetricAggregator) Summary(name string, attributes map[string]interface
 		return nil
 	}
 	return &AggregatedSummary{metricHandle: newMetricHandle(ag.harvester, name, attributes)}
+}
+
+type cachedMapEntry struct {
+	key  string
+	data json.RawMessage
+}
+
+var _ = MapEntry(cachedMapEntry{})
+
+func (c cachedMapEntry) DataTypeKey() string {
+	return c.key
+}
+
+func (c cachedMapEntry) WriteDataEntry(buf *bytes.Buffer) *bytes.Buffer {
+	buf.Write(c.data)
+	return buf
+}
+
+func newCachedMapEntry(e MapEntry) *cachedMapEntry {
+	buf := &bytes.Buffer{}
+	e.WriteDataEntry(buf)
+	return &cachedMapEntry{
+		key:  e.DataTypeKey(),
+		data: buf.Bytes(),
+	}
 }
