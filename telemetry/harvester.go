@@ -51,7 +51,7 @@ const (
 )
 
 var (
-	errAPIKeyUnset = errors.New("APIKey is required")
+	errAPIKeyUnset = errors.New("APIKey or License is required")
 )
 
 // NewHarvester creates a new harvester.
@@ -65,7 +65,12 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		opt(&cfg)
 	}
 
-	if cfg.APIKey == "" {
+	var apiKeyOption ClientOption
+	if cfg.APIKey != "" {
+		apiKeyOption = WithInsertKey(cfg.APIKey)
+	} else if cfg.License != "" {
+		apiKeyOption = WithLicenseKey(cfg.License)
+	} else {
 		return nil, errAPIKeyUnset
 	}
 
@@ -97,7 +102,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	userAgent := "harvester " + h.config.userAgent()
 
 	h.spanRequestFactory, err = NewSpanRequestFactory(
-		WithInsertKey(h.config.APIKey),
+		apiKeyOption,
 		withScheme(spanURL.Scheme),
 		WithEndpoint(spanURL.Host),
 		WithUserAgent(userAgent),
@@ -112,7 +117,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	}
 
 	h.metricRequestFactory, err = NewMetricRequestFactory(
-		WithInsertKey(h.config.APIKey),
+		apiKeyOption,
 		withScheme(metricURL.Scheme),
 		WithEndpoint(metricURL.Host),
 		WithUserAgent(userAgent),
@@ -127,7 +132,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	}
 
 	h.eventRequestFactory, err = NewEventRequestFactory(
-		WithInsertKey(h.config.APIKey),
+		apiKeyOption,
 		withScheme(eventURL.Scheme),
 		WithEndpoint(eventURL.Host),
 		WithUserAgent(userAgent),
@@ -142,7 +147,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	}
 
 	h.logRequestFactory, err = NewLogRequestFactory(
-		WithInsertKey(h.config.APIKey),
+		apiKeyOption,
 		withScheme(logURL.Scheme),
 		WithEndpoint(logURL.Host),
 		WithUserAgent(userAgent),
@@ -153,7 +158,8 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 
 	h.config.logDebug(map[string]interface{}{
 		"event":                  "harvester created",
-		"api-key":                sanitizeAPIKeyForLogging(h.config.APIKey),
+		"api-key":                sanitizeKeyForLogging(h.config.APIKey),
+		"license-key":            sanitizeKeyForLogging(h.config.License),
 		"harvest-period-seconds": h.config.HarvestPeriod.Seconds(),
 		"metrics-url-override":   h.config.MetricsURLOverride,
 		"spans-url-override":     h.config.SpansURLOverride,
@@ -169,7 +175,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 	return h, nil
 }
 
-func sanitizeAPIKeyForLogging(apiKey string) string {
+func sanitizeKeyForLogging(apiKey string) string {
 	if len(apiKey) <= 8 {
 		return apiKey
 	}

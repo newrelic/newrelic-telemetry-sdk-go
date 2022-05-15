@@ -135,11 +135,11 @@ func TestSanitizeApiKeyForLogging(t *testing.T) {
 			t.Errorf("Got %s but expected %s", actual, expected)
 		}
 	}
-	assertEqual("", sanitizeAPIKeyForLogging(""))
-	assertEqual("", sanitizeAPIKeyForLogging(""))
-	assertEqual("foo", sanitizeAPIKeyForLogging("foo"))
-	assertEqual("foobarba", sanitizeAPIKeyForLogging("foobarbazqux"))
-	assertEqual("eu01xxfoobarba", sanitizeAPIKeyForLogging("eu01xxfoobarbazqux"))
+	assertEqual("", sanitizeKeyForLogging(""))
+	assertEqual("", sanitizeKeyForLogging(""))
+	assertEqual("foo", sanitizeKeyForLogging("foo"))
+	assertEqual("foobarba", sanitizeKeyForLogging("foobarbazqux"))
+	assertEqual("eu01xxfoobarba", sanitizeKeyForLogging("eu01xxfoobarbazqux"))
 }
 
 func TestHarvesterRecordSpan(t *testing.T) {
