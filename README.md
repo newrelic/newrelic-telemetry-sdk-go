@@ -1,4 +1,12 @@
-[![Community Project header](https://github.com/newrelic/opensource-website/raw/master/src/images/categories/Community_Project.png)](https://opensource.newrelic.com/oss-category/#community-project)
+<a href="https://opensource.newrelic.com/oss-category/#archived"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/dark/Archived.png"><source media="(prefers-color-scheme: light)" srcset="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Archived.png"><img alt="New Relic Open Source archived project banner." src="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Archived.png"></picture></a>
+
+# Archival Notice
+
+❗Notice: This project has been archived _as is_ and is no longer actively maintained.
+
+The current recommendation is to utilize the [New Relic Go Agent](https://github.com/newrelic/go-agent) instead.
+
+---
 
 # Go Telemetry SDK [![GoDoc](https://godoc.org/github.com/newrelic/newrelic-telemetry-sdk-go?status.svg)](https://godoc.org/github.com/newrelic/newrelic-telemetry-sdk-go)
 
