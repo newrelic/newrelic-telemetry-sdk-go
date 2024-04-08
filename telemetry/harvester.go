@@ -60,6 +60,7 @@ func NewHarvester(options ...func(*Config)) (*Harvester, error) {
 		Client:         &http.Client{},
 		HarvestPeriod:  defaultHarvestPeriod,
 		HarvestTimeout: defaultHarvestTimeout,
+		Context:        context.Background(),
 	}
 	for _, opt := range options {
 		opt(&cfg)
@@ -556,8 +557,13 @@ func harvestRoutine(h *Harvester) {
 	time.Sleep(jitter)
 
 	ticker := time.NewTicker(h.config.HarvestPeriod)
-	for range ticker.C {
-		go h.HarvestNow(context.Background())
+	for {
+		select {
+		case <-ticker.C:
+			go h.HarvestNow(h.config.Context)
+		case <-h.config.Context.Done():
+			return
+		}
 	}
 }
 

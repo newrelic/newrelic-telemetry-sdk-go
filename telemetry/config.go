@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -53,6 +54,8 @@ type Config struct {
 	Product string
 	// ProductVersion is added to the User-Agent header. eg. "0.1.0".
 	ProductVersion string
+	// Context is the Context to use for making requests
+	Context context.Context
 }
 
 // ConfigAPIKey sets the Config's APIKey which is required and refers to your
@@ -68,6 +71,14 @@ func ConfigAPIKey(key string) func(*Config) {
 func ConfigCommonAttributes(attributes map[string]interface{}) func(*Config) {
 	return func(cfg *Config) {
 		cfg.CommonAttributes = attributes
+	}
+}
+
+// ConfigContext add the given context.Context to the Config's
+// Context field
+func ConfigContext(ctx context.Context) func(*Config) {
+	return func(cfg *Config) {
+		cfg.Context = ctx
 	}
 }
 
