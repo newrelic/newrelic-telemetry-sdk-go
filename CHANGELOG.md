@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+* Allow using a license key instead of an API key ([#77](https://github.com/newrelic/newrelic-telemetry-sdk-go/pull/77))
+
 ## [0.8.1] - 2021-07-29
 
 ### Added

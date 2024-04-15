@@ -13,8 +13,12 @@ import (
 
 // Config customizes the behavior of a Harvester.
 type Config struct {
-	// APIKey is required and refers to your New Relic Insert API key.
+	// APIKey refers to your New Relic Insert API key.
+	// One of APIKey or License is required
 	APIKey string
+	// License refers to your New Relic License key.
+	// One of APIKey or License is required
+	License string
 	// Client is the http.Client used for making requests.
 	Client *http.Client
 	// HarvestTimeout is the total amount of time including retries that the
@@ -55,11 +59,19 @@ type Config struct {
 	ProductVersion string
 }
 
-// ConfigAPIKey sets the Config's APIKey which is required and refers to your
+// ConfigAPIKey sets the Config's APIKey which refers to your
 // New Relic Insert API key.
 func ConfigAPIKey(key string) func(*Config) {
 	return func(cfg *Config) {
 		cfg.APIKey = key
+	}
+}
+
+// ConfigLicense sets the Config's License which refers to your
+// New Relic License key.
+func ConfigLicense(license string) func(*Config) {
+	return func(cfg *Config) {
+		cfg.License = license
 	}
 }
 

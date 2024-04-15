@@ -59,8 +59,8 @@ import (
 )
 
 func main() {
-	// First create a Harvester.  APIKey is the only required field.
-	h, err := telemetry.NewHarvester(telemetry.ConfigAPIKey(os.Getenv("NEW_RELIC_LICENSE_KEY")))
+	// First create a Harvester.  Either License or APIKey must be provided.
+	h, err := telemetry.NewHarvester(telemetry.ConfigLicense(os.Getenv("NEW_RELIC_LICENSE_KEY")))
 	if err != nil {
 		fmt.Println(err)
 	}
